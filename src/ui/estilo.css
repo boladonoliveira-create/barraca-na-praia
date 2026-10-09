@@ -41,3 +41,16 @@ body{height:100%;background:var(--sand);color:var(--ink);font-family:var(--f-ui)
 .btn.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);box-shadow:none}
 .note{font-size:12.5px}
 button:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+
+/* Tela inicial: céu, mar e areia em faixas, como a praia do jogo */
+.inicio{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px 16px;text-align:center;
+  background:linear-gradient(180deg,#bfefff 0,#bfefff 16%,#33c2c9 16%,#0f7f99 34%,#fff 34%,#fff 35.5%,var(--sand) 35.5%)}
+.inicio-arte{width:min(220px,56vw);height:auto;margin-top:6vh}
+.logo{margin:0;font:800 clamp(44px,13vw,60px)/.9 var(--f-display);color:var(--acai);text-shadow:0 3px 0 #fff,0 6px 0 var(--line)}
+.logo span{display:block;color:var(--money);font-size:.62em;margin-top:4px}
+.inicio .lbl{font-size:12px}
+.btn-big{width:min(320px,100%);font-size:22px;padding:18px 16px}
+.toggles{display:flex;gap:8px;width:min(320px,100%)}
+.toggles .btn{flex:1;font-size:14px;padding:12px 8px;background:var(--panel)}
+.toggles .btn[aria-pressed=false]{color:var(--muted);text-decoration:line-through}
+.inicio .note{color:var(--muted);margin:0}

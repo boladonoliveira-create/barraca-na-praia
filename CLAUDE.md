@@ -26,14 +26,15 @@ src/
                 economia.ts (plano e preços), simulador.ts (bot que mede o ritmo)
   render/       desenho.ts (câmera, cenário, personagens, máquinas, efeitos)
   ui/           hud.ts (placar, telas, botões), estilo.css
-  plataforma/   salvar.ts (localStorage), som.ts (som e vibração)
+  plataforma/   salvar.ts (save versionado e preferências), som.ts (sons, mar, vibração)
   main.ts       entrada (joystick/teclado) e laço principal
 scripts/sim.ts  relatório do simulador no terminal
 ```
 
 - O núcleo (`core/`) não toca em canvas nem DOM. Som, vibração, salvar e telas saem pela interface `Io` passada ao `Jogo`. A aleatoriedade vem de `rand`, que os testes e o simulador trocam por um gerador com semente.
 - Cada mecânica nova da seção 7 é uma "loja" com dados próprios em `dados/` (produtos, zonas, regra de ajudante), no modelo de `SHOPS`. Adicionar uma praia deve ser adicionar dados, não reescrever o motor.
-- Salvar: a versão do formato vai na chave (`barracaPraia.v5`). Se a estrutura mudar, use uma chave nova.
+- Salvar: progresso em `barraca-na-praia:save` como `{ versao, jogo }` (`SAVE_VERSION` em `plataforma/salvar.ts`). Se a estrutura do `Save` mudar, suba a versão e converta em `lerSave`. O save do protótipo (`barracaPraia.v5`) é lido uma vez. Um save de versão mais nova nunca é sobrescrito. Som, vibração e modo teste ficam em `barraca-na-praia:prefs`.
+- Ganhos offline valem ao abrir o jogo e ao voltar do segundo plano (`Jogo.offlineGain`).
 - Modo teste (botão ∞): só existe em `npm run dev` (`import.meta.env.DEV`). Nunca na versão da loja.
 
 ## Comandos
@@ -53,4 +54,4 @@ O simulador compara o ritmo com a faixa da seção 8: compras de ~15 s no começ
 
 ## Ordem de trabalho (GDD seção 12)
 
-Feita: etapa 1 (base, porte do protótipo, testes do núcleo e simulador). Não avance para a próxima etapa sem o usuário pedir.
+Feitas: etapa 1 (base, porte, testes, simulador) e etapa 2 (personagens, sons e mar, vibração, tela inicial, save versionado, ganhos offline). Não avance para a etapa 3 (Capacitor, AdMob, Firebase) sem o usuário pedir.

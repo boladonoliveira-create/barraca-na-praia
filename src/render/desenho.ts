@@ -4,7 +4,7 @@ import { fmt } from '../core/economia.ts';
 import { zoneOf, padOf, inZone, type Jogo, type Kind, type Machine, type Umbrella, type Carrier } from '../core/jogo.ts';
 
 export interface Joy { on: boolean; ox: number; oy: number; x: number; y: number }
-interface PersonLook { shirt: string; skin: string; walk?: number; face?: number; cap?: string; hat?: boolean; apron?: boolean }
+interface PersonLook { shirt: string; skin: string; walk?: number; face?: number; cap?: string; hat?: boolean; apron?: boolean; hair?: string; hairStyle?: number; shorts?: string; flip?: string; shades?: boolean; carry?: boolean }
 
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const specks = Array.from({ length: 380 }, () => ({ x: Math.random() * WORLD_W, y: SHORE + Math.random() * (H - SHORE), r: Math.random() * 1.4 + 0.4, c: Math.random() < .5 ? 'rgba(190,150,90,0.25)' : 'rgba(255,255,255,0.35)' }));
@@ -42,16 +42,53 @@ function drawItem(kind: Kind, x: number, y: number, s = 1) {
   ctx.restore();
 }
 
+/* Personagens: contorno marrom, short, chinelo, braços que balançam ao andar (ou erguidos segurando a pilha),
+   cabelo, olhos e sorriso. Clientes ganham cabelo, short e óculos sorteados uma vez (só visual, fora do núcleo). */
+const OUTLINE = 'rgba(58,35,22,0.55)';
+const HAIRS = ['#2b1d14', '#5a3825', '#8a5a2b', '#e0b04a', '#1a1a1a', '#b5651d'];
+const SHORTS = ['#3b5bdb', '#2b8a3e', '#e8590c', '#495057', '#d6336c', '#1098ad'];
+const looks = new WeakMap<object, { hair: string; hairStyle: number; shorts: string; shades: boolean }>();
+const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+function lookOf(c: object) {
+  let l = looks.get(c);
+  if (!l) { l = { hair: pick(HAIRS), hairStyle: Math.floor(Math.random() * 5), shorts: pick(SHORTS), shades: Math.random() < 0.25 }; looks.set(c, l) }
+  return l;
+}
+
 function drawPerson(x: number, y: number, o: PersonLook) {
-  const bob = reduceMotion ? 0 : Math.abs(Math.sin(o.walk || 0)) * 2.2; shadow(x, y + 2, 12);
-  ctx.save(); ctx.translate(x, y - bob);
-  const leg = reduceMotion ? 0 : Math.sin(o.walk || 0) * 3; ctx.fillStyle = o.skin; rr(-6, -6 + leg * 0.3, 4, 9, 2); ctx.fill(); rr(2, -6 - leg * 0.3, 4, 9, 2); ctx.fill();
-  ctx.fillStyle = o.shirt; rr(-10, -22, 20, 18, 8); ctx.fill();
-  if (o.apron) { ctx.fillStyle = '#fff'; rr(-7, -16, 14, 12, 4); ctx.fill(); ctx.fillStyle = '#5b2370'; circ(0, -10, 2.2); ctx.fill() }
-  ctx.fillStyle = o.skin; circ(0, -29, 8); ctx.fill();
-  const fx = (o.face || 1) * 2; ctx.fillStyle = '#3a2316'; circ(fx - 2.5, -29, 1.3); ctx.fill(); circ(fx + 2.5, -29, 1.3); ctx.fill();
-  if (o.cap) { ctx.fillStyle = o.cap; ctx.beginPath(); ctx.arc(0, -31, 8.4, Math.PI, 0); ctx.fill(); rr((o.face || 1) > 0 ? 0 : -12, -32, 12, 3.5, 2); ctx.fill() }
-  else if (o.hat) { ctx.fillStyle = '#f4d58d'; ctx.beginPath(); ctx.ellipse(0, -34, 12, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(0, -34, 6.5, Math.PI, 0); ctx.fill() }
+  const w = o.walk || 0, bob = reduceMotion ? 0 : Math.abs(Math.sin(w)) * 2.2, sw = reduceMotion ? 0 : Math.sin(w), f = o.face || 1;
+  shadow(x, y + 2, 12);
+  ctx.save(); ctx.translate(x, y - bob); ctx.lineWidth = 1.5; ctx.strokeStyle = OUTLINE; ctx.lineJoin = 'round';
+  // pernas e chinelos
+  for (const s of [-1, 1]) {
+    const ly = sw * s * 2.4;
+    ctx.fillStyle = o.skin; rr(s * 3.5 - 2.2, -7 + ly * 0.3, 4.4, 9, 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = o.flip || '#4dabf7'; ctx.beginPath(); ctx.ellipse(s * 3.5 + f, 2.4 + ly * 0.3, 3.3, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = o.shorts || '#3b5bdb'; rr(-8.5, -12, 17, 7, 3); ctx.fill(); ctx.stroke();
+  // braços: balançam ao andar; erguidos quando carrega a pilha
+  for (const s of [-1, 1]) {
+    ctx.save(); ctx.translate(s * 8.5, -20); ctx.rotate(o.carry ? s * (Math.PI - 0.35) : s * 0.18 + sw * s * 0.5);
+    ctx.fillStyle = o.skin; rr(-2.1, -1, 4.2, 11, 2.1); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  ctx.fillStyle = o.shirt; rr(-9.5, -24, 19, 14, 7); ctx.fill(); ctx.stroke();
+  if (o.apron) { ctx.fillStyle = '#fff'; rr(-6.5, -18, 13, 11, 4); ctx.fill(); ctx.fillStyle = '#5b2370'; circ(0, -12.5, 2); ctx.fill() }
+  // cabelo de trás, cabeça, cabelo da frente
+  const hs = o.hairStyle ?? 0, hair = o.hair || '#2b1d14';
+  if (hs === 1) { ctx.fillStyle = hair; rr(-9.5, -37, 19, 15, 7); ctx.fill(); ctx.stroke() }
+  ctx.fillStyle = o.skin; circ(0, -30, 8.5); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = hair;
+  if (hs !== 4) { ctx.beginPath(); ctx.ellipse(0, -34, 8.8, 5.2, 0, Math.PI, 0); ctx.fill() }
+  if (hs === 2) for (const [cx, cy] of [[-7, -34], [-3, -38], [3, -38], [7, -34]]) { circ(cx, cy, 3.3); ctx.fill() }
+  if (hs === 3) { circ(0, -40.5, 3.6); ctx.fill() }
+  // rosto olhando para onde anda
+  const fx = f * 2;
+  if (o.shades) { ctx.fillStyle = '#212529'; rr(fx - 6, -32, 5, 3.4, 1.5); ctx.fill(); rr(fx + 1, -32, 5, 3.4, 1.5); ctx.fill(); ctx.fillRect(fx - 1, -31.2, 2, 1) }
+  else { ctx.fillStyle = '#3a2316'; circ(fx - 2.6, -30, 1.3); ctx.fill(); circ(fx + 2.6, -30, 1.3); ctx.fill(); ctx.fillStyle = '#fff'; circ(fx - 2.2, -30.5, 0.45); ctx.fill(); circ(fx + 3, -30.5, 0.45); ctx.fill() }
+  ctx.fillStyle = 'rgba(255,120,120,0.35)'; circ(fx - 5, -27, 1.6); ctx.fill(); circ(fx + 5, -27, 1.6); ctx.fill();
+  ctx.strokeStyle = '#3a2316'; ctx.lineWidth = 1.1; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(fx, -27.4, 2, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+  if (o.cap) { ctx.fillStyle = o.cap; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, -32, 8.8, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke(); rr(f > 0 ? 1 : -13, -33, 12, 3.5, 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; circ(0, -36, 1.8); ctx.fill() }
+  else if (o.hat) { ctx.fillStyle = '#f4d58d'; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(0, -35, 12.5, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(0, -35, 6.5, Math.PI, 0); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#e8590c'; ctx.fillRect(-6.5, -37, 13, 2) }
   ctx.restore();
 }
 function drawStack(a: Carrier) { for (let i = 0; i < a.stack.length; i++) drawItem(a.stack[i], a.x, a.y - 44 - i * (a.stack[i] === 'caixa' ? 13 : 9), 1) }
@@ -189,13 +226,13 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   const ds: { y: number; d: () => void }[] = [];
   g.machines.forEach(m => ds.push({ y: m.y, d: () => drawMachine(m) }));
   g.customers.forEach(c => ds.push({ y: c.y, d: () => {
-    drawPerson(c.x, c.y, c);
+    drawPerson(c.x, c.y, { ...c, ...lookOf(c) });
     if (c.has) drawItem(c.has, c.x + (c.face > 0 ? 12 : -12), c.y - 18, 0.9);
     else { const qi = g.S[c.shop].queue.indexOf(c); if (qi >= 0 && qi < 4) { ctx.fillStyle = '#fff'; rr(c.x + 10, c.y - 58, 26, 22, 8); ctx.fill(); ctx.beginPath(); ctx.moveTo(c.x + 14, c.y - 38); ctx.lineTo(c.x + 10, c.y - 32); ctx.lineTo(c.x + 20, c.y - 37); ctx.fill(); drawItem(c.want, c.x + 23, c.y - 47, 0.8) } }
   } }));
-  g.helpers.forEach(h => ds.push({ y: h.y, d: () => { drawPerson(h.x, h.y, { shirt: h.shirt, skin: '#c68a5e', walk: h.walk, face: h.face, cap: h.shop ? '#e64980' : '#1c7ed6', apron: true }); drawStack(h) } }));
+  g.helpers.forEach(h => ds.push({ y: h.y, d: () => { drawPerson(h.x, h.y, { shirt: h.shirt, skin: '#c68a5e', walk: h.walk, face: h.face, cap: h.shop ? '#e64980' : '#1c7ed6', apron: true, hair: '#2b1d14', shorts: '#343a40', flip: '#fff', carry: h.stack.length > 0 }); drawStack(h) } }));
   ds.push({ y: p.y, d: () => {
-    drawPerson(p.x, p.y, { shirt: '#ff922b', skin: '#e0a77d', walk: p.walk, face: p.face, cap: '#e03131', apron: true }); drawStack(p);
+    drawPerson(p.x, p.y, { shirt: '#ff922b', skin: '#e0a77d', walk: p.walk, face: p.face, cap: '#e03131', apron: true, hair: '#5a3825', shorts: '#1c7ed6', flip: '#ffd43b', carry: p.stack.length > 0 }); drawStack(p);
     if (p.stack.length >= g.playerCap()) { ctx.fillStyle = '#e03131'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.fillText('CHEIO', p.x, p.y - 52 - p.stack.length * 9) }
   } });
   ds.sort((a, b) => a.y - b.y).forEach(o => o.d());

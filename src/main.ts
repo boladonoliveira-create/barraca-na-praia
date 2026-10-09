@@ -1,18 +1,18 @@
 /* Liga núcleo, render, UI e plataforma; entrada e laço principal. */
 import { W, H } from './dados/mapa.ts';
-import { Jogo, type Save } from './core/jogo.ts';
+import { Jogo } from './core/jogo.ts';
 import { desenhar, type Joy } from './render/desenho.ts';
 import { criarHud } from './ui/hud.ts';
-import { store, SAVE_KEY } from './plataforma/salvar.ts';
-import { ensureAudio, tone, fanfare, buzz } from './plataforma/som.ts';
+import { lerSave, gravarSave, lerPrefs } from './plataforma/salvar.ts';
+import { ensureAudio, pauseAudio, tone, fanfare, buzz } from './plataforma/som.ts';
 
 const testEnabled = import.meta.env.DEV;
 const canvas = document.getElementById('game') as HTMLCanvasElement, ctx = canvas.getContext('2d')!, stage = document.getElementById('stage')!;
 
-const save = () => store.set(SAVE_KEY, g.snapshot());
+const save = () => gravarSave(g.snapshot()), prefs = lerPrefs();
 const g = new Jogo({ tone, fanfare, buzz, save, goal: () => hud.goal(), prestige: () => hud.prestige() });
-g.testMode = testEnabled && store.get('test', false);
-const hud = criarHud(g, save, testEnabled);
+g.testMode = testEnabled && prefs.teste;
+const hud = criarHud(g, save, prefs, testEnabled);
 
 /* ---------- Entrada: joystick que aparece onde o dedo toca, ou teclado ---------- */
 const joy: Joy & { id: number | null } = { on: false, ox: 0, oy: 0, x: 0, y: 0, id: null };
@@ -45,12 +45,19 @@ function frame(ms: number) {
   goalT += dt; if (goalT > 500) { goalT = 0; hud.goal() }
   desenhar(ctx, g, k, joy); requestAnimationFrame(frame);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) save() });
+// Segundo plano: salva e pausa o som. Na volta, os ajudantes renderam o tempo que o app ficou fora.
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { save(); pauseAudio(true); hiddenAt = Date.now(); return }
+  pauseAudio(false);
+  const off = g.state === 'play' && !g.testMode && hiddenAt ? g.offlineGain(hiddenAt) : 0;
+  if (off > 0) hud.showOffline(off, Date.now() - hiddenAt);
+});
 
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
 resize();
-const offAmount = g.load(store.get<Save | null>(SAVE_KEY, null)); hud.syncTest(); hud.goal(); g.firstScene();
-if (offAmount > 0 && !g.testMode) hud.showOffline(offAmount);
+const saved = lerSave(), offAmount = g.load(saved); hud.syncTest(); hud.goal(); g.firstScene();
+hud.showStart(() => { if (offAmount > 0 && !g.testMode) hud.showOffline(offAmount, Date.now() - saved!.last) });
 requestAnimationFrame(frame);
 
 // gancho de depuração no console (o mesmo do protótipo)

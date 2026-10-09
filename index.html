@@ -24,7 +24,7 @@
     <div class="ov" id="ovOffline" hidden>
       <div class="card">
         <h2>Bem-vindo de volta!</h2>
-        <p>Enquanto você estava fora, os ajudantes continuaram vendendo.</p>
+        <p id="offText">Enquanto você estava fora, os ajudantes continuaram vendendo.</p>
         <div class="big" id="offAmount">R$ 0</div>
         <button class="btn" id="offDouble">Dobrar com anúncio</button>
         <button class="btn ghost" id="offTake">Pegar</button>
@@ -45,6 +45,24 @@
       </div>
     </div>
   </main>
+  <div class="inicio" id="ovStart" hidden>
+    <svg class="inicio-arte" viewBox="0 0 200 150" aria-hidden="true">
+      <rect x="97" y="52" width="6" height="92" rx="3" fill="#8d5a2b"/>
+      <path d="M20 70 A80 52 0 0 1 180 70 Z" fill="#ff6b6b"/>
+      <path d="M60 70 Q66 30 100 18 Q82 36 80 70 Z M120 70 Q118 36 100 18 Q134 30 140 70 Z" fill="#fff"/>
+      <circle cx="100" cy="18" r="5" fill="#c92a2a"/>
+      <path d="M38 132 l12 -16 h22 l-6 16 Z" fill="#fff" stroke="#e0b84f" stroke-width="2"/>
+      <g transform="translate(140 112)"><path d="M-12 0 h24 l-4 24 h-16 Z" fill="#fff" stroke="#d9c7e6" stroke-width="2"/><ellipse cx="0" cy="0" rx="14" ry="7" fill="#5b2370"/><circle cx="5" cy="-5" r="4" fill="#e63946"/><circle cx="-5" cy="-2" r="2" fill="#e9c46a"/></g>
+    </svg>
+    <h1 class="logo">Barraca<span>na Praia</span></h1>
+    <span class="lbl" id="startBeach">Praia do Sol</span>
+    <button class="btn btn-big" id="startPlay">Jogar</button>
+    <div class="toggles">
+      <button class="btn ghost" id="startSom" aria-pressed="true">Som ligado</button>
+      <button class="btn ghost" id="startVibra" aria-pressed="true">Vibração ligada</button>
+    </div>
+    <p class="note">Arraste o dedo em qualquer lugar para andar.</p>
+  </div>
   <footer class="tools">
     <button class="tool" id="boost">Dinheiro em dobro <span class="badge" id="boostBadge">anúncio · 2 min</span></button>
   </footer>

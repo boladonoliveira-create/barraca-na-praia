@@ -21,7 +21,7 @@ export interface ShopState { open: boolean; counter: Record<string, Item[]>; sto
 export interface Flyer { kind: Kind; x0: number; y0: number; x1: number; y1: number; t: number; dur: number }
 export interface Popup { x: number; y: number; txt: string; life: number; col: string; size: number }
 export interface Spark { x: number; y: number; vx: number; vy: number; life: number; col: string }
-export type Estado = 'play' | 'ad' | 'offline' | 'beach';
+export type Estado = 'inicio' | 'play' | 'ad' | 'offline' | 'beach';
 export interface Save { money: number; done: number[]; paid: Record<string, number>; beach: number; last: number; tutorial: number }
 
 /** Saídas do núcleo para som, vibração, salvar e interface. */
@@ -134,8 +134,13 @@ export class Jogo {
     this.beach = s ? s.beach || 0 : 0; this.resetWorld(); if (!s) return 0;
     this.money = s.money || 0; this.shown = this.money; this.tutorial = s.tutorial || 0; this.paid = s.paid || {};
     (s.done || []).sort((a, b) => a - b).forEach(i => { if (this.plan[i]) this.applyStep(i, true) });
-    if (this.helpers.length && s.last) { const away = Math.min(7200, (nowMs - s.last) / 1000); if (away > 60) return Math.round(away / 60 * 24 * this.helpers.length * this.mult()) }
-    return 0;
+    return this.offlineGain(s.last, nowMs);
+  }
+  /** Ganhos com o app fechado: 24 × ajudantes × multiplicador da praia por minuto, até 2 h; menos de 1 min não conta. */
+  offlineGain(last: number, nowMs = Date.now()) {
+    if (!this.helpers.length || !last) return 0;
+    const away = Math.min(7200, (nowMs - last) / 1000);
+    return away > 60 ? Math.round(away / 60 * 24 * this.helpers.length * this.mult()) : 0;
   }
   /** Primeira vez na praia: já tem clientes na fila e açaí no balcão. */
   firstScene() {
