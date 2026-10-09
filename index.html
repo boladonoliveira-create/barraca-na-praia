@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Barraca na Praia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;700;800&display=swap">
+<link rel="stylesheet" href="/src/ui/estilo.css">
+</head>
+<body>
+<div class="app">
+  <header class="hud">
+    <div class="money"><span class="coin">R$</span><span id="money">0</span></div>
+    <div class="beach"><span class="lbl" id="beachLbl">Praia do Sol · próximo</span><span id="goal">Máquina de açaí 2</span></div>
+    <button class="icon-btn" id="testBtn" aria-label="Modo teste: dinheiro infinito" title="Modo teste" style="font:800 20px/1 var(--f-display)">∞</button>
+    <button class="icon-btn" id="mute" aria-label="Som ligado" title="Som">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="waves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+    </button>
+  </header>
+  <main class="stage" id="stage">
+    <canvas id="game" aria-label="Praia"></canvas>
+    <div class="ov" id="ovOffline" hidden>
+      <div class="card">
+        <h2>Bem-vindo de volta!</h2>
+        <p>Enquanto você estava fora, os ajudantes continuaram vendendo.</p>
+        <div class="big" id="offAmount">R$ 0</div>
+        <button class="btn" id="offDouble">Dobrar com anúncio</button>
+        <button class="btn ghost" id="offTake">Pegar</button>
+      </div>
+    </div>
+    <div class="ov" id="ovBeach" hidden>
+      <div class="card">
+        <h2 id="beachTitle">Bem-vindo à Praia Grande!</h2>
+        <p id="beachText"></p>
+        <button class="btn" id="beachOk">Abrir a barraca</button>
+      </div>
+    </div>
+    <div class="ov" id="ovAd" hidden>
+      <div class="card">
+        <span class="lbl">Anúncio simulado</span>
+        <div class="big" id="adCount" style="color:var(--acai)">3</div>
+        <p class="note">No app real, aqui entra o anúncio recompensado do AdMob. Ao terminar, o jogador recebe a recompensa.</p>
+      </div>
+    </div>
+  </main>
+  <footer class="tools">
+    <button class="tool" id="boost">Dinheiro em dobro <span class="badge" id="boostBadge">anúncio · 2 min</span></button>
+  </footer>
+</div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+:root{
+  --sand:#f6e3b4;
+  --panel:#fffdf7;
+  --ink:#3a2316;
+  --muted:#8a6a52;
+  --line:#ecd6a6;
+  --acai:#5b2370;
+  --money:#2f9e44;
+  --sun:#ffc23d;
+  --f-display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --f-ui:"Nunito","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+[hidden]{display:none!important}
+html{height:100%;box-sizing:border-box}
+*,*::before,*::after{box-sizing:inherit}
+body{height:100%;background:var(--sand);color:var(--ink);font-family:var(--f-ui);overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.app{height:100%;max-width:520px;margin:0 auto;padding-inline:16px;padding-block:10px;display:flex;flex-direction:column;gap:8px}
+.hud{display:flex;align-items:center;gap:8px}
+.money{display:flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:99px;background:var(--panel);border:2px solid var(--line);box-shadow:0 3px 0 var(--line);flex:none}
+.coin{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--money);color:#fff;font:800 14px/1 var(--f-display)}
+#money{font:800 26px/1 var(--f-display);font-variant-numeric:tabular-nums;min-width:3ch}
+.beach{display:grid;min-width:0;flex:1}
+.lbl{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#goal{font:700 15px/1.2 var(--f-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{flex:none;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;border:2px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.icon-btn svg{width:20px;height:20px}
+.stage{position:relative;flex:1;min-height:0;display:grid;place-items:center}
+#game{display:block;touch-action:none;border-radius:18px}
+.tools{display:flex;gap:10px}
+.tool{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;padding:12px;border-radius:16px;border:0;background:var(--acai);color:#fff;font:800 16px/1 var(--f-ui);cursor:pointer;box-shadow:0 4px 0 #3c1449}
+.tool:active{transform:translateY(2px);box-shadow:0 2px 0 #3c1449}
+.tool .badge{padding:4px 8px;border-radius:99px;background:var(--sun);color:var(--ink);font-size:12px}
+.tool.on{background:var(--money);box-shadow:0 4px 0 #1f6e2f}
+.ov{position:absolute;inset:0;display:grid;place-items:center;padding:16px;background:rgba(58,35,22,.35);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.card{width:100%;max-width:330px;display:grid;gap:14px;text-align:center;padding:24px 20px;border-radius:22px;background:var(--panel);border:2px solid var(--line);box-shadow:0 6px 0 var(--line),0 24px 60px rgba(58,35,22,.25)}
+.card h2{margin:0;font:800 26px/1.05 var(--f-display);color:var(--acai);text-wrap:balance}
+.card p{margin:0;color:var(--muted);line-height:1.45}
+.big{font:800 46px/1 var(--f-display);color:var(--money);font-variant-numeric:tabular-nums}
+.btn{font:800 16px/1 var(--f-ui);padding:15px 16px;border-radius:16px;border:0;background:var(--acai);color:#fff;cursor:pointer;box-shadow:0 4px 0 #3c1449}
+.btn.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);box-shadow:none}
+.note{font-size:12.5px}
+button:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
