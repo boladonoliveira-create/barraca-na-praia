@@ -29,3 +29,9 @@ describe('salvamento', () => {
     expect(lerSave(mem({ [SAVE_KEY]: '{quebrado' }).get)).toBeNull();
   });
 });
+
+describe('salvamento v1', () => {
+  it('lê o save da versão 1 (antes do campo pendente)', () => {
+    expect(lerSave(mem({ [SAVE_KEY]: JSON.stringify({ versao: 1, jogo: save }) }).get)).toEqual(save);
+  });
+});

@@ -22,14 +22,16 @@ export interface Flyer { kind: Kind; x0: number; y0: number; x1: number; y1: num
 export interface Popup { x: number; y: number; txt: string; life: number; col: string; size: number }
 export interface Spark { x: number; y: number; vx: number; vy: number; life: number; col: string }
 export type Estado = 'inicio' | 'play' | 'ad' | 'offline' | 'beach';
-export interface Save { money: number; done: number[]; paid: Record<string, number>; beach: number; last: number; tutorial: number }
+export interface Save { money: number; done: number[]; paid: Record<string, number>; beach: number; last: number; tutorial: number; pendente?: number }
 
 /** Saídas do núcleo para som, vibração, salvar e interface. */
 export interface Io {
   tone(f: number, dur: number, type?: 'sine' | 'triangle' | 'square', vol?: number, slide?: number, delayMs?: number): void;
   fanfare(): void; buzz(ms: number): void; save(): void; goal(): void; prestige(): void;
+  /** Compra feita: praia, índice no plano e segundos de jogo desde a compra anterior. */
+  compra(praia: number, indice: number, segundos: number): void;
 }
-const NO_IO: Io = { tone() {}, fanfare() {}, buzz() {}, save() {}, goal() {}, prestige() {} };
+const NO_IO: Io = { tone() {}, fanfare() {}, buzz() {}, save() {}, goal() {}, prestige() {}, compra() {} };
 
 export const zoneOf = (m: Pt): Rect => ({ x: m.x, y: m.y + 50, w: 80, h: 44 });
 export const inZone = (a: Pt, z: Rect) => Math.abs(a.x - z.x) < z.w / 2 && Math.abs(a.y - z.y) < z.h / 2;
@@ -44,6 +46,7 @@ export class Jogo {
   money = 0; shown = 0; lv: Record<string, number> = {}; beach = 0; plan: Step[] = makePlan(0); done = new Set<number>(); paid: Record<string, number> = {};
   machines: Machine[] = []; customers: Customer[] = []; flyers: Flyer[] = []; popups: Popup[] = []; sparks: Spark[] = []; helpers: Helper[] = []; umbrellas: Umbrella[] = []; S: ShopState[] = [];
   boostUntil = 0; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; testMode = false;
+  pendente = 0; lastBuyAt = 0; // pendente: ganho offline mostrado no cartão e ainda não pego (vai no save)
   player: Carrier = { x: 200, y: 560, stack: [], walk: 0, face: 1, tT: 0 };
   io: Io; rand: () => number;
 
@@ -114,6 +117,7 @@ export class Jogo {
     if (s.id === 'cardapio') this.popups.push({ x: SHOPS[0].cx, y: 250, txt: 'Açaí agora R$ ' + this.price('acai'), life: 1.8, col: '#2f9e44', size: 18 });
     if (s.id === 'cardapioS') this.popups.push({ x: SHOPS[1].cx, y: 250, txt: 'Sorvete agora R$ ' + this.price('sorvete'), life: 1.8, col: '#2f9e44', size: 18 });
     if (s.id === 'sorv') this.popups.push({ x: 500, y: 250, txt: 'Leve caixas do depósito ao freezer!', life: 2.4, col: '#1c7ed6', size: 15 });
+    this.io.compra(this.beach, i, (this.now - this.lastBuyAt) / 1000); this.lastBuyAt = this.now;
     this.io.fanfare(); this.io.buzz(40); this.io.goal(); this.io.save();
   }
 
@@ -127,15 +131,19 @@ export class Jogo {
 
   /* ---------- Salvar ---------- */
   snapshot(last = Date.now()): Save {
-    return { money: this.testMode ? 0 : Math.floor(this.money), done: [...this.done], paid: this.paid, beach: this.beach, last, tutorial: this.tutorial };
+    return { money: this.testMode ? 0 : Math.floor(this.money), done: [...this.done], paid: this.paid, beach: this.beach, last, tutorial: this.tutorial, pendente: this.pendente };
   }
-  /** Carrega o progresso salvo e devolve os ganhos com o app fechado (0 se não houver). */
+  /** Carrega o progresso salvo e devolve os ganhos com o app fechado (0 se não houver), somando o que ficou pendente. */
   load(s: Save | null, nowMs = Date.now()) {
     this.beach = s ? s.beach || 0 : 0; this.resetWorld(); if (!s) return 0;
-    this.money = s.money || 0; this.shown = this.money; this.tutorial = s.tutorial || 0; this.paid = s.paid || {};
+    this.money = s.money || 0; this.shown = this.money; this.tutorial = s.tutorial || 0; this.paid = s.paid || {}; this.pendente = s.pendente || 0;
     (s.done || []).sort((a, b) => a - b).forEach(i => { if (this.plan[i]) this.applyStep(i, true) });
-    return this.offlineGain(s.last, nowMs);
+    return this.pendente + this.offlineGain(s.last, nowMs);
   }
+  /** O cartão de ganhos abriu: o valor já fica no save, para não se perder se o app fechar antes de pegar. */
+  abrirOffline(valor: number) { this.pendente = valor; this.state = 'offline'; this.io.save() }
+  /** Pegou (x1) ou dobrou (x2) o ganho offline. Devolve o valor recebido. */
+  pegarOffline(vezes: number) { const v = this.pendente * vezes; this.money += v; this.pendente = 0; this.io.save(); return v }
   /** Ganhos com o app fechado: 24 × ajudantes × multiplicador da praia por minuto, até 2 h; menos de 1 min não conta. */
   offlineGain(last: number, nowMs = Date.now()) {
     if (!this.helpers.length || !last) return 0;

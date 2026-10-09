@@ -1,4 +1,7 @@
-/* Som sintetizado (WebAudio), ambiente de praia e vibração. */
+/* Som sintetizado (WebAudio), ambiente de praia e vibração (navigator.vibrate no navegador, @capacitor/haptics no app). */
+import { Capacitor } from '@capacitor/core';
+import { Haptics } from '@capacitor/haptics';
+
 let ac: AudioContext | null = null, master: GainNode | null = null, gullT = 0;
 export let muted = false, vibra = true;
 
@@ -30,7 +33,12 @@ export function tone(f: number, dur: number, type: OscillatorType = 'sine', vol 
 export function fanfare() { tone(523, 0.12, 'triangle', 0.1, 1); tone(659, 0.12, 'triangle', 0.1, 1, 110); tone(880, 0.22, 'triangle', 0.1, 1, 220) }
 /** Praia nova: arpejo mais longo que o da compra. */
 export function praiaNova() { [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, i === 4 ? 0.5 : 0.14, 'triangle', 0.1, 1, i * 120)) }
-export function buzz(p: number | number[]) { if (!vibra) return; try { navigator.vibrate?.(p) } catch { /* ignora */ } }
+export function buzz(p: number | number[]) {
+  if (!vibra) return;
+  // Haptics não aceita padrão: no app, um padrão vira uma vibração com a soma dos trechos ligados
+  if (Capacitor.isNativePlatform()) { const ms = Array.isArray(p) ? p.filter((_, i) => i % 2 === 0).reduce((a, b) => a + b, 0) : p; Haptics.vibrate({ duration: ms }).catch(() => { /* sem vibração */ }); return }
+  try { navigator.vibrate?.(p) } catch { /* ignora */ }
+}
 
 /* Mar: ruído marrom com filtro e volume subindo e descendo devagar, como ondas. De vez em quando, uma gaivota. */
 function startAmbience() {

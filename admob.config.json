@@ -1,0 +1,14 @@
+{
+  "_aviso": "IDs REAIS SÓ ENTRAM QUANDO VOCÊ CRIAR A CONTA ADMOB. Até lá, deixe usarReais = false: o app usa os IDs de teste oficiais do Google. Para ativar: preencha os três campos de 'reais' com os IDs da sua conta e mude usarReais para true. Nunca clique nos seus próprios anúncios reais.",
+  "usarReais": false,
+  "teste": {
+    "app": "ca-app-pub-3940256099942544~3347511713",
+    "recompensado": "ca-app-pub-3940256099942544/5224354917",
+    "intersticial": "ca-app-pub-3940256099942544/1033173712"
+  },
+  "reais": {
+    "app": "",
+    "recompensado": "",
+    "intersticial": ""
+  }
+}

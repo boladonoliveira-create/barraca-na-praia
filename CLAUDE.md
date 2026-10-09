@@ -17,7 +17,7 @@ Jogo mobile "idle arcade" (no estilo do Pizza Ready): o jogador anda com um dedo
 
 ## Estrutura (GDD seção 11)
 
-Vite + TypeScript (depois, Capacitor para Android).
+Vite + TypeScript, empacotado com Capacitor 8 para Android (`android/`, id `com.jogosbr.barracanapraia`).
 
 ```
 src/
@@ -26,24 +26,31 @@ src/
                 economia.ts (plano e preços), simulador.ts (bot que mede o ritmo)
   render/       desenho.ts (câmera, cenário, personagens, máquinas, efeitos)
   ui/           hud.ts (placar, telas, botões), estilo.css
-  plataforma/   salvar.ts (save versionado e preferências), som.ts (sons, mar, vibração)
+  plataforma/   salvar.ts (save versionado e preferências; Preferences no app, localStorage no navegador)
+                som.ts (sons, mar, vibração; Haptics no app), anuncios.ts (AdMob no app, simulado no navegador)
+                analytics.ts (console; Firebase só com android/app/google-services.json)
   main.ts       entrada (joystick/teclado) e laço principal
 scripts/sim.ts  relatório do simulador no terminal
+scripts/icones.mjs  gera assets/*.png (ícone e abertura provisórios)
+admob.config.json   único lugar dos IDs do AdMob (teste até usarReais = true)
 ```
 
 - O núcleo (`core/`) não toca em canvas nem DOM. Som, vibração, salvar e telas saem pela interface `Io` passada ao `Jogo`. A aleatoriedade vem de `rand`, que os testes e o simulador trocam por um gerador com semente.
 - Cada mecânica nova da seção 7 é uma "loja" com dados próprios em `dados/` (produtos, zonas, regra de ajudante), no modelo de `SHOPS`. Adicionar uma praia deve ser adicionar dados, não reescrever o motor.
 - Salvar: progresso em `barraca-na-praia:save` como `{ versao, jogo }` (`SAVE_VERSION` em `plataforma/salvar.ts`). Se a estrutura do `Save` mudar, suba a versão e converta em `lerSave`. O save do protótipo (`barracaPraia.v5`) é lido uma vez. Um save de versão mais nova nunca é sobrescrito. Som, vibração e modo teste ficam em `barraca-na-praia:prefs`.
-- Ganhos offline valem ao abrir o jogo e ao voltar do segundo plano (`Jogo.offlineGain`).
+- Ganhos offline valem ao abrir o jogo e ao voltar do segundo plano (`Jogo.offlineGain`). O valor do cartão fica no save (`pendente`) até ser pego ou dobrado.
+- Ciclo de vida: `@capacitor/app` no app, `visibilitychange` no navegador (`aoSair`/`aoVoltar` em `main.ts`).
 - Modo teste (botão ∞): só existe em `npm run dev` (`import.meta.env.DEV`). Nunca na versão da loja.
 
 ## Comandos
 
 ```
-npm run dev     # jogo em http://localhost:5173
+npm run dev     # jogo em http://localhost:5175
 npm test        # testes do núcleo e do simulador (vitest)
 npm run sim 3   # tempos de compra por praia e o que está fora da faixa da seção 8
 npm run build   # checa os tipos e gera dist/
+npx cap sync android                      # copia dist/ e plugins para android/
+cd android && gradlew.bat assembleDebug   # APK de depuração (precisa do Android SDK)
 ```
 
 O `npm run sim` roda com o Node 24, que executa TypeScript direto. Por isso os imports usam a extensão `.ts`.
@@ -54,4 +61,4 @@ O simulador compara o ritmo com a faixa da seção 8: compras de ~15 s no começ
 
 ## Ordem de trabalho (GDD seção 12)
 
-Feitas: etapa 1 (base, porte, testes, simulador) e etapa 2 (personagens, sons e mar, vibração, tela inicial, save versionado, ganhos offline). Não avance para a etapa 3 (Capacitor, AdMob, Firebase) sem o usuário pedir.
+Feitas: etapa 1 (base, porte, testes, simulador) e etapa 2 (personagens, sons e mar, vibração, tela inicial, save versionado, ganhos offline). Rodada 3 (etapa 3: Capacitor, AdMob de teste, analytics) entregue para revisão; ver RELATORIO.md. Não avance para a etapa 4 sem o usuário pedir.

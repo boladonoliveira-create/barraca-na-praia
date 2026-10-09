@@ -3,12 +3,15 @@ import { BEACHES } from '../dados/mapa.ts';
 import { fmt } from '../core/economia.ts';
 import type { Jogo } from '../core/jogo.ts';
 import { gravarPrefs, type Prefs } from '../plataforma/salvar.ts';
-import { ensureAudio, tone, setMuted, setVibra, buzz, praiaNova } from '../plataforma/som.ts';
+import { ensureAudio, tone, setMuted, setVibra, buzz, praiaNova, pauseAudio } from '../plataforma/som.ts';
+import type { Anuncios } from '../plataforma/anuncios.ts';
+import { analytics } from '../plataforma/analytics.ts';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
-export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: boolean) {
-  let adTimer = 0, offAmount = 0;
+/** ads: AdMob no app; null no navegador (anúncio simulado). */
+export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: boolean, ads: Anuncios | null) {
+  let adTimer = 0;
 
   function goal() { $('beachLbl').textContent = g.beachName() + ' · próximo'; $('goal').textContent = g.goalText() }
 
@@ -22,10 +25,23 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
     $('startVibra').textContent = prefs.vibra ? 'Vibração ligada' : 'Vibração desligada'; $('startVibra').setAttribute('aria-pressed', String(prefs.vibra));
   }
 
-  // Anúncio simulado: 3 s e entrega a recompensa
-  function showAd(cb: () => void) {
-    const prev = g.state; g.state = 'ad'; $('ovAd').hidden = false; let n = 3; $('adCount').textContent = String(n); clearInterval(adTimer);
-    adTimer = window.setInterval(() => { n--; $('adCount').textContent = String(n); if (n <= 0) { clearInterval(adTimer); $('ovAd').hidden = true; g.state = prev; cb() } }, 1000);
+  // Simulado (navegador): contagem de 3 s na tela; o jogo fica parado enquanto isso
+  function simulado(titulo: string, fim: () => void) {
+    $('adLbl').textContent = titulo; $('ovAd').hidden = false; let n = 3; $('adCount').textContent = String(n); clearInterval(adTimer);
+    adTimer = window.setInterval(() => { n--; $('adCount').textContent = String(n); if (n <= 0) { clearInterval(adTimer); $('ovAd').hidden = true; fim() } }, 1000);
+  }
+  /** Recompensado: no app, AdMob; no navegador, o simulado. ok() se ganhou, semRecompensa() se fechou antes. */
+  function showAd(tipo: string, ok: () => void, semRecompensa?: () => void) {
+    const prev = g.state; g.state = 'ad'; analytics.registrar('ad_offer', { tipo });
+    const fim = (ganhou: boolean) => { g.state = prev; pauseAudio(false); analytics.registrar('ad_watch', { tipo, recompensa: ganhou }); ganhou ? ok() : semRecompensa?.() };
+    if (ads) { pauseAudio(true); ads.recompensado().then(fim, () => fim(false)) } else simulado('Anúncio simulado', () => fim(true));
+  }
+  /** Intersticial (sem recompensa). */
+  function intersticial() {
+    if (g.state !== 'play') return;
+    g.state = 'ad'; analytics.registrar('ad_watch', { tipo: 'intersticial', recompensa: false });
+    const fim = () => { if (g.state === 'ad') g.state = 'play'; pauseAudio(false) };
+    if (ads) { pauseAudio(true); ads.intersticial().then(fim, fim) } else simulado('Intersticial simulado', fim);
   }
 
   function prestige() {
@@ -35,12 +51,14 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
     $('ovBeach').hidden = false; praiaNova(); buzz([60, 40, 120]);
   }
 
+  /** Cartão de ganhos offline. O valor vai para o save na hora (g.abrirOffline) e só sai ao pegar ou dobrar. */
   function showOffline(amount: number, awayMs: number) {
     const min = Math.round(Math.min(awayMs, 7200000) / 60000), tempo = min >= 60 ? Math.floor(min / 60) + ' h' + (min % 60 ? ' ' + (min % 60) + ' min' : '') : min + ' min';
-    offAmount = amount; g.state = 'offline'; $('offAmount').textContent = 'R$ ' + fmt(amount);
-    $('offText').textContent = 'Você ficou fora ' + tempo + (awayMs > 7200000 ? ' (conta até 2 h)' : '') + ' e os ajudantes continuaram vendendo.';
+    g.abrirOffline(amount); $('offAmount').textContent = 'R$ ' + fmt(amount);
+    $('offText').textContent = min >= 1 ? 'Você ficou fora ' + tempo + (awayMs > 7200000 ? ' (conta até 2 h)' : '') + ' e os ajudantes continuaram vendendo.' : 'Seus ajudantes guardaram este dinheiro para você.';
     $('ovOffline').hidden = false;
   }
+  function pegarOffline(vezes: number) { const v = g.pegarOffline(vezes); tone(988, 0.1, 'sine', 0.08, 1); buzz(30); analytics.registrar('offline_claim', { valor: v, dobrado: vezes > 1 }) }
 
   /** Tela inicial; ao tocar em Jogar chama onPlay (o áudio só pode começar depois de um toque). */
   function showStart(onPlay: () => void) {
@@ -61,11 +79,12 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
   // Modo teste (∞): só na versão de desenvolvimento, nunca na da loja
   if (testEnabled) $('testBtn').addEventListener('click', () => { g.testMode = prefs.teste = !g.testMode; gravarPrefs(prefs); if (!g.testMode) { g.money = 0; g.shown = 0 } syncTest() });
   else $('testBtn').hidden = true;
-  $('boost').addEventListener('click', () => { if (g.state !== 'play' || g.boostOn()) return; ensureAudio(); showAd(() => { g.boostUntil = g.now + 120000; tone(784, 0.2, 'triangle', 0.1, 1.2); buzz(40) }) });
-  $('offTake').addEventListener('click', () => { ensureAudio(); g.money += offAmount; $('ovOffline').hidden = true; g.state = 'play'; tone(988, 0.1, 'sine', 0.08, 1); buzz(30); save() });
-  $('offDouble').addEventListener('click', () => { ensureAudio(); $('ovOffline').hidden = true; g.state = 'play'; showAd(() => { g.money += offAmount * 2; tone(988, 0.1, 'sine', 0.08, 1); buzz(30); save() }) });
+  $('boost').addEventListener('click', () => { if (g.state !== 'play' || g.boostOn()) return; ensureAudio(); showAd('dinheiro_dobro', () => { g.boostUntil = g.now + 120000; tone(784, 0.2, 'triangle', 0.1, 1.2); buzz(40) }) });
+  $('offTake').addEventListener('click', () => { ensureAudio(); $('ovOffline').hidden = true; g.state = 'play'; pegarOffline(1) });
+  // se o anúncio fechar antes da recompensa, recebe o valor normal (sem derrota)
+  $('offDouble').addEventListener('click', () => { ensureAudio(); $('ovOffline').hidden = true; g.state = 'play'; showAd('dobrar_offline', () => pegarOffline(2), () => pegarOffline(1)) });
   $('beachOk').addEventListener('click', () => { $('ovBeach').hidden = true; g.state = 'play' });
   syncPrefs();
 
-  return { goal, prestige, showOffline, showStart, frame, syncTest };
+  return { goal, prestige, showOffline, showStart, frame, syncTest, intersticial };
 }

@@ -118,3 +118,27 @@ describe('salvar', () => {
     expect(new Jogo().load(s, 10 * 3600000)).toBe(Math.round(120 * 24 * h.helpers.length * 1.5));
   });
 });
+
+describe('ganhos offline pendentes', () => {
+  it('o valor do cartão vai para o save ao abrir e só sai quando é pego', () => {
+    const g = novo(); comprarAte(g, 4); g.money = 100;
+    g.abrirOffline(500);
+    const s = JSON.parse(JSON.stringify(g.snapshot(1000)));
+    expect(s.pendente).toBe(500);
+    // app fechou com o cartão aberto: ao abrir de novo, o pendente volta somado ao novo tempo fora
+    const h = new Jogo(); const off = h.load(s, 1000 + 10 * 60000);
+    expect(off).toBe(500 + h.offlineGain(1000, 1000 + 10 * 60000));
+    h.abrirOffline(off);
+    expect(h.pegarOffline(2)).toBe(off * 2);
+    expect(h.money).toBe(100 + off * 2); expect(h.pendente).toBe(0); expect(h.snapshot().pendente).toBe(0);
+  });
+});
+
+describe('aviso de compra', () => {
+  it('informa praia, índice e segundos desde a compra anterior (evento step_buy)', () => {
+    const avisos: number[][] = []; const g = new Jogo({ compra: (...a) => { avisos.push(a) } }, rng(1)); g.load(null);
+    g.now = 15000; g.applyStep(0); g.now = 40000; g.applyStep(1);
+    g.applyStep(2, true); // silenciosa (carregar save) não conta
+    expect(avisos).toEqual([[0, 0, 15], [0, 1, 25]]);
+  });
+});
