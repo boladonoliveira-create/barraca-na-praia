@@ -94,9 +94,9 @@ Quatro tipos de mecânica, combinados para que cada praia traga um trabalho novo
 
 Cada praia tem uma lista ordenada de compras. Só as próximas 2 aparecem no chão, sempre em lugares diferentes. A lista alterna melhorias de **produção** (máquinas, ajudantes, turbo) e de **demanda** (guarda-sóis, cardápio), para nenhum dos lados virar gargalo por muito tempo.
 
-- **Preço da compra número i na praia b:** 50 × 1,21^i × 1,5^b, arredondado para múltiplos de 5.
+- **Preço da compra número i na praia b:** 100 × 1,31^i × 1,5^b, arredondado para múltiplos de 5 (era 50 × 1,21^i no protótipo; ajustado com o simulador).
 - **Renda:** cada praia multiplica todos os preços de venda por 1,5^b.
-- **Nova praia:** aparece depois de 14 compras, num quadrado dourado. Custa 3000 × 1,5^b.
+- **Nova praia:** aparece depois de 14 compras, num quadrado dourado. Custa 4000 × 1,5^b (era 3000 no protótipo).
 - **Começo rápido:** cada praia nova começa com o dinheiro exato para as 2 primeiras compras.
 - **Depois da lista fixa,** a lista continua com turbo e cardápio, para sempre ter algo a comprar.
 

@@ -1,9 +1,9 @@
-import { ACAI_NAMES, SORV_NAMES, BASE_PLAN, SORV_PLAN, SORV_AT, type PlanStep } from '../dados/planos.ts';
+import { ACAI_NAMES, SORV_NAMES, BASE_PLAN, SORV_PLAN, SORV_AT, ECONOMIA as E, type PlanStep } from '../dados/planos.ts';
 
 export interface Step { k: 'build' | 'up'; id: string; name: string; slot: string; price: number }
 
-/** Preço da compra i na praia b: 50 × 1,21^i × 1,5^b, em múltiplos de 5. */
-export const stepPrice = (i: number, b: number) => Math.round(50 * Math.pow(1.21, i) * Math.pow(1.5, b) / 5) * 5;
+/** Preço da compra i na praia b: base × cresce^i × praia^b, em múltiplos de 5. */
+export const stepPrice = (i: number, b: number) => Math.round(E.base * Math.pow(E.cresce, i) * Math.pow(E.praia, b) / 5) * 5;
 
 export function makePlan(b: number): Step[] {
   const list: PlanStep[] = BASE_PLAN.map(s => [...s]);

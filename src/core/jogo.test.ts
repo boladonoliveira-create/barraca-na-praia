@@ -97,13 +97,13 @@ describe('prestígio', () => {
   it(`abre depois de ${PRESTIGE_AFTER} compras; leva à próxima praia com dinheiro das 2 primeiras compras`, () => {
     const g = novo(); comprarAte(g, PRESTIGE_AFTER - 1); expect(g.prestigeOpen()).toBe(false);
     comprarAte(g, PRESTIGE_AFTER); expect(g.prestigeOpen()).toBe(true);
-    expect(g.prestigeCost()).toBe(3000);
-    Object.assign(g.player, padOf('praia')); g.money = 3000; g.S[0].spawnT = 1e9;
+    expect(g.prestigeCost()).toBe(4000);
+    Object.assign(g.player, padOf('praia')); g.money = 4000; g.S[0].spawnT = 1e9;
     rodar(g, 3000);
     expect(g.beach).toBe(1); expect(g.state).toBe('beach');
     expect(g.money).toBe(g.plan[0].price + g.plan[1].price);
     expect(g.done.size).toBe(0); expect(g.machines).toHaveLength(1); expect(g.kioskOpen()).toBe(false);
-    expect(g.price('acai')).toBe(9); expect(g.prestigeCost()).toBe(4500);
+    expect(g.price('acai')).toBe(9); expect(g.prestigeCost()).toBe(6000);
   });
 });
 

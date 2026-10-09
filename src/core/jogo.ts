@@ -3,7 +3,7 @@ import {
   SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, BEACHES,
   PHRASES, SHIRTS, SKINS, W, WALL_Y, PLAY_BOTTOM, type Item, type Rect,
 } from '../dados/mapa.ts';
-import { PRESTIGE_AFTER } from '../dados/planos.ts';
+import { PRESTIGE_AFTER, ECONOMIA } from '../dados/planos.ts';
 import { makePlan, type Step } from './economia.ts';
 
 export type Kind = Item | 'bill';
@@ -53,13 +53,13 @@ export class Jogo {
 
   /* ---------- Valores derivados ---------- */
   L(id: string) { return this.lv[id] || 0 }
-  mult() { return Math.pow(1.5, this.beach) }
+  mult() { return Math.pow(ECONOMIA.praia, this.beach) }
   cardLv(shop: number) { return shop === 0 ? this.L('cardapio') : this.L('cardapioS') }
   price(t: Item) { return Math.round(PRODUCTS[t].price * Math.pow(1.25, this.cardLv(PRODUCTS[t].shop)) * this.mult()) }
   rateOf(t: Item) { return PRODUCTS[t].rate / (1 + 0.25 * this.L('turbo')) }
   playerCap() { return 8 + 3 * this.L('bolsa') }
   freezerCap() { return 18 + 12 * this.L('freezer') }
-  prestigeCost() { return Math.round(3000 * this.mult() / 50) * 50 }
+  prestigeCost() { return Math.round(ECONOMIA.novaPraia * this.mult() / 50) * 50 }
   kioskOpen() { return !!this.S[1] && this.S[1].open }
   openEdge() { return this.kioskOpen() ? 600 : 400 }
   boostOn() { return this.now < this.boostUntil }

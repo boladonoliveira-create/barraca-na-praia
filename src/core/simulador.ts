@@ -1,5 +1,7 @@
 /* Simulador de economia: um bot joga sozinho e mede o tempo até cada compra em cada praia.
    Estratégia (GDD seção 11): vai à máquina mais cheia, entrega e compra a próxima melhoria.
+   O bot humano (padrão, usado nas metas de ritmo) reage com 200 a 400 ms de atraso, anda com desvio leve
+   e para 3 a 5 s a cada 30 s. O perfeito (humano: false) decide a cada quadro e anda reto.
    Relatório no terminal: npm run sim [praias] (scripts/sim.ts) */
 import { SHOPS, COUNTER_CAP, PRODUCTS, type Item, type Rect } from '../dados/mapa.ts';
 import { Jogo, zoneOf, padOf, inZone, type Pt } from './jogo.ts';
@@ -62,8 +64,10 @@ function alvo(g: Jogo): Rect | Pt {
   return zoneOf(g.machines.reduce((a, b) => b.pile > a.pile ? b : a));
 }
 
-export function simular({ praias = 2, seed = 1, limiteMin = 60 } = {}): Resultado {
-  const g = new Jogo({}, rng(seed));
+export function simular({ praias = 2, seed = 1, limiteMin = 60, humano = true } = {}): Resultado {
+  const g = new Jogo({}, rng(seed)), R = rng(seed + 7);
+  const entre = (a: number, b: number) => a + R() * (b - a);
+  let a: Rect | Pt = g.player, pensa = 0, pausaAte = 0, proxPausa = 30000, fase = 0, desvio = 0;
   g.load(null); g.firstScene(); g.tutorial = 4;
   const compras: Compra[] = [], res: { praia: number; segundos: number }[] = [];
   let tPraia = 0, tCompra = 0, feitas = 0, beach = 0;
@@ -71,12 +75,17 @@ export function simular({ praias = 2, seed = 1, limiteMin = 60 } = {}): Resultad
   for (let t = 0; t < limite * praias; t += DT) {
     if (g.state === 'beach') g.state = 'play';
     g.now += DT; tPraia += DT; tCompra += DT;
-    const a = alvo(g), p = g.player;
+    const p = g.player;
     let input = { x: 0, y: 0 };
+    if (!humano) a = alvo(g);
+    else if (t >= proxPausa) { pausaAte = t + entre(3000, 5000); proxPausa = t + 30000 }
+    if (humano && t >= pensa) { const n = alvo(g); if (n !== a && JSON.stringify(n) !== JSON.stringify(a)) { fase = R() * 6.28; desvio = entre(0.15, 0.35) } a = n; pensa = t + entre(200, 400) }
     // dentro da zona-alvo: fica parado (inZone exige estar dentro do retângulo)
-    if (!('w' in a) || !inZone(p, { ...a, w: a.w - 16, h: a.h - 16 })) {
+    if (t >= pausaAte && (!('w' in a) || !inZone(p, { ...a, w: a.w - 16, h: a.h - 16 }))) {
       const w = waypoint(g, p, a), dx = w.x - p.x, dy = w.y - p.y, d = Math.hypot(dx, dy);
-      if (d > 2) input = { x: dx / d, y: dy / d };
+      // desvio leve: a direção balança devagar, e some perto do alvo para não ficar rodando em volta
+      const ang = humano ? desvio * Math.sin(t / 600 + fase) * Math.min(1, d / 60) : 0, c = Math.cos(ang), sn = Math.sin(ang);
+      if (d > 2) input = { x: (dx * c - dy * sn) / d, y: (dx * sn + dy * c) / d };
     }
     g.update(DT, input); g.updateFx(DT);
     if (g.done.size > feitas) {

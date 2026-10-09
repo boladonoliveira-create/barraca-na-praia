@@ -20,3 +20,11 @@ export const SORV_PLAN: PlanStep[] = [
 export const SORV_AT = [3, 6, 9, 12, 15, 18, 21];
 
 export const PRESTIGE_AFTER = 14;
+
+/** Números da economia (GDD seção 8). Ajustados com o simulador: npm run sim. */
+export const ECONOMIA = {
+  base: 100,       // preço da compra 0 na Praia 1
+  cresce: 1.31,    // cada compra custa isto vezes a anterior
+  praia: 1.5,      // cada praia multiplica preços de compra e de venda
+  novaPraia: 4000, // custo da nova praia (× praia^b)
+};

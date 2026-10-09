@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { makePlan, stepPrice, fmt } from './economia.ts';
 
 describe('plano de compras', () => {
-  it('preço = 50 × 1,21^i × 1,5^b em múltiplos de 5', () => {
-    expect(stepPrice(0, 0)).toBe(50);
-    expect(stepPrice(1, 0)).toBe(60);
-    expect(stepPrice(0, 1)).toBe(75);
+  it('preço = base × cresce^i × praia^b em múltiplos de 5', () => {
+    expect(stepPrice(0, 0)).toBe(100);
+    expect(stepPrice(1, 0)).toBe(130);
+    expect(stepPrice(0, 1)).toBe(150);
     for (const b of [0, 1, 3]) makePlan(b).forEach((s, i) => { expect(s.price % 5).toBe(0); expect(s.price).toBe(stepPrice(i, b)) });
   });
 

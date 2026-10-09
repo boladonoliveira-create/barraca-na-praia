@@ -49,7 +49,7 @@ O `npm run sim` roda com o Node 24, que executa TypeScript direto. Por isso os i
 
 ## Balanceamento
 
-O simulador compara o ritmo com a faixa da seção 8: compras de ~15 s no começo da praia subindo até ~90 s no fim, e cada praia completa em 8 a 15 min. Com os números do protótipo cada praia leva cerca de 4 min, então o teste do ritmo está marcado com `it.fails` em `src/core/simulador.test.ts`. Quando o balanceamento (etapa 7) acertar a faixa, troque `it.fails` por `it`.
+O simulador compara o ritmo com a faixa da seção 8: compras de ~15 s no começo da praia subindo até ~90 s no fim, e cada praia completa em 8 a 15 min. O bot humano (padrão) reage com 200 a 400 ms de atraso, anda com desvio leve e para 3 a 5 s a cada 30 s; `npm run sim -- 2 --perfeito` usa o bot perfeito. Os números ficam em `ECONOMIA` (`src/dados/planos.ts`). Com eles, a Praia 1 leva ~10,5 min e a Praia 2 ~13,5 min. A renda é limitada pela chegada de clientes, então mexer só no jogador muda pouco o ritmo.
 
 ## Ordem de trabalho (GDD seção 12)
 
