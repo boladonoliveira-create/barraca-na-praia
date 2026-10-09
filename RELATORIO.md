@@ -1,7 +1,7 @@
 # Relatório: Barraca na Praia, rodada 3
 
 Resultado: PARCIAL
-Commit: COMMIT_HASH
+Commit: aa41af6
 
 O código da etapa 3 está pronto. O APK de depuração não foi gerado porque o computador não tem o Android SDK e nem o JDK 21. O passo a passo está em "O que depende do usuário".
 
