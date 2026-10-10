@@ -1,163 +1,136 @@
 # Roteiro: Barraca na Praia
 
 Status: PRONTO PARA EXECUTAR
-Rodada: 7
+Rodada: 7 (substitui o roteiro anterior da rodada 7, que não foi executado)
 Porta: 5175
-Quem faz: partes A e B = Claude Code. Parte C = OpenCode.
+Quem faz: parte A = Claude Code (estrutura, lógica e balanceamento). Parte B = OpenCode (visual e itens simples).
 
 ## Contexto
 
-A rodada 6 foi aprovada: as áreas 6 a 10, a faixa grande da Praia 7, o torneio com "Campeão da Praia!" e as 10 praias dentro das faixas. O revisor rodou 56 testes do núcleo, e todos passaram.
+O usuário testou a rodada 6 e quer a praia com cara de orla de verdade, como no Recreio (RJ):
+- **Hoje:** cada área é um lote fechado do topo ao rodapé, e a areia fica vazia. Parece uma praia particular.
+- **A ideia:** a praia é organizada em faixas, do mar até a rua. Os negócios ocupam pouco espaço, e a praia fica cheia de gente.
 
-**Total das 10 praias.** O total de 7,8 h fica aceito. A meta de 8 a 10 h era quase incompatível com as faixas por praia (erro do revisor). A meta nova é **de 7,5 a 9 h**.
+```
+MAR       nadadores e surfistas                → Escolinha de surf na beira da água
+AREIA     banhistas, crianças, cangas, jogos   → Barraca do Sol (continua grande), Chuveirão,
+                                                 Palco no centro, Quadra perto da grama,
+                                                 ambulantes andando entre as pessoas
+GRAMA     faixa estreita                       → quiosques pequenos: Sorveteria, Milho e pastel, Sucos
+CALÇADÃO  ciclovia, bancos, calçada            → bancada dos ambulantes
+RUA       só visual, não dá para andar         → baia do caminhão de mercadoria
+```
 
-**A decoração da areia (D2) não resolveu o problema.** O revisor desenhou as praias na escala real do celular (400 × 760):
-- os enfeites são pequenos e ficam quase todos na beira da água;
-- o resto da tela é areia lisa, igual em todas as praias;
-- na Praia dos Coqueiros aparecem só uns cocos;
-- na Praia do Pôr do Sol quase nada aparece.
+**Mantém:**
+- a progressão (a praia N libera a área N, fama, viagem, começo rápido);
+- as mecânicas de cada área;
+- os pilares do `CLAUDE.md`.
 
-A culpa não é do OpenCode: o molde limitou demais onde e quanto desenhar. **Esta rodada refaz a identidade visual das praias com um molde novo.**
+**Muda:** o mapa, onde cada coisa fica, os ambulantes, o palco e o que aparece trancado.
 
 ## Fluxo desta rodada
 
-1. **Claude Code** faz as partes A e B, com um commit por parte. Depois:
+1. **Claude Code** faz a parte A, com um commit por item (A1 a A5). Depois:
    - escreve `RELATORIO.md` no formato de `../RODADA.md`;
    - troca o status para `Status: PRONTO PARA OPENCODE`;
    - faz um commit.
-2. **OpenCode** faz a parte C, seguindo as regras de `AGENTS.md`. Depois:
+2. **OpenCode** faz a parte B, seguindo as regras de `AGENTS.md`, com um commit por item (B1 a B6). Depois:
    - acrescenta a seção dele no `RELATORIO.md`;
    - troca o status para `Status: AGUARDANDO REVISÃO`;
    - faz um commit.
 
-## Parte A [CLAUDE]: identidade das praias e acertos
+Se uma sessão cair, a próxima continua do primeiro item sem commit.
 
-**A1. A regra nova.** Em qualquer tela de 400 × 760 do jogo, com as áreas abertas, o jogador tem que perceber em que praia está **sem olhar o nome**. Para isso, cada praia tem 3 camadas.
+## Parte A [CLAUDE]: estrutura, lógica e balanceamento
 
-1. **Chão:**
-   - um tom de areia;
-   - uma textura própria, desenhada em cache: grãos, ondulações de vento, conchinhas espalhadas;
-   - um piso nos caminhos e divisas entre os lotes. Exemplos:
-     - Praia 5: pedra portuguesa ondulada em preto e branco, como num calçadão;
-     - Praia 8: deck de madeira;
-     - Praia 10: grama sintética com linhas.
-2. **Elemento grande:** um elemento de identidade com 60 a 140 de altura, repetido nas divisas e no rodapé, de forma que sempre haja pelo menos 1 inteiro na tela. Exemplos:
-   - Praia 4: coqueiros grandes com sombra;
-   - Praia 3: farol de verdade na ponta esquerda e barcos de pesca na areia.
-3. **Detalhes:** de 2 a 3 tipos espalhados (os enfeites que o OpenCode já fez podem ser reaproveitados, maiores).
+**A1. Mapa em faixas e câmera vertical.**
+- **Altura:** o mundo fica mais alto (por volta de 1100). As faixas, de cima para baixo, são mar, areia (a área de hoje, um pouco maior), grama (cerca de 100), calçadão (ciclovia, bancos e calçada; cerca de 120) e rua (só visual).
+- **Limite:** o jogador anda até o fim da calçada e não entra na rua.
+- **Câmera:** segue o jogador também na vertical. O HUD e o joystick não mudam.
+- **Dados:** as faixas ficam em `dados/mapa.ts` (`FAIXAS`), e a função `livre(x, y)` diz onde se pode desenhar enfeite sem atrapalhar.
 
-**Regras para todas as camadas:**
-- nada cobre balcões, quadros de compra, filas, máquinas ou o caminho principal;
-- teste `livre(x, y)` com as zonas do mapa;
-- mínimo de 3 elementos fora da beira em qualquer tela;
-- tudo determinístico (sem `Math.random`) e desenhado em cache sempre que der.
+**A2. Áreas reposicionadas.** Lotes do topo ao rodapé deixam de existir. Cada área passa a ter um retângulo próprio (posição e tamanho) numa faixa:
 
-**A2. Molde.**
-- **Praias completas:** faça a 1, a 4 e a 9 do jeito final. São o exemplo do sol da manhã, do verde dos coqueiros e da noite que chega.
-- **Praia 9:** ganha luzinhas penduradas entre postes e tochas maiores. O chão fica mais quente.
-- **Documento:** reescreva `docs/MOLDE-AREIA.md` com:
-  - as 3 camadas;
-  - os tamanhos mínimos (elemento grande de 60 a 140; detalhe com pelo menos 20 de altura);
-  - a densidade;
+| Área | Onde fica | Tamanho |
+|---|---|---|
+| Barraca do Sol | Areia, à esquerda | Continua grande |
+| Sorveteria | Quiosque na grama | Pequeno, uns 120 × 100 |
+| Chuveirão e cadeiras | Areia, perto da grama | Médio |
+| Milho e pastel | Quiosque na grama | Pequeno |
+| Quadra de futevôlei | Areia, perto da grama | A quadra, sem cerca alta |
+| Ambulantes | Baia do caminhão na rua e bancada no calçadão | Pequeno; os carrinhos rodam pela praia toda |
+| Escolinha de surf | Beira da água | Médio |
+| Sucos e vitaminas | Quiosque na grama | Pequeno |
+| Palco de pagode | Centro da areia | Quadrado médio, com caminho livre em volta |
+| Torneio | Na quadra, que ganha arquibancada | Usa a quadra |
+
+- **Áreas futuras:** aparecem como um quadrado trancado no lugar delas, com a placa "Trancado · Palco de pagode · Praia 9". O jogador pode passar por cima e ver, e isso não muda a jogabilidade.
+- **Lugar livre:** a areia entre as áreas é livre para andar.
+- **Começo:** na Praia 1, a câmera e o caminho do tutorial ficam iguais aos de hoje (Barraca do Sol). O resto da praia já aparece, com gente e as áreas trancadas.
+
+**A3. Ambulantes com caminhão e bancada.**
+1. O caminhão chega sozinho à baia da rua e descarrega caixas de mate e de biscoito no chão da calçada.
+2. **Trabalho manual:** o jogador leva as caixas até a bancada do calçadão.
+3. **Ambulantes (comprados):** cada um pega o estoque na bancada, enche o carrinho, anda pela praia inteira entre as pessoas vendendo, volta e deixa o dinheiro na bancada (ou no cofre, com a melhoria).
+4. **Ajudante do caminhão (comprado):** faz no lugar do jogador o trabalho de caminhão para a bancada.
+
+Regras: os ambulantes nunca travam nem prendem ninguém. Mantenha os testes de "nunca trava" e adapte os que existem.
+
+**A4. Banhistas (a lógica).**
+- **Quem são:** um sistema simples de pessoas que não compram: andam devagar, ficam deitadas na canga, nadam, jogam frescobol e brincam na areia.
+- **Movimento:** pontos de interesse sorteados com `rand`, que o simulador e os testes trocam por semente.
+- **Regra:** nunca bloqueiam o jogador nem os clientes (passam por cima).
+- **Quantidade:** de 25 a 40 na tela, variando por praia (`PRAIAS[b].banhistas`). A Praia do Pôr do Sol tem poucos.
+- **Desenho:** fica simples (bonequinhos do jogo), porque o OpenCode capricha no B2.
+- **Clientes:** os de verdade continuam vindo como hoje.
+
+**A5. Simulador e balanceamento.**
+- **O bot:** opera tudo no mapa novo (caixas do caminhão, quiosques na grama, escolinha na água).
+- **Metas:** as mesmas da rodada 6 por praia, total de 7,5 a 9 h, esperas de no máximo 150 s.
+- **Testes:** `npm test` roda 1 semente. As 3 sementes ficam no `npm run sim`.
+- **Documentação:** atualize o GDD (mapa e áreas) e o `CLAUDE.md`.
+- **Molde para o OpenCode:** escreva `docs/MOLDE-ORLA.md` com:
+  - as faixas e as coordenadas;
   - a função `livre`;
-  - a lista do que cada uma das praias 2, 3, 5, 6, 7, 8 e 10 deve ter.
-- **Prévia:** `?praia=N` continua servindo para conferir.
+  - onde fica cada área;
+  - a paleta;
+  - e o que a parte B deve desenhar, item por item.
 
-**A3. Acertos.**
-- **Meta total:** passa a ser de 7,5 a 9 h (`TOTAL_HORAS` e o teste).
-- **Placa dos lotes 8 e 9:** dentro da faixa grande, ganha uma estaca de madeira.
-- **Tutorial:** mostra uma seta quando:
-  - a fila da escolinha parar por falta de prancha seca ("Leve as pranchas molhadas para secar");
-  - todos os carrinhos dos ambulantes estiverem parados e vazios ("Abasteça os carrinhos").
-  - Cada uma só aparece nas 2 primeiras vezes.
-- **Teste do simulador:** no `npm test`, roda 1 semente. O `npm run sim` continua com as 3.
+**Testes:**
+- nenhuma área fica fora da faixa dela;
+- o jogador não entra na rua;
+- banhistas e ambulantes nunca travam (simulação longa);
+- o caminhão, a bancada, o ambulante e o dinheiro fecham o ciclo;
+- a área trancada não muda nada no jogo;
+- os testes que já existem continuam passando (adapte as coordenadas, não as regras).
 
-## Parte B [CLAUDE]: recompensa diária e material da loja
+## Parte B [OPENCODE]: visual e itens simples
 
-**B1. Recompensa diária.** Na primeira abertura de cada dia, aparece um cartão com o calendário de 7 dias:
-- **Prêmios:**
-  - dia 1: dinheiro (3 min de lucro da praia atual);
-  - dia 2: turbo ×2 por 5 min;
-  - dia 3: dinheiro (5 min);
-  - dia 4: turbo ×2 por 10 min;
-  - dia 5: dinheiro (8 min);
-  - dia 6: turbo ×3 por 5 min;
-  - dia 7: +10% de fama da praia atual e confete.
-- **Botões:** "Pegar" e "Pegar em dobro (anúncio)". Fecha com 1 toque e não volta no mesmo dia.
-- **Dia perdido:** volta 1 dia, a mesma regra do Metrô.
-- **Testes:** com data simulada.
-- **Analytics:** `recompensa_diaria` (dia, dobrou).
+Siga `docs/MOLDE-ORLA.md`. Faça um commit por item e rode `npm test` e `npm run build` antes de cada um. Mexa só nos arquivos que cada item cita.
 
-**B2. Material da loja** (página só de dev, `?loja`). Desenha no canvas e oferece um botão "Baixar" por imagem, que salva um PNG.
+| Item | O que fazer | Arquivos |
+|---|---|---|
+| B1. Orla | A faixa de grama com canteiros, o calçadão de pedra portuguesa ondulada em preto e branco, a ciclovia vermelha com faixa branca, bancos, postes, coqueiros na grama e a rua com o meio-fio (carros passando de vez em quando, só visual) | `render/cenarios.ts` |
+| B2. Banhistas | Desenho bonito para a lógica da A4: canga colorida com a pessoa deitada, guarda-sol com cadeira, criança com baldinho e castelo, dupla de frescobol, nadador na água, gente andando de chapéu. Variação de cor e roupa por `hash` | `render/desenho.ts` (só as funções dos banhistas) |
+| B3. Quiosques | Desenho dos 3 quiosques da grama (Sorveteria, Milho e pastel, Sucos) no estilo dos quiosques de orla, com toldo, balcão e banquinhos | `render/desenho.ts` (só as funções desses quiosques) |
+| B4. Palco central | Quadrado no meio da areia com 8 músicos (3 na frente e 3 atrás sentados à mesa, 1 de cada lado), instrumentos (pandeiro, cavaquinho, surdo, violão), cercadinho do camarote com o quiosque dele e muita gente em volta durante o show | `render/desenho.ts` (só o palco) |
+| B5. Placas trancadas | O quadrado trancado das áreas futuras: tracejado na areia, cadeado e placa de madeira "Trancado · <área> · Praia N" | `render/desenho.ts` (só a placa) |
+| B6. Números curtos | Todo valor de dinheiro na tela no formato curto: 950, 12,5 mil, 3,2 mi, 1,1 bi. Função `fmt` em `core/economia.ts`, com teste | `core/economia.ts` e o teste |
 
-- **Ícone 512 × 512:**
-  - a barraca com guarda-sol listrado e um coco com canudinho;
-  - o mar ao fundo;
-  - sem texto;
-  - legível em 48 × 48 (mostre a prévia).
-- **Imagem de destaque 1024 × 500:** o nome "Barraca na Praia", a praia cheia de clientes, o vendedor e as áreas.
-- **6 capturas 1080 × 1920.** Cada uma tem uma faixa de título no topo, com texto grande, e embaixo o jogo de verdade:
-  1. "Monte o seu point na praia": Praia 4 cheia.
-  2. "Contrate ajudantes": ajudantes trabalhando.
-  3. "Viaje para praias novas": o litoral na viagem.
-  4. "Show de pagode na areia": o palco durante o show.
-  5. "Seja campeão da praia": o torneio.
-  6. "Jogue só com um dedo": Praia 1 com a seta do tutorial.
-- **Pasta:** salve os PNGs também em `loja/`.
-
-**B3. Textos da loja.** Crie `loja/textos-pt-BR.md` com estes textos, sem mudar:
-
-- **Título (29):** Barraca na Praia: Idle Tycoon
-- **Descrição curta (70):** Venda açaí, abra quiosques e transforme sua barraca no point da praia!
-- **Descrição longa:**
-
-```
-Comece com uma barraquinha de açaí e coco e transforme a praia no lugar mais animado do litoral! Ande com um dedo só, leve os produtos até o balcão, junte o dinheiro e expanda.
-
-🏖️ 10 PRAIAS PARA CONQUISTAR
-Cada praia libera algo novo: sorveteria, chuveirão, milho e pastel, quadra de futevôlei, ambulantes, escolinha de surf, sucos, palco de pagode e o grande torneio.
-
-⭐ FAMA QUE FICA
-A cada praia nova você ganha fama e recomeça mais forte. O que levava minutos passa voando.
-
-👷 CONTRATE A EQUIPE
-Ajudantes, sorveteiros, cozinheiros, instrutores e barmen trabalham por você, até com o jogo fechado.
-
-🎶 SHOW E CAMPEONATO
-Shows de pagode lotam a praia, e o torneio de futevôlei transforma você em campeão.
-
-😌 FEITO PARA RELAXAR
-Sem derrota e sem pressa. Jogue um pouquinho por dia ou passe a tarde na praia.
-```
-
-- **Checklist do Play Console** (igual ao do Metrô, preencha olhando os pacotes):
-  - categoria: Simulação ou Casual;
-  - questionário IARC;
-  - público de 13 anos ou mais;
-  - segurança dos dados (AdMob, Firebase, UMP);
-  - `loja/privacidade.md`.
-
-**B4. Documentação.** Atualize o GDD e o `CLAUDE.md`.
-
-## Parte C [OPENCODE]: identidade das praias 2, 3, 5, 6, 7, 8 e 10
-
-- **O que fazer:** siga o novo `docs/MOLDE-AREIA.md`. Cada praia ganha as 3 camadas (chão, elemento grande, detalhes), seguindo a lista do molde.
-- **Arquivos:** mexa só em `src/dados/praias.ts` e `src/render/cenarios.ts`.
-- **Commits:** um a cada 2 ou 3 praias.
-- **Antes de cada commit:** `npm test` e `npm run build` passando.
-- **Conferir:** abra `?praia=N` se tiver navegador. Se não tiver, confira pela função `livre` e pela regra de densidade do molde.
-- **No fim:** escreva no `RELATORIO.md` a seção "## Parte C (OpenCode)" e troque o status para `Status: AGUARDANDO REVISÃO`.
+**No fim:** escreva no `RELATORIO.md` a seção "## Parte B (OpenCode)" e troque o status para `Status: AGUARDANDO REVISÃO`.
 
 ## Critérios de pronto
 
-- [ ] As praias 1, 4 e 9 (Claude) e 2, 3, 5, 6, 7, 8 e 10 (OpenCode) têm chão, elemento grande e detalhes próprios. Em qualquer tela dá para saber a praia.
-- [ ] Nenhum enfeite cobre balcão, quadro, fila, máquina ou caminho (`livre`).
-- [ ] A meta total é de 7,5 a 9 h, e o simulador passa.
-- [ ] A estaca nas placas 8 e 9 e as duas setas novas do tutorial estão feitas.
-- [ ] A recompensa diária funciona, inclusive dobrando com anúncio, com testes.
-- [ ] `?loja` gera o ícone, a imagem de destaque e as 6 capturas. Os textos e a privacidade estão em `loja/`.
+- [ ] A praia tem as faixas mar, areia, grama, calçadão e rua. A câmera anda na vertical. Ninguém entra na rua.
+- [ ] As áreas ficam nos lugares da tabela da A2. Os quiosques são pequenos e ficam na grama.
+- [ ] As áreas futuras aparecem trancadas, com placa, e dá para passar por cima.
+- [ ] Os ambulantes funcionam com caminhão, bancada e carrinhos rodando entre as pessoas, com ajudante do caminhão.
+- [ ] A praia está cheia de banhistas que não atrapalham, e a Praia do Pôr do Sol tem menos.
+- [ ] O palco central tem os 8 músicos e o camarote.
+- [ ] Os números aparecem curtos.
+- [ ] O simulador está dentro das metas.
 - [ ] `npm test` e `npm run build` passam.
 
 ## Fora do escopo
 
-Arena, praias 11 em diante, Acampamento de inverno, co-op, compras dentro do app e APK.
+Recompensa diária e material da loja (próxima rodada), Arena, praias 11 em diante, Acampamento de inverno, co-op e APK.
