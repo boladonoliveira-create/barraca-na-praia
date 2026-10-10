@@ -226,3 +226,41 @@ Os outros números de `ECONOMIA`:
 - **Testes mais rápidos:** o teste do simulador ficou lento (cerca de 50 s). Dá para rodar só uma semente no `npm test` e as 3 no `npm run sim`.
 - **Placa dos lotes 8 e 9:** dentro da faixa grande, ela flutua na areia sem cerca. Pode ganhar uma estaca, para não parecer solta.
 - **Tutorial:** ainda não aponta para as pranchas molhadas nem para o carrinho vazio. Uma seta quando a fila da escolinha para por falta de prancha ajudaria.
+
+## Parte D (OpenCode)
+
+Commits:
+- `e81ed5f`: parte D2, praias 2 a 4;
+- `27e0e7f`: parte D2, praias 5 a 7;
+- `7b8166c`: parte D2, praias 8 a 10;
+- o deste relatório vem logo depois.
+
+### O que foi feito
+Segui `docs/MOLDE-AREIA.md`. Tudo ficou em `src/render/cenarios.ts` (novas funções em `ENFEITES_AREIA` e um ajudante `sombra`) e em `src/dados/praias.ts` (a lista `enfeitesAreia` de cada praia). Cada praia ganhou 2 ou 3 enfeites, com base (ou centro) dentro das zonas livres (beira, divisa, rodapé), respeitando `livreNaBeira(x)`:
+
+| Praia | Enfeites | Notas |
+|---|---|---|
+| 2 | `cangas`, `guardaSois` | toalhas listradas e guarda-sóis pequenos (fechados ou meio abertos) na beira, distintos dos da Barraca do Sol |
+| 3 | `pedrasAreia`, `redes` | pedras redondas na beira e redes em duas estacas em pontos fixos livres |
+| 4 | `coqueirosAreia`, `cocos` | palmeiras na beira com sombra e a copa subindo para o mar; cocos caídos. Tirei `coqueiros` de `enfeites` |
+| 5 | `pedrasForte`, `canhao` | blocos musgosos na beira e um canhão em pontos fixos livres, apontado para o mar |
+| 6 | `brilho`, `estrelas` | pontinhos de ouro que piscam com `e.t` e estrelas-do-mar giradas na beira |
+| 7 | `marcasPe`, `pranchasAreia` | pegadas claras no rodapé/beira e pranchas fincadas na areia |
+| 8 | `boiasVeleiro`, `ancora` | boias laranjas deitadas na beira e uma âncora grande em pontos fixos livres |
+| 9 | `esteiras`, `tochas` | esteiras de palha na beira e tochas acesas, com a chama tremulando e a luz sem `shadowBlur` |
+| 10 | `bandeiras`, `cones`, `placas` | flâmulas que tremulam, cones laranja e placas de patrocínio com nomes inventados |
+
+- Tudo usa `hash(i)` (nada de `Math.random`), listas fixas nos itens grandes (redes, canhão, âncora, tochas, bandeiras, placas) e no máximo uma forma de sombra por objeto (`rgba(120,80,30,0.15)`).
+- Na Praia 7, a faixa grande vazia (`x` de 2000 a 2600, onde entram as áreas 8 e 9) ficou sem prancha fincada.
+- Antes de cada commit: `npm test` (59 testes) e `npm run build` passando.
+
+### O que ficou fraco ou não deu
+- **Conferência visual:** fiz só `npm test` e `npm run build`. Não abri o navegador com `?praia=N`. As posições seguem as zonas do molde e `livreNaBeira`, mas o resultado na tela não foi visto; pode haver enfeite encostando em outro ou repetindo demais.
+- **Placas com texto:** a tabela do roteiro pede nomes nas placas ("Sorvetão do Zé", "Rádio Praia FM"), mas o molde diz "nada de texto". Segui a tabela. Se o revisor preferir, é fácil tirar o `fillText` e deixar só a placa colorida.
+- **Cangas e esteiras na areia molhada:** são objetos "secos" desenhados na beira (a faixa mais molhada). Ficam na zona permitida, mas o realismo é discutível.
+- **Praia 7 e a faixa grande:** só pulei `x` de 2000 a 2600 nas pranchas. A âncora e a rede não são dessa praia, então não deu para testar se o resto do vazio da faixa (por exemplo `x` de 1700 a 2000) também deveria ficar limpo.
+
+### Dúvidas
+- O texto nas placas da Praia 10 deve ficar ou sair? (conflito entre a tabela e o molde)
+- Na Praia 7, o vazio da faixa grande é só de 2000 a 2600 ou todo o trecho depois da Escolinha (`x` > 1700)?
+- O brilho da Praia 6 usa `globalAlpha` para o pisca-pisca. O molde proíbe `shadowBlur` e `filter`, mas não fala de `globalAlpha`. Confirme se pode.
