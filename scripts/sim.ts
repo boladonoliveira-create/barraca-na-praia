@@ -13,7 +13,7 @@ for (const seed of sementes.length ? sementes : [1, 2, 3]) {
     if (detalhe) for (const c of p.compras) console.log(`  ${c.segundos.toFixed(1).padStart(6)} s  ${AREAS[c.area].padEnd(15)} nv ${String(c.nivel).padStart(2)}  ${c.nome} (R$ ${c.preco})`);
     console.log(`| ${p.praia} | ${p.minutos.toFixed(1)} | ${METAS[p.praia - 1].join(' a ')} | ${p.praia > 1 ? p.antigas.toFixed(0) + '%' : '-'} | ${p.maiorEspera.toFixed(0)} s | ${p.fama} |`);
   }
-  console.log(`Total: ${r.total.toFixed(1)} min`);
+  console.log(`Total: ${r.total.toFixed(1)} min (${(r.total / 60).toFixed(1)} h)`);
   const erros = foraDaFaixa(r);
   console.log(erros.length ? `Fora da faixa (${erros.length}):\n  ` + erros.join('\n  ') : 'Tudo dentro da faixa.');
 }

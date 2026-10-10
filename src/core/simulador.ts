@@ -55,6 +55,8 @@ function canDeliver(g: Jogo, t: Item) {
   const si = PRODUCTS[t].shop, st = g.S[si];
   if (si < 0) return g.machines.some(m => m.needs === t && g.espaco(m) > 0); // cru: vai para a panela
   if (!st.open) return false;
+  if (SHOPS[si].kind === 'ambulante') { const v = g.carregando(); return !!v && v.carga.length < g.isoporCap() } // só com carrinho parado
+  if (t === 'prancha') return g.naArara() < g.araraCap();
   return t === 'caixa' ? st.stock < g.freezerCap() : st.counter[t].length < COUNTER_CAP;
 }
 
@@ -81,6 +83,13 @@ function alvoNovo(g: Jogo): Rect | Pt | null {
     const pilhas = g.S.map((st, i) => st.open ? st.cashValue : 0), total = pilhas.reduce((x, y) => x + y, 0), maior = pilhas.indexOf(Math.max(...pilhas));
     if (g.money < falta && pilhas[maior] > 0 && (g.money + total >= falta || pilhas[maior] >= 0.3 * falta)) return SHOPS[maior].cash;
   }
+  // escolinha: leva a prancha molhada para a arara; sem instrutor, recolhe as que estão na areia
+  if (g.S[6]?.open) {
+    if (p.stack.includes('prancha') && canDeliver(g, 'prancha') && (!g.canCarry(p, 'prancha') || !g.esc.pranchas.some(b => b.estado === 'molhada'))) return SHOPS[6].drop;
+    const molhadas = g.esc.pranchas.filter(b => b.estado === 'molhada'), secas = g.esc.pranchas.filter(b => b.estado === 'seca').length;
+    if (!g.helpers.some(h => h.shop === 6) && molhadas.length && g.canCarry(p, 'prancha') && (secas === 0 || molhadas.length >= 2))
+      return molhadas.reduce((a, b) => Math.hypot(b.x - p.x, b.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? b : a);
+  }
   // panela: com cru na mão e espaço, fica carregando
   const panela = g.machines.find(m => m.needs && inZone(p, zoneOf(m)) && g.espaco(m) > 0 && p.stack.includes(m.needs));
   if (panela) return zoneOf(panela);
@@ -90,7 +99,7 @@ function alvoNovo(g: Jogo): Rect | Pt | null {
 /** O que o bot está juntando dinheiro para comprar: a viagem, assim que libera, ou a melhor compra. */
 function meta(g: Jogo): { pad: Rect; slot: string; falta: number } | null {
   if (g.novaPraiaAberta() && g.proximaExiste()) return { pad: padOf('praia'), slot: 'praia', falta: g.custoNovaPraia() - (g.paid.praia || 0) };
-  const v = g.melhorCompra(false);
+  const v = g.melhorCompra(true) || g.melhorCompra(false); // como a seta: a melhor que cabe no bolso; se nada cabe, junta para a melhor
   return v ? { pad: padOf(v.s.slot), slot: v.s.slot, falta: g.falta(v) } : null;
 }
 
@@ -127,7 +136,7 @@ export interface PraiaSim { praia: number; minutos: number; antigas: number; mai
 
 /** Joga da Praia 1 até a área nova da última praia chegar ao nível da viagem (ou travar).
     O bot compra a nova praia assim que ela libera. */
-export function simular({ seed = 1, limiteMin = 300, humano = true, praias = NUM_AREAS } = {}): Resultado {
+export function simular({ seed = 1, limiteMin = 900, humano = true, praias = NUM_AREAS } = {}): Resultado {
   const g = new Jogo({}, rng(seed)), R = rng(seed + 7);
   const entre = (a: number, b: number) => a + R() * (b - a);
   let a: Rect | Pt = g.player, pensa = 0, pausaAte = 0, proxPausa = 30000, fase = 0, desvio = 0;
@@ -160,15 +169,16 @@ export function simular({ seed = 1, limiteMin = 300, humano = true, praias = NUM
     }
     const antes = [...g.nivel], praia = g.beach;
     g.update(DT, input); g.updateFx(DT);
-    if (g.beach !== praia) { // viajou: a praia anterior acabou
-      fecha(praia, g.famas[g.famas.length - 1]); continue;
+    if (g.beach !== praia) { // viajou: a praia anterior acabou (e, se era a última pedida, a simulação também)
+      fecha(praia, g.famas[g.famas.length - 1]); if (praia + 1 >= praias) return fim(false); continue;
     }
     for (let ar = 0; ar < NUM_AREAS; ar++) while (antes[ar] < g.nivel[ar]) {
       const s = g.trilhas[ar][antes[ar]++]; if (!s.price) continue; // começo rápido: de graça, não é compra
       compras.push({ fase: praia, area: ar, nivel: antes[ar], nome: s.name, preco: s.price, segundos: tCompra / 1000 }); maior = Math.max(maior, tCompra / 1000); tCompra = 0;
     }
     if (antigas < 0 && g.S.slice(0, Math.max(1, g.beach)).every(st => st.open)) antigas = tPraia;
-    if (g.novaPraiaAberta() && (!g.proximaExiste() || g.beach + 1 >= praias)) { fecha(praia, g.famaGanha()); return fim(false) }
+    // cada praia acaba na compra da viagem; a Praia 10 (sem viagem), quando o torneio faz campeão
+    if (praia === 9 ? g.campeao() : g.novaPraiaAberta() && !g.proximaExiste()) { fecha(praia, g.famaGanha()); return fim(false) }
     if (tCompra > 10 * 60000) break; // 10 min sem comprar: travado
   }
   return fim(true);
@@ -176,7 +186,9 @@ export function simular({ seed = 1, limiteMin = 300, humano = true, praias = NUM
 
 /** Metas da rodada 5, por praia: minutos [mín, máx] até a viagem. Nenhuma espera passa de ESPERA_MAX s, e as áreas
     antigas voltam a funcionar nos primeiros ANTIGAS_MAX % do tempo da praia. */
-export const METAS: [number, number][] = [[8, 10], [15, 20], [20, 25], [25, 35], [35, 45]];
+export const METAS: [number, number][] = [[8, 10], [15, 20], [20, 25], [25, 35], [35, 45], [45, 55], [55, 65], [60, 75], [70, 85], [80, 95]];
+/** O total das 10 praias, em horas de jogo ativo. */
+export const TOTAL_HORAS: [number, number] = [8, 10];
 export const ESPERA_MAX = 150, ANTIGAS_MAX = 25;
 export function foraDaFaixa(r: Resultado) {
   const erros: string[] = [];
@@ -186,6 +198,7 @@ export function foraDaFaixa(r: Resultado) {
     if (p.maiorEspera > ESPERA_MAX) erros.push(`Praia ${p.praia}: espera de ${p.maiorEspera.toFixed(0)} s (máximo ${ESPERA_MAX})`);
     if (p.antigas > ANTIGAS_MAX) erros.push(`Praia ${p.praia}: áreas antigas abertas a ${p.antigas.toFixed(0)}% do tempo (máximo ${ANTIGAS_MAX}%)`);
   }
+  if (r.praias.length === METAS.length && (r.total < TOTAL_HORAS[0] * 60 || r.total > TOTAL_HORAS[1] * 60)) erros.push(`Total: ${(r.total / 60).toFixed(1)} h (alvo ${TOTAL_HORAS[0]} a ${TOTAL_HORAS[1]} h)`);
   if (r.travou) erros.push('o bot travou');
   return erros;
 }

@@ -145,8 +145,8 @@ export class Jogo {
   novaPraiaAberta() { const a = this.areasPraia() - 1; return this.aberta(a) && this.nivel[a] >= NIVEL_NOVA_PRAIA }
   /** A próxima praia já tem a área dela pronta no jogo (depois da Praia 5 o quadro diz "em breve"). */
   proximaExiste() { return this.beach + 1 < NUM_AREAS }
-  /** Custo da viagem: o preço do próximo nível da área nova. */
-  custoNovaPraia() { return this.trilhas[this.areasPraia() - 1][NIVEL_NOVA_PRAIA].price }
+  /** Custo da viagem: ECONOMIA.viagem[praia] × o preço do próximo nível da área nova. */
+  custoNovaPraia() { return Math.round(this.trilhas[this.areasPraia() - 1][NIVEL_NOVA_PRAIA].price * ECONOMIA.viagem[this.beach] / 5) * 5 }
   beachName() { return PRAIAS[Math.min(this.beach, PRAIAS.length - 1)].nome }
   goalText() {
     if (this.novaPraiaAberta()) return this.proximaExiste() ? 'Viajar para a ' + PRAIAS[this.beach + 1].nome : (PRAIAS[this.beach + 1]?.nome ?? 'Praia ' + (this.beach + 2)) + ' · em breve';

@@ -4,9 +4,9 @@ Jogo mobile "idle arcade" (no estilo do Pizza Ready): o jogador anda com um dedo
 
 - Design completo: `GDD-BARRACA-NA-PRAIA.md` (fonte da verdade para regras e números).
 - Protótipo de referência: `barraca-na-praia.html`. O que o GDD marca como "já existe no protótipo" precisa manter o mesmo comportamento.
-- **Áreas:** a praia é dividida em áreas, da esquerda para a direita: Barraca do Sol, Sorvete, Chuveirão e cadeiras, Milho e pastel, Quadra de futevôlei (atração: não vende, aumenta a chegada de clientes nas outras); depois, só a placa dos Ambulantes.
+- **Áreas:** a praia é dividida em 10 áreas, da esquerda para a direita: Barraca do Sol, Sorveteria, Chuveirão e cadeiras, Milho e pastel, Quadra de futevôlei (atração), Ambulantes (venda automática), Escolinha de surf (serviço com fila), Sucos e vitaminas (preparo), Palco de pagode (atração em evento) e Torneio de futevôlei (3 etapas; a meta do lançamento). As áreas 7 a 9 ficam na faixa grande de areia, que abre inteira com a Escolinha (GDD seções 6 e 7).
 - **Trilhas:** cada área tem a sua trilha de níveis, independente das outras, e a área N+1 abre quando a área N chega ao nível 5 (GDD seções 6 a 8).
-- **Praias:** o litoral tem 10 praias (`src/dados/praias.ts`). A praia N tem as áreas 1 a N; a área N é a novidade. Com a área N no nível 10 aparece o quadro dourado da viagem: zera dinheiro e níveis e dá fama, que multiplica o lucro de tudo. Hoje existem as praias 1 a 5; depois da 5 o quadro diz "em breve" (GDD seções 6 e 8).
+- **Praias:** o litoral tem 10 praias (`src/dados/praias.ts`). A praia N tem as áreas 1 a N; a área N é a novidade. Com a área N no nível 10 aparece o quadro dourado da viagem: zera dinheiro e níveis e dá fama, que multiplica o lucro de tudo. As 10 praias existem; na Praia 10 o quadro diz "Praia 11 · em breve" e a meta é ser campeão do torneio. Os troféus do torneio dão público para sempre (GDD seções 6 e 8).
 
 ## Pilares (GDD seção 2, não quebrar)
 
@@ -23,8 +23,9 @@ Vite + TypeScript, empacotado com Capacitor 8 para Android (`android/`, id `com.
 
 ```
 src/
-  dados/        mapa.ts (lotes, lojas/SHOPS, SERVICO, PREPARO, ATRACAO, produtos, slots), planos.ts (AREAS, TRILHAS, ECONOMIA),
-                praias.ts (PRAIAS: nome, área nova, cores, hora, enfeites)
+  dados/        mapa.ts (lotes, lojas/SHOPS, regras das áreas: SERVICO, PREPARO/RECEITAS, ATRACAO, AMBULANTE, ESCOLA, PALCO, TORNEIO;
+                produtos, slots), planos.ts (AREAS, TRILHAS, ECONOMIA),
+                praias.ts (PRAIAS: nome, área nova, cores, hora, enfeites do céu e do mar, enfeites da areia)
   core/         jogo.ts (estado, clientes, ajudantes, compras; sem canvas e sem DOM)
                 economia.ts (trilhas e preços), simulador.ts (bot que mede o ritmo)
   render/       desenho.ts (câmera, personagens, máquinas, efeitos), cenarios.ts (céu, mar e enfeites de cada praia)
@@ -36,14 +37,15 @@ src/
 scripts/sim.ts  relatório do simulador no terminal
 scripts/icones.mjs  gera assets/*.png (ícone e abertura provisórios)
 admob.config.json   único lugar dos IDs do AdMob (teste até usarReais = true)
-docs/MOLDE-CENARIOS.md  regras para fazer o cenário de uma praia
+docs/MOLDE-CENARIOS.md  regras para fazer o cenário de uma praia (céu e mar)
+docs/MOLDE-AREIA.md     regras para a decoração da areia de uma praia
 ```
 
 - O núcleo (`core/`) não toca em canvas nem DOM. Som, vibração, salvar e telas saem pela interface `Io` passada ao `Jogo`. A aleatoriedade vem de `rand`, que os testes e o simulador trocam por um gerador com semente.
 - **Uma área nova:** a área i é a loja `SHOPS[i]`, o lote `LOTS[i]` e a trilha `TRILHAS[i]`. Ela entra como dados em `dados/` (produtos, zonas, trilha, regra de ajudante), não reescrevendo o motor.
 - **Independência:** melhorias de uma área não podem mudar outra. Cada área tem o seu turbo e o seu cardápio, e há teste para isso.
 - **Salvar:**
-  - O progresso fica em `barraca-na-praia:save` como `{ versao: 4, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal`, `famas` e `niveis` por área. O `mundo` é criado uma vez (nuvem e co-op no futuro).
+  - O progresso fica em `barraca-na-praia:save` como `{ versao: 4, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal`, `famas`, `trofeus`, a partida do torneio em andamento e `niveis` por área. O `mundo` é criado uma vez (nuvem e co-op no futuro).
   - Se a estrutura do `Save` mudar, suba `SAVE_VERSION` e converta em `lerSave`. O v3 é convertido (`deV3`); antes disso, recomeça do zero.
   - Um save de versão mais nova nunca é sobrescrito.
   - Som, vibração e modo teste ficam em `barraca-na-praia:prefs`.
@@ -68,15 +70,17 @@ O `npm run sim` roda com o Node 24, que executa TypeScript direto. Por isso os i
 
 ## Balanceamento
 
-- **O que o simulador mede:** o bot joga as praias 1 a 5 e compra a viagem assim que ela libera. Metas por praia: 8 a 10, 15 a 20, 20 a 25, 25 a 35 e 35 a 45 min; nenhuma espera acima de 150 s; as áreas antigas abertas nos primeiros 25% do tempo da praia. `npm run sim` roda as sementes 1, 2 e 3 (`-- --compras` lista as compras).
+- **O que o simulador mede:** o bot joga as praias 1 a 10, compra a viagem assim que ela libera e termina quando é campeão do torneio. Metas por praia (`METAS` em `simulador.ts`): 8 a 10, 15 a 20, 20 a 25, 25 a 35, 35 a 45, 45 a 55, 55 a 65, 60 a 75, 70 a 85 e 80 a 95 min; nenhuma espera acima de 150 s; as áreas antigas abertas nos primeiros 25% do tempo da praia; o total entre 8 e 10 h. `npm run sim` roda as sementes 1, 2 e 3 (cerca de 1 min cada; `-- --compras` lista as compras).
 - **O bot:**
-  - escolhe a melhor compra por custo-benefício (`Jogo.melhorCompra`), ou a viagem, se já liberou;
+  - segue a seta: compra a melhor que já cabe no bolso (`Jogo.melhorCompra(true)`); se nada cabe, junta para a melhor de todas; a viagem vem antes de tudo;
+  - abastece os carrinhos, leva as pranchas molhadas à arara (sem instrutor) e opera as liquidificadoras;
   - enquanto junta dinheiro, contorna os outros quadros pela quina;
   - recolhe as pilhas paradas;
   - opera chuveirão, cadeiras e panelas.
 - **Variações:** o bot humano (padrão) reage com 200 a 400 ms de atraso, anda com desvio leve e para 3 a 5 s a cada 30 s. `npm run sim -- --perfeito` usa o bot perfeito.
-- **Números:** ficam em `ECONOMIA` (`src/dados/planos.ts`): preços, fator por praia (1,45), fama (K = 2000, taxa 0,07) e o desconto das áreas antigas (20%). Hoje as 5 praias levam ~9 / 18 / 21 / 26 / 36 min, todas dentro da meta nas 3 sementes.
+- **Números:** ficam em `ECONOMIA` (`src/dados/planos.ts`): preços, fator por praia (1,45), custo da viagem por praia (`viagem`), fama (K = 2000, taxa 0,07) e o desconto das áreas antigas (20%). Hoje as 10 praias ficam dentro da meta nas 3 sementes (~9 / 18 / 23 / 30 / 39 / 51 / 60 / 69 / 82 / 88 min), e o total fica em 7,8 a 7,9 h, logo abaixo das 8 h (ver RELATORIO.md).
+- **Sensível:** o resultado muda bastante com pequenas mudanças de preço (o bot escolhe compras diferentes e a fama acumula). Ao mexer num número, rode as 3 sementes de novo.
 
 ## Ordem de trabalho (GDD seção 12)
 
-Feitas: etapa 1 (base, porte, testes, simulador) e etapa 2 (personagens, sons e mar, vibração, tela inicial, save versionado, ganhos offline). Rodada 3 (etapa 3: Capacitor, AdMob de teste, analytics) feita. Rodada 4 (refeita): consentimento de anúncios, progressão por áreas independentes com as áreas 3 e 4, e a área 5 (quadra). Rodada 5: litoral de praias com fama (Cash Inc), começo rápido, cenários das praias 1 e 2, save v4, viagem e litoral; ver RELATORIO.md. Não avance além do roteiro sem o usuário pedir.
+Feitas: etapa 1 (base, porte, testes, simulador) e etapa 2 (personagens, sons e mar, vibração, tela inicial, save versionado, ganhos offline). Rodada 3 (etapa 3: Capacitor, AdMob de teste, analytics) feita. Rodada 4 (refeita): consentimento de anúncios, progressão por áreas independentes com as áreas 3 e 4, e a área 5 (quadra). Rodada 5: litoral de praias com fama (Cash Inc), começo rápido, cenários das praias 1 e 2, save v4, viagem e litoral. Rodada 6: áreas 6 a 10 (praias 6 a 10), a faixa grande da Praia 7, balanceamento das 10 praias e o molde da areia; ver RELATORIO.md. Não avance além do roteiro sem o usuário pedir.

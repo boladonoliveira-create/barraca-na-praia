@@ -33,8 +33,8 @@ export const PRODUCTS: Record<Item, { price: number; rate: number; shop: number 
   pastel: { price: 26, rate: 0, shop: 3 },
   milhoCru: { price: 0, rate: 700, shop: -1 },
   pastelCru: { price: 0, rate: 800, shop: -1 },
-  mate: { price: 30, rate: 1100, shop: 5 },
-  biscoito: { price: 40, rate: 1300, shop: 5 },
+  mate: { price: 50, rate: 1100, shop: 5 },
+  biscoito: { price: 70, rate: 1300, shop: 5 },
   prancha: { price: 0, rate: 0, shop: 6 }, // prancha molhada na mão: vai para a arara
   laranja: { price: 0, rate: 750, shop: -1 },
   acaiBanana: { price: 0, rate: 850, shop: -1 },
