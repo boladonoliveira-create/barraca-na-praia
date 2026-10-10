@@ -1,6 +1,6 @@
 /* Cenário de cada praia: céu, mar, ondas e os enfeites de fundo (PRAIAS[b].enfeites). Só desenha; regras em docs/MOLDE-CENARIOS.md.
    Tudo em coordenadas do mundo, entre x0 e x1 (a parte visível). Sem Math.random: a posição vem de hash(i). */
-import { SHORE } from '../dados/mapa.ts';
+import { SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SERVICO, ESCOLA } from '../dados/mapa.ts';
 import type { Praia } from '../dados/praias.ts';
 
 /** O céu vai de 0 a HORIZONTE; o mar, de HORIZONTE até a areia (SHORE). Enfeite fica sempre acima de SHORE - 6. */
@@ -233,6 +233,57 @@ const faixas: Enfeite = (c, e) => semPainel(c, e, () => {
 /** Todos os enfeites, pelo id usado em PRAIAS[b].enfeites. Enfeite novo: uma função aqui e o id na praia. */
 export const ENFEITES: Record<string, Enfeite> = { sol, nuvens, gaivotas, boias, ilha, navio, jangadas, farol, pedras, coqueiros, muralha, barquinhos, ondasGrandes, pranchas, veleiros, reflexo, bandeirinhas, faixas };
 
+/* ---------- Areia (docs/MOLDE-AREIA.md) ---------- */
+
+/** As zonas da areia onde a decoração pode ficar. Fora delas ficam balcões, filas, quadros e o caminho do jogador.
+    beira: a faixa de areia molhada logo abaixo da água (y de y0 a y1), fora das filas dos balcões e dos chuveiros;
+    divisa: a fresta entre dois lotes (até `meia` de cada lado de x0), na altura em que o jogador anda;
+    rodape: a faixa de baixo, abaixo de onde o jogador pisa. */
+export const AREIA = {
+  beira: { y0: SHORE + 8, y1: SHORE + 22 },
+  divisa: { meia: 6, y0: WALL_Y + 24, y1: PLAY_BOTTOM - 16 },
+  rodape: { y0: PLAY_BOTTOM + 6, y1: PLAY_BOTTOM + 16 },
+};
+/** x livre na beira: longe das filas (balcões e quiosques têm fila na beira quando ela cresce para o lado). */
+export function livreNaBeira(x: number) {
+  if (SHOPS.some(d => (d.kind === 'counter' || d.kind === 'kiosk') && Math.abs(x - d.cx) < 110)) return false;
+  return Math.abs(x - SERVICO.filaX) > 40 && Math.abs(x - ESCOLA.filaX) > 40;
+}
+/** Repete fn em cada divisa entre lotes que está visível (x da divisa e o índice do lote à direita). */
+export function divisas(e: Vista, fn: (x: number, i: number) => void) {
+  LOTS.forEach((l, i) => { if (i && l.x0 > e.x0 - 20 && l.x0 < e.x1 + 20) fn(l.x0, i) });
+}
+
+/** Conchas: pequenas, espalhadas pela beira (uma a cada 70 unidades, quando o lugar está livre). */
+const conchas: Enfeite = (c, e) => {
+  const B = AREIA.beira;
+  cada(e, 70, (x, i) => {
+    const cx = x + hash(i) * 50, cy = B.y0 + hash(i + 3) * (B.y1 - B.y0); if (!livreNaBeira(cx)) return;
+    c.save(); c.translate(cx, cy); c.rotate((hash(i + 5) - 0.5) * 1.2); c.scale(1.3, 1.3);
+    c.fillStyle = ['#ffd8a8', '#ffc9c9', '#fff4e6'][((i % 3) + 3) % 3]; c.beginPath(); c.moveTo(-4, 2); c.quadraticCurveTo(0, -6, 4, 2); c.closePath(); c.fill();
+    c.strokeStyle = 'rgba(160,110,70,0.5)'; c.lineWidth = 0.8; c.beginPath(); c.moveTo(0, 2); c.lineTo(0, -2); c.moveTo(-2, 2); c.lineTo(-1, -1); c.moveTo(2, 2); c.lineTo(1, -1); c.stroke();
+    c.restore();
+  });
+};
+
+/** Castelinho de areia: em pontos fixos da beira que estão sempre livres (o 1º logo à direita da Barraca do Sol). */
+const CASTELOS = [350, 1310, 1880, 2450, 2760];
+const castelinho: Enfeite = (c, e) => {
+  const y = AREIA.beira.y1 - 2; // a base encosta no fim da beira; o castelo sobe em direção ao mar
+  CASTELOS.forEach(cx => {
+    if (cx < e.x0 - 30 || cx > e.x1 + 30 || !livreNaBeira(cx - 16) || !livreNaBeira(cx + 19)) return;
+    c.fillStyle = '#e9c98b'; c.fillRect(cx - 14, y - 10, 28, 10); // muro
+    c.fillStyle = '#dcb877'; c.fillRect(cx - 16, y - 18, 8, 18); c.fillRect(cx + 8, y - 18, 8, 18); // torres
+    c.fillStyle = '#e9c98b'; for (const tx of [cx - 16, cx + 8]) for (let k = 0; k < 3; k++) c.fillRect(tx + k * 3, y - 21, 2, 3); // ameias
+    c.fillStyle = '#c9a368'; c.fillRect(cx - 3, y - 6, 6, 6); // porta
+    c.strokeStyle = '#8d5a2b'; c.lineWidth = 1; c.beginPath(); c.moveTo(cx + 12, y - 18); c.lineTo(cx + 12, y - 28); c.stroke();
+    c.fillStyle = '#ff6b6b'; c.beginPath(); c.moveTo(cx + 12, y - 28); c.lineTo(cx + 19, y - 25.5); c.lineTo(cx + 12, y - 23); c.closePath(); c.fill();
+  });
+};
+
+/** Todos os enfeites da areia, pelo id usado em PRAIAS[b].enfeitesAreia. */
+export const ENFEITES_AREIA: Record<string, Enfeite> = { conchas, castelinho };
+
 /* ---------- Cenário ---------- */
 
 /** Céu, mar com ondas, enfeites e a areia. A areia acompanha a beira do mar, que vai e volta devagar. */
@@ -246,6 +297,7 @@ export function desenharCenario(c: CanvasRenderingContext2D, P: Praia, e: Vista,
   const beira = (x: number) => SHORE + Math.sin(x / 38 + t / 900) * 5;
   c.fillStyle = P.areia; c.beginPath(); c.moveTo(x0, H); for (let x = Math.floor(x0 / 8) * 8; x <= x1; x += 8) c.lineTo(x, beira(x)); c.lineTo(x1, H); c.closePath(); c.fill();
   c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineWidth = 4; c.beginPath(); for (let x = Math.floor(x0 / 8) * 8; x <= x1; x += 8) x === Math.floor(x0 / 8) * 8 ? c.moveTo(x, beira(x)) : c.lineTo(x, beira(x)); c.stroke();
+  for (const id of P.enfeitesAreia) ENFEITES_AREIA[id]?.(c, e, P); // decoração da areia: por baixo de tudo o que é do jogo
 }
 
 /** Luz da hora do dia, por cima de tudo (menos da interface): a tarde esquenta um pouco; o pôr do sol, bem mais. */
