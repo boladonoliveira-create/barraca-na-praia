@@ -29,7 +29,7 @@ export interface Chuveiro extends Pt { user: Customer | null; t: number }
 export interface Cadeira extends Pt { user: Customer | null; suja: boolean }
 export interface Servico { agua: number; enchT: number; spawnT: number; spawnC: number; chuveiros: Chuveiro[]; fila: Customer[]; cadeiras: Cadeira[] }
 const novoServico = (): Servico => ({ agua: 0, enchT: 0, spawnT: 800, spawnC: 1500, chuveiros: [], fila: [], cadeiras: [] });
-export type Estado = 'inicio' | 'play' | 'ad' | 'offline' | 'beach';
+export type Estado = 'inicio' | 'play' | 'ad' | 'offline' | 'beach' | 'litoral';
 /** niveis: quantas compras cada área já fez (a trilha é refeita na mesma ordem ao carregar).
     praia: número da praia (1 a 10). famas: fama ganha em cada praia concluída. ganho e tempo: desta praia (dinheiro e ms de jogo). */
 export interface Save {

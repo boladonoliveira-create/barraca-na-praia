@@ -7,7 +7,7 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { StatusBar } from '@capacitor/status-bar';
 import { lerSave, gravarSave, lerPrefs, iniciarArmazenamento } from './plataforma/salvar.ts';
-import { iniciarAnuncios, podeIntersticial } from './plataforma/anuncios.ts';
+import { iniciarAnuncios } from './plataforma/anuncios.ts';
 import { analytics, iniciarAnalytics } from './plataforma/analytics.ts';
 import { ECONOMIA, NIVEL_ABRE } from './dados/planos.ts';
 import { ensureAudio, pauseAudio, tone, fanfare, buzz } from './plataforma/som.ts';
@@ -22,15 +22,10 @@ const canvas = document.getElementById('game') as HTMLCanvasElement, ctx = canva
 // prévia de cenário (só em dev): ?praia=N abre na praia N com as áreas abertas, sem mexer no save
 const previa = testEnabled ? Math.min(10, Number(new URLSearchParams(location.search).get('praia')) || 0) : 0;
 const save = () => { if (!previa) gravarSave(g.snapshot()) }, prefs = lerPrefs();
-let ultimoInter = Date.now(); // o primeiro intersticial vem só depois de 4 min de sessão, não logo ao chegar na Praia 2
 const g = new Jogo({
   tone, fanfare, buzz, save, goal: () => hud.goal(),
-  viagem: (fama, minutos) => { hud.viagem(fama); analytics.registrar('praia_nova', { praia: g.beach + 1, fama_ganha: fama, minutos: Math.round(minutos), anuncio: false }) },
-  compra: (praia, area, nivel, segundos) => {
-    analytics.registrar('step_buy', { praia, area, nivel, segundos: Math.round(segundos) });
-    // intersticial (GDD seção 9): logo depois de uma compra, a partir da Praia 2, no máximo a cada 4 min
-    if (!g.testMode && podeIntersticial(praia, Date.now(), ultimoInter)) { ultimoInter = Date.now(); setTimeout(() => hud.intersticial(), 700) }
-  },
+  viagem: (fama, minutos) => hud.viagem(fama, minutos),
+  compra: (praia, area, nivel, segundos) => analytics.registrar('step_buy', { praia, area, nivel, segundos: Math.round(segundos) }),
 });
 g.testMode = testEnabled && prefs.teste;
 const hud = criarHud(g, save, prefs, testEnabled, ads);

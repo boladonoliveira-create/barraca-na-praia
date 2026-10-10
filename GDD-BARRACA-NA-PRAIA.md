@@ -51,20 +51,25 @@ O formato segue o dos jogos de "idle arcade" que estão no topo da Google Play (
 
 ## 6. O mapa
 
-Uma praia só, desenhada uma vez, dividida em **áreas** da esquerda para a direita. A câmera segue o jogador na horizontal e mostra 140 unidades além da última área aberta, para o jogador espiar o que vem.
+O jogo é um **litoral com 10 praias** em sequência (no estilo do Cash Inc). Cada praia é o mesmo mapa, dividido em **áreas** da esquerda para a direita, e a **praia N tem as áreas 1 a N**: a área N é a novidade dela.
 
-| Área | Largura | Conteúdo | Abre quando |
+| Praia | Nome | Área nova | Largura da área |
 |---|---|---|---|
-| 1 | 400 | Barraca do Sol (açaí e coco) | já começa aberta |
-| 2 | 200 | Sorvete | Barraca do Sol no nível 5 |
-| 3 | 300 | Chuveirão e cadeiras de aluguel | Sorvete no nível 5 |
-| 4 | 300 | Milho e pastel | Chuveirão no nível 5 |
-| 5 | 200 | Quadra de futevôlei (atração) | Milho e pastel no nível 5 |
-| 6 | 200 | Ambulantes (por enquanto só a placa, "em breve") | próxima rodada |
+| 1 | Praia do Sol | Barraca do Sol (açaí e coco) | 400 |
+| 2 | Praia Grande | Sorveteria | 200 |
+| 3 | Praia do Farol | Chuveirão e cadeiras | 300 |
+| 4 | Praia dos Coqueiros | Milho e pastel | 300 |
+| 5 | Praia do Forte | Quadra de futevôlei (atração) | 200 |
+| 6 | Praia Dourada | Ambulantes (próxima rodada) | 200 |
+| 7 | Praia Brava | Escolinha de surf | |
+| 8 | Baía Azul | Sucos e vitaminas | |
+| 9 | Praia do Pôr do Sol | Palco de pagode | |
+| 10 | Praia do Campeonato | Torneio de futevôlei | |
 
-Cada área fechada mostra uma cerca, a silhueta do que vai ter ali e uma placa com cadeado com o progresso: "Sorvete · abre com Barraca do Sol nv 5 (3/5)". Quando a área anterior chega ao nível mínimo, a placa diz "pronta para abrir" e o **quadro de compra da área nova aparece na cerca**. Comprar esse quadro abre a área.
-
-"Praia" é o nível de prestígio (seção 8). O mapa é o mesmo, mas cada praia nova tem nome e cor do mar diferentes: Praia do Sol, Praia Grande, Praia do Farol, Praia Dourada, Ilha do Coqueiro, e depois repete com número.
+- **Dentro da praia,** as áreas abrem em ordem: a área N+1 abre quando a área N chega ao nível 5. Cada área fechada mostra uma cerca, a silhueta do que vai ter ali e uma placa com cadeado com o progresso: "Sorvete · abre com Barraca do Sol nv 5 (3/5)". Quando a área anterior chega ao nível mínimo, a placa diz "pronta para abrir" e o **quadro de compra da área nova aparece na cerca**.
+- **A próxima praia fica à vista:** a câmera segue o jogador na horizontal e mostra 140 unidades além da última área aberta, até o lote da área N+1. Esse lote aparece cercado, com a silhueta e a placa "Na próxima praia: Sorveteria". Os lotes depois dele não aparecem.
+- **Cenário:** cada praia tem cores do mar, da areia e do céu, hora do dia (manhã, tarde ou pôr do sol) e enfeites de fundo próprios (`src/dados/praias.ts`, `src/render/cenarios.ts`; regras em `docs/MOLDE-CENARIOS.md`).
+- **Litoral:** o jogo abre direto na praia atual (sem menus). Um botão pequeno "Litoral" mostra a costa com as 10 praias: as concluídas com a fama ganha, a atual em destaque, a próxima com o nome e a área nova ("Praia Grande · Sorveteria"), as seguintes só com o nome e um cadeado (a área é surpresa) e, no fim, "Praia 11 em diante · em breve".
 
 ## 7. As áreas
 
@@ -108,24 +113,30 @@ A estrutura segue dois jogos de referência. No Idle Miner Tycoon, cada parte da
 
 ### Preços (ajustados com o simulador)
 
-- **Barraca do Sol:** a melhoria k custa 100 × 1,6^k.
-- **Áreas 2 a 5:** abrir custa 12 mil (Sorvete), 55 mil (Chuveirão), 72 mil (Milho e pastel) e 150 mil (Quadra). As melhorias seguem base × cresce^(k-1):
+- **Barraca do Sol:** a melhoria k custa 100 × 1,55^k.
+- **Áreas 2 a 5:** abrir custa 8.500 (Sorvete), 100 mil (Chuveirão), 300 mil (Milho e pastel) e 900 mil (Quadra), na Praia 1. As melhorias seguem base × cresce^(k-1):
 
   | Área | Base | Cresce |
   |---|---|---|
-  | Sorvete | 1.000 | 1,4 |
-  | Chuveirão | 3.000 | 1,3 |
-  | Milho e pastel | 6.000 | 1,3 |
-  | Quadra | 20.000 | 1,35 |
+  | Sorvete | 700 | 1,4 |
+  | Chuveirão | 8.500 | 1,3 |
+  | Milho e pastel | 26.000 | 1,3 |
+  | Quadra | 120.000 | 1,35 |
 
   Todos os números ficam em `ECONOMIA` (`src/dados/planos.ts`).
-- **Praia:** cada praia multiplica todos os preços de compra e de venda por 1,5^b.
+- **Praia:** cada praia multiplica os preços de compra por 1,45^b. As vendas não sobem com a praia: sobem com a fama.
 
-### Nova praia (prestígio)
+### Nova praia e fama
 
-- **Opcional:** só fica disponível com a praia completa, isto é, todas as áreas abertas (hoje 5) e todas no nível 10. Aparece num quadrado dourado, no canto da Barraca do Sol, fora do caminho do trabalho.
-- **Recomeço:** todas as áreas fecham de novo, mas o **multiplicador da praia fica para sempre**, e o mar muda de cor.
-- **Começo rápido:** cada praia nova começa com o dinheiro exato para as 2 primeiras compras da Barraca do Sol.
+- **Quadro de nova praia:** aparece quando a área N (a novidade da praia N) chega ao nível 10. É um quadro dourado no canto da Barraca do Sol: "Viajar para a Praia Grande · +X de fama". Custa o preço do próximo nível da área N.
+- **Obrigatório para avançar,** mas sem pressa: o jogador pode continuar crescendo antes de comprar para ganhar mais fama.
+- **Depois da Praia 5,** o quadro mostra "Praia Dourada · em breve" e não pode ser comprado (as áreas 6 a 10 vêm nas próximas rodadas).
+- **Ao comprar:** zeram o dinheiro e os níveis; ficam a fama total e as preferências.
+- **Fama ganha:** floor(√(ganho na praia ÷ 2000)), em que o ganho é tudo o que entrou na praia (vendas e ganhos com o app fechado). A curva desacelera.
+- **Fama total:** o lucro de todas as áreas é multiplicado por 1 + 0,07 × fama total. O canto da tela mostra "⭐ Fama x1,8".
+- **Começo rápido (Praia 3 em diante):** as áreas que já foram a novidade de uma praia anterior recomeçam com o cofre automático e o 1º ajudante já comprados (contam como níveis feitos, sem custo), e o resto da trilha delas custa 20% do preço. Assim as áreas antigas voltam a funcionar logo no começo da praia, e o trabalho manual fica na área nova (pilar 5).
+- **Seta:** a melhoria da área nova (já aberta) vale 2 vezes mais na conta do custo-benefício.
+- **Viagem:** ao comprar, o litoral abre com um barquinho indo até a próxima praia. Depois, a tela mostra a fama ganha e o botão opcional "Ver anúncio: +20% de fama". A praia nova começa com o nome grande na tela.
 
 ### Cardápio visível
 
@@ -140,23 +151,32 @@ O preço atual aparece numa plaquinha em cima de cada produto, e a compra mostra
 
 ### Ritmo alvo (bot humano do simulador)
 
-- **Dentro de cada fase** (de uma área aberta até a próxima): compras de ~15 s no começo, subindo até ~90 s.
-- **Áreas novas:** uma a cada 8 a 15 minutos.
-- **As 4 áreas abertas:** em 35 a 60 minutos.
-- **Hoje:** 11 / 12 / 14 minutos por área, e as 4 abertas em 37 minutos.
+O bot compra a nova praia assim que ela libera.
+
+| Praia | Meta | Hoje (sementes 1, 2 e 3) |
+|---|---|---|
+| 1 | 8 a 10 min | 8,8 / 9,0 / 9,0 |
+| 2 | 15 a 20 min | 17,4 / 17,8 / 17,6 |
+| 3 | 20 a 25 min | 21,2 / 20,3 / 21,5 |
+| 4 | 25 a 35 min | 26,7 / 25,1 / 27,5 |
+| 5 | 35 a 45 min | 38,9 / 35,5 / 35,3 |
+
+- **Nenhuma espera** entre compras passa de 150 s (hoje, no máximo 142 s).
+- **As áreas antigas** voltam a funcionar nos primeiros 25% do tempo da praia (hoje, de 9% a 18%).
 - Os valores finais saem do simulador (seção 11) e das métricas do teste fechado.
 
 ### Ganhos com o app fechado
 
-24 × número de ajudantes × multiplicador da praia por minuto, até no máximo 2 horas. Ao voltar, o jogador pode pegar ou dobrar com anúncio.
+24 × número de ajudantes × multiplicador da fama por minuto, até no máximo 2 horas. Ao voltar, o jogador pode pegar ou dobrar com anúncio.
 
 ## 9. Monetização
 
 - **Anúncio recompensado:**
   - "Dinheiro em dobro" por 2 minutos (já existe, simulado).
   - Dobrar os ganhos com o app fechado (já existe, simulado).
+  - +20% de fama na viagem para a próxima praia.
   - Pular a espera de uma máquina ou contratar um ajudante temporário por 3 minutos (a fazer).
-- **Intersticial:** só a partir da Praia 2, no máximo a cada 4 minutos, e só logo depois de uma compra (nunca no meio do trabalho).
+- **Intersticial:** nunca nas Praias 1 a 3. Depois disso, só na viagem (depois da animação do barquinho), no máximo 1 a cada 4 minutos. Nunca durante o jogo.
 - **Sem banner.**
 - **Compras:** remover anúncios (mantém os recompensados como opção) e pacote inicial com dinheiro e um ajudante extra.
 
@@ -192,11 +212,11 @@ Cada mecânica nova da seção 7 deve ser uma "loja" com dados próprios (produt
 
 ### Salvar
 
-Guardar a versão do formato junto do progresso. O protótipo já usa versões separadas a cada mudança de estrutura.
+Guardar a versão do formato junto do progresso. Hoje é `{ versao: 4, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal`, `famas` (fama de cada praia concluída) e os níveis por área. O `mundo` é criado uma vez e serve para salvar na nuvem e para o co-op no futuro. O v3 (uma praia só) é convertido: vai para a praia igual ao número de áreas abertas (no máximo 5), com a fama mínima das praias anteriores.
 
 ### Analytics (Firebase)
 
-Eventos: `step_buy` (praia, índice, segundos desde a compra anterior), `prestige`, `session_start`, `session_end`, `ad_offer`, `ad_watch`, `offline_claim`.
+Eventos: `step_buy` (praia, índice, segundos desde a compra anterior), `praia_nova` (praia, fama_ganha, minutos, anuncio), `session_start`, `session_end`, `ad_offer`, `ad_watch`, `offline_claim`.
 
 ### Modo teste
 

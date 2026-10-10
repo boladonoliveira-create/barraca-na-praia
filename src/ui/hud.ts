@@ -4,14 +4,15 @@ import { fmt } from '../core/economia.ts';
 import type { Jogo } from '../core/jogo.ts';
 import { gravarPrefs, type Prefs } from '../plataforma/salvar.ts';
 import { ensureAudio, tone, setMuted, setVibra, buzz, praiaNova, pauseAudio } from '../plataforma/som.ts';
-import type { Anuncios } from '../plataforma/anuncios.ts';
+import { podeIntersticial, type Anuncios } from '../plataforma/anuncios.ts';
 import { analytics } from '../plataforma/analytics.ts';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
 /** ads: AdMob no app; null no navegador (anúncio simulado). */
 export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: boolean, ads: Anuncios | null) {
-  let adTimer = 0;
+  let adTimer = 0, ultimoInter = Date.now(); // o 1º intersticial só depois de 4 min de sessão
+  const semMovimento = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function goal() { $('beachLbl').textContent = g.beachName() + ' · próximo'; $('goal').textContent = g.goalText() }
 
@@ -36,19 +37,65 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
     const fim = (ganhou: boolean) => { g.state = prev; pauseAudio(false); analytics.registrar('ad_watch', { tipo, recompensa: ganhou }); ganhou ? ok() : semRecompensa?.() };
     if (ads) { pauseAudio(true); ads.recompensado().then(fim, () => fim(false)) } else simulado('Anúncio simulado', () => fim(true));
   }
-  /** Intersticial (sem recompensa). */
-  function intersticial() {
-    if (g.state !== 'play') return;
-    g.state = 'ad'; analytics.registrar('ad_watch', { tipo: 'intersticial', recompensa: false });
-    const fim = () => { if (g.state === 'ad') g.state = 'play'; pauseAudio(false) };
-    if (ads) { pauseAudio(true); ads.intersticial().then(fim, fim) } else simulado('Intersticial simulado', fim);
+  /** Intersticial (sem recompensa). Só é chamado na viagem (podeIntersticial); depois chama fim. */
+  function intersticial(fim: () => void) {
+    const prev = g.state; g.state = 'ad'; analytics.registrar('ad_watch', { tipo: 'intersticial', recompensa: false });
+    const acabou = () => { g.state = prev; pauseAudio(false); fim() };
+    if (ads) { pauseAudio(true); ads.intersticial().then(acabou, acabou) } else simulado('Intersticial simulado', acabou);
   }
 
-  /** Chegou na praia nova (g.viajar): a fama ganha e a área nova. */
-  function viagem(fama: number) {
-    const P = PRAIAS[g.beach]; $('beachTitle').textContent = 'Bem-vindo à ' + P.nome + '!';
-    $('beachText').textContent = '+' + fama + ' de fama ⭐ Agora tudo vende x' + g.lucro().toFixed(1).replace('.', ',') + '. Novidade desta praia: ' + P.area + '.';
-    $('ovBeach').hidden = false; praiaNova(); buzz([60, 40, 120]);
+  /* ---------- Litoral: a costa com as 10 praias ---------- */
+  const ponto = (i: number) => ({ x: 96 + (i % 2) * 22, y: 30 + i * 48 });
+  /** Desenha o litoral com o barquinho parado na praia de índice `barco`. */
+  function desenharLitoral(barco: number) {
+    const atual = g.beach, pts = PRAIAS.map((_, i) => ponto(i));
+    let costa = 'M0 0 L' + (pts[0].x - 18) + ' 0';
+    pts.forEach(p => { costa += ' L' + (p.x - 18) + ' ' + p.y });
+    costa += ' L' + (pts[9].x - 18) + ' 540 L0 540 Z';
+    let h = '<path d="' + costa + '" fill="#4dabf7" opacity=".8"/>';
+    h += '<path d="' + pts.map((p, i) => (i ? 'L' : 'M') + p.x + ' ' + p.y).join(' ') + '" stroke="#e0b84f" stroke-width="3" stroke-dasharray="5 6" fill="none"/>';
+    PRAIAS.forEach((P, i) => {
+      const { x, y } = pts[i], feita = i < atual, prox = i === atual + 1, cls = feita ? 'feita' : i === atual ? 'atual' : prox ? 'proxima' : 'trancada';
+      // as seguintes não dizem a área nova (é surpresa)
+      const sub = feita ? '+' + (g.famas[i] ?? 0) + ' de fama ⭐' : i === atual ? 'Você está aqui' : prox ? P.area : '🔒';
+      if (i === atual) h += '<circle cx="' + x + '" cy="' + y + '" r="15" fill="#ffc23d" opacity=".45"/>';
+      h += '<g class="' + cls + '"><circle cx="' + x + '" cy="' + y + '" r="' + (i === atual ? 9 : 7) + '" fill="' + (feita ? '#2f9e44' : i === atual ? '#5b2370' : '#fffdf7') + '" stroke="#8a6a52" stroke-width="2"/>';
+      h += '<text class="nome" x="' + (x + 18) + '" y="' + (y - 2) + '">' + (i + 1) + '. ' + P.nome + '</text>';
+      h += '<text class="sub" x="' + (x + 18) + '" y="' + (y + 13) + '">' + sub + '</text></g>';
+    });
+    h += '<text class="sub" x="160" y="526" text-anchor="middle">Praia 11 em diante · em breve</text>';
+    const b = pts[barco];
+    h += '<g id="barco" style="transform:translate(' + (b.x - 44) + 'px,' + b.y + 'px)"><path d="M-12 2 h24 l-5 7 h-14 Z" fill="#8d5a2b"/><path d="M0 0 V-18 L11 -2 Z" fill="#fff" stroke="#8a6a52" stroke-width="1"/></g>';
+    $('litoralMapa').innerHTML = h;
+  }
+  function abrirLitoral() { if (g.state !== 'play') return; g.state = 'litoral'; desenharLitoral(g.beach); $('litoralFechar').hidden = false; $('ovLitoral').hidden = false }
+
+  /** Comprou a nova praia (g.viajar já trocou de praia): 1) o barquinho vai até a praia nova; 2) intersticial, se puder;
+      3) cartão com a fama ganha e o anúncio opcional de +20%; 4) o nome da praia nova grande na tela. */
+  function viagem(fama: number, minutos: number) {
+    const deixada = g.beach; // número (1 a 10) da praia que ficou para trás
+    desenharLitoral(g.beach - 1); $('litoralFechar').hidden = true; $('ovLitoral').hidden = false; praiaNova();
+    requestAnimationFrame(() => requestAnimationFrame(() => { const p = ponto(g.beach); $('barco').style.transform = 'translate(' + (p.x - 44) + 'px,' + p.y + 'px)' }));
+    setTimeout(() => {
+      $('ovLitoral').hidden = true;
+      const cartao = () => cartaoFama(fama, minutos);
+      if (!g.testMode && podeIntersticial(deixada, Date.now(), ultimoInter)) { ultimoInter = Date.now(); intersticial(cartao) } else cartao();
+    }, semMovimento ? 600 : 2100);
+  }
+  let viagemAtual: { fama: number; minutos: number; anuncio: boolean } | null = null;
+  function textoFama() {
+    $('beachTitle').textContent = '+' + viagemAtual!.fama + ' de fama ⭐';
+    $('beachText').textContent = 'Agora tudo vende x' + g.lucro().toFixed(1).replace('.', ',') + '. Na ' + g.beachName() + ', a novidade é: ' + PRAIAS[g.beach].area + '.';
+  }
+  function cartaoFama(fama: number, minutos: number) {
+    viagemAtual = { fama, minutos, anuncio: false }; textoFama();
+    $('beachAd').hidden = fama < 1; $('ovBeach').hidden = false; buzz([60, 40, 120]);
+  }
+  function chegar() {
+    $('ovBeach').hidden = true; g.state = 'play';
+    if (viagemAtual) { const v = viagemAtual; analytics.registrar('praia_nova', { praia: g.beach + 1, fama_ganha: v.fama, minutos: Math.round(v.minutos), anuncio: v.anuncio }); viagemAtual = null }
+    const n = $('praiaNome'); n.textContent = g.beachName(); n.hidden = true; void n.offsetWidth; n.hidden = false; // reinicia a animação
+    setTimeout(() => { n.hidden = true }, 2700); tone(784, 0.2, 'triangle', 0.1, 1.2);
   }
 
   /** Cartão de ganhos offline. O valor vai para o save na hora (g.abrirOffline) e só sai ao pegar ou dobrar. */
@@ -83,8 +130,14 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
   $('offTake').addEventListener('click', () => { ensureAudio(); $('ovOffline').hidden = true; g.state = 'play'; pegarOffline(1) });
   // se o anúncio fechar antes da recompensa, recebe o valor normal (sem derrota)
   $('offDouble').addEventListener('click', () => { ensureAudio(); $('ovOffline').hidden = true; g.state = 'play'; showAd('dobrar_offline', () => pegarOffline(2), () => pegarOffline(1)) });
-  $('beachOk').addEventListener('click', () => { $('ovBeach').hidden = true; g.state = 'play' });
+  $('beachOk').addEventListener('click', () => { ensureAudio(); chegar() });
+  $('beachAd').addEventListener('click', () => {
+    if (!viagemAtual || viagemAtual.anuncio) return; ensureAudio();
+    showAd('fama_viagem', () => { viagemAtual!.fama += g.bonusFama(); viagemAtual!.anuncio = true; textoFama(); $('beachAd').hidden = true; tone(988, 0.15, 'triangle', 0.1, 1.2); buzz(40) });
+  });
+  $('litoralBtn').addEventListener('click', () => { ensureAudio(); abrirLitoral() });
+  $('litoralFechar').addEventListener('click', () => { $('ovLitoral').hidden = true; if (g.state === 'litoral') g.state = 'play' });
   syncPrefs();
 
-  return { goal, viagem, showOffline, showStart, frame, syncTest, intersticial };
+  return { goal, viagem, showOffline, showStart, frame, syncTest };
 }

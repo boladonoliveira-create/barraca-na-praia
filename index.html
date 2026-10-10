@@ -32,11 +32,20 @@
     </div>
     <div class="ov" id="ovBeach" hidden>
       <div class="card">
-        <h2 id="beachTitle">Bem-vindo à Praia Grande!</h2>
+        <h2 id="beachTitle">+0 de fama</h2>
         <p id="beachText"></p>
-        <button class="btn" id="beachOk">Abrir a barraca</button>
+        <button class="btn" id="beachAd">Ver anúncio: +20% de fama</button>
+        <button class="btn ghost" id="beachOk">Continuar</button>
       </div>
     </div>
+    <div class="ov" id="ovLitoral" hidden>
+      <div class="card litoral">
+        <h2>Litoral</h2>
+        <svg id="litoralMapa" viewBox="0 0 320 540" role="img" aria-label="Mapa do litoral com as 10 praias"></svg>
+        <button class="btn ghost" id="litoralFechar">Voltar para a praia</button>
+      </div>
+    </div>
+    <div class="praia-nome" id="praiaNome" hidden></div>
     <div class="ov" id="ovAd" hidden>
       <div class="card">
         <span class="lbl" id="adLbl">Anúncio simulado</span>
@@ -64,6 +73,7 @@
     <p class="note">Arraste o dedo em qualquer lugar para andar.</p>
   </div>
   <footer class="tools">
+    <button class="tool tool-mini" id="litoralBtn">Litoral</button>
     <button class="tool" id="boost">Dinheiro em dobro <span class="badge" id="boostBadge">anúncio · 2 min</span></button>
   </footer>
 </div>
