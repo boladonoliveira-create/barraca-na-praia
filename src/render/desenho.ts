@@ -344,20 +344,85 @@ function drawQuadra() {
 }
 const SHIRTS_Q = ['#ff6b6b', '#4dabf7', '#ffd43b', '#69db7c', '#f783ac', '#ff922b'];
 
-/* ---------- Área 9: palco de pagode ---------- */
+/* ---------- Área 9: palco de pagode (docs/MOLDE-ORLA.md, item B4) ---------- */
+/** Instrumento reconhecível do músico do palco, desenhado no ponto (x, y). */
+function palcoInstr(tipo: string, x: number, y: number) {
+  ctx.save(); ctx.translate(x, y); ctx.lineWidth = 1.4; ctx.strokeStyle = OUTLINE; ctx.lineJoin = 'round';
+  if (tipo === 'pandeiro') {
+    ctx.fillStyle = '#e6b980'; circ(0, 0, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#f8f0e0'; circ(0, 0, 6.4); ctx.fill();
+    ctx.fillStyle = '#c98a4a'; for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; circ(Math.cos(a) * 6.4, Math.sin(a) * 6.4, 1.3); ctx.fill() }
+    circ(0, 0, 1.5); ctx.fill();
+  } else if (tipo === 'cavaquinho' || tipo === 'violao') {
+    const b = tipo === 'violao' ? 8.5 : 6.4;
+    ctx.fillStyle = '#c98a4a'; circ(0, b * 0.35, b); ctx.fill(); circ(0, -b * 0.55, b * 0.82); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#3a2316'; circ(0, -b * 0.15, b * 0.3); ctx.fill();
+    ctx.fillStyle = '#8d5a2b'; rr(-1.6, -b * 2.1, 3.2, b * 1.5, 1); ctx.fill();
+    ctx.fillStyle = '#3a2316'; rr(-2.5, -b * 2.5, 5, 4.2, 1); ctx.fill();
+    ctx.strokeStyle = '#f8f0e0'; ctx.lineWidth = 0.5; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(i * 1.1, -b * 2.1); ctx.lineTo(i * 1.1, b * 0.9); ctx.stroke() }
+  } else if (tipo === 'banjo') {
+    ctx.fillStyle = '#e6b980'; circ(0, 0, 8.4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#f8f0e0'; circ(0, 0, 6); ctx.fill();
+    ctx.fillStyle = '#8d5a2b'; rr(-1.8, -20, 3.6, 14, 1); ctx.fill();
+    ctx.fillStyle = '#3a2316'; rr(-2.6, -23, 5.2, 4, 1); ctx.fill();
+  } else { // tambores: surdo, tantã e repique
+    const w = tipo === 'surdo' ? 15 : tipo === 'tanta' ? 11 : 6, h = tipo === 'surdo' ? 17 : tipo === 'tanta' ? 12 : 15;
+    ctx.fillStyle = tipo === 'repique' ? '#1c7ed6' : tipo === 'tanta' ? '#f08c00' : '#c92a2a'; rr(-w, -h, w * 2, h * 2, 3); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#adb5bd'; ctx.lineWidth = 1; for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(i * (w / 1.8), -h); ctx.lineTo(i * (w / 1.8), h); ctx.stroke() }
+    ctx.fillStyle = '#f8f0e0'; ctx.beginPath(); ctx.ellipse(0, -h, w, w * 0.42, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = OUTLINE; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, h, w, w * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+/** Um músico do palco: em pé (cavaquinho, pandeiro, vocal, repique, banjo) ou sentado à mesa (surdo, violão, tantã). */
+function palcoMusico(i: number, tipo: string, x: number, y: number, sentado: boolean, face: number, anim: number) {
+  const shirt = SHIRTS_Q[i % SHIRTS_Q.length], skin = BAN_SKINS[i % BAN_SKINS.length], hair = BAN_HAIRS[i % BAN_HAIRS.length];
+  if (tipo === 'vocal') { // no microfone
+    drawPerson(x, y, { shirt: '#ffd43b', skin, walk: anim, face, hair, shorts: '#212529' });
+    ctx.strokeStyle = '#495057'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + face * 9, y); ctx.lineTo(x + face * 9, y - 26); ctx.stroke();
+    ctx.fillStyle = '#343a40'; circ(x + face * 9, y - 28, 3.4); ctx.fill(); ctx.fillStyle = '#868e96'; circ(x + face * 9, y - 28, 2); ctx.fill();
+    return;
+  }
+  if (sentado) { ctx.fillStyle = '#8d5a2b'; rr(x - 6, y - 5, 12, 6, 2); ctx.fill(); drawPerson(x, y - 5, { shirt, skin, walk: 0, face, hair, shorts: '#212529' }) }
+  else drawPerson(x, y, { shirt, skin, walk: anim, face, hair, shorts: '#212529' });
+  palcoInstr(tipo, x + face * 8, y - (sentado ? 24 : 22));
+}
 function drawPalco() {
   if (!g.aberta(8)) return;
   const c = SHOPS[8].counter, x0 = c.x - c.w / 2, y0 = c.y - c.h / 2, show = g.showAtivo(), som = g.L('somMelhor'), t = reduceMotion ? 0 : g.now;
-  // palco: tablado, fundo e caixas de som (maiores com o "som melhor")
+  const anim = show && !reduceMotion ? t / 130 : 0, pulo = (i: number) => reduceMotion ? 0 : Math.abs(Math.sin(t / 240 + i)) * 3;
+  // palco: fundo, tablado e caixas de som (maiores com o "som melhor")
   ctx.fillStyle = '#5f3dc4'; rr(x0, y0, c.w, c.h - 26, 8); ctx.fill();
   ctx.fillStyle = '#8d5a2b'; rr(x0 - 6, y0 + c.h - 30, c.w + 12, 18, 4); ctx.fill();
   for (const s of [-1, 1]) { ctx.fillStyle = '#212529'; rr(c.x + s * (c.w / 2 - 8) - 9 - som * 2, y0 + c.h - 62 - som * 4, 18 + som * 4, 32 + som * 4, 3); ctx.fill(); ctx.fillStyle = '#495057'; circ(c.x + s * (c.w / 2 - 8), y0 + c.h - 42 - som * 2, 5 + som); ctx.fill() }
+  // mesa dos três de trás
+  ctx.fillStyle = '#8d5a2b'; rr(c.x - 52, y0 + 44, 104, 6, 2); ctx.fill(); ctx.fillStyle = '#a26b2f'; rr(c.x - 50, y0 + 50, 100, 4, 2); ctx.fill();
+  // camarote: cercadinho com o quiosque de bebidas (um lado do palco)
+  const bx = x0 - 24, by = y0 + 62;
+  ctx.fillStyle = '#8d5a2b'; rr(bx - 16, by - 30, 34, 30, 4); ctx.fill();
+  ctx.fillStyle = '#e8d5b0'; rr(bx - 18, by - 32, 38, 6, 3); ctx.fill();
+  ctx.fillStyle = '#f59f00'; for (let i = 0; i < 3; i++) { rr(bx - 12 + i * 10, by - 40, 4, 9, 1); ctx.fill() }
+  ctx.fillStyle = '#fff'; ctx.font = '800 8px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('BAR', bx + 1, by - 13);
+  ctx.strokeStyle = '#a26b2f'; ctx.lineWidth = 2; for (let i = 0; i <= 4; i++) { const fx = bx - 22 + i * 11; ctx.beginPath(); ctx.moveTo(fx, by + 2); ctx.lineTo(fx, by + 14); ctx.stroke() }
+  ctx.beginPath(); ctx.moveTo(bx - 22, by + 6); ctx.lineTo(bx + 22, by + 6); ctx.stroke();
+  // placa
   ctx.fillStyle = '#fffdf7'; rr(c.x - 58, y0 + 6, 116, 16, 8); ctx.fill(); ctx.fillStyle = '#5f3dc4'; ctx.font = '800 11px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('PALCO DE PAGODE', c.x, y0 + 14);
+  // os 8 músicos, sempre no palco
+  palcoMusico(3, 'surdo', c.x - 44, y0 + 36, true, 1, anim + 0.5);
+  palcoMusico(6, 'violao', c.x, y0 + 36, true, -1, anim);
+  palcoMusico(2, 'tanta', c.x + 44, y0 + 36, true, 1, anim + 1);
+  palcoMusico(0, 'cavaquinho', c.x - 52, y0 + 68, false, 1, anim);
+  palcoMusico(5, 'pandeiro', c.x, y0 + 68, false, -1, anim + 0.7);
+  palcoMusico(1, 'vocal', c.x + 52, y0 + 68, false, 1, anim + 1.4);
+  palcoMusico(4, 'repique', x0 + 30, y0 + 56, false, 1, anim + 1.1);
+  palcoMusico(7, 'banjo', x0 + c.w - 30, y0 + 56, false, -1, anim + 0.3);
   if (show) {
-    // banda tocando, luzes e notas musicais
-    for (let i = 0; i < 3; i++) drawPerson(c.x - 40 + i * 40, y0 + c.h - 30, { shirt: ['#ff6b6b', '#ffd43b', '#69db7c'][i], skin: ['#a8714c', '#d9a37a', '#7a4b2e'][i], walk: t / 140 + i, face: 1, hair: '#1a1a1a', hat: i === 1, shorts: '#343a40' });
+    // luzes e notas musicais
     for (let i = 0; i < 5; i++) { const on = Math.floor(t / 250 + i) % 2 === 0; ctx.fillStyle = on ? 'rgba(255,236,153,0.55)' : 'rgba(255,135,135,0.4)'; ctx.beginPath(); ctx.moveTo(x0 + 18 + i * 36, y0 + 2); ctx.lineTo(x0 + 6 + i * 36, y0 + c.h - 30); ctx.lineTo(x0 + 30 + i * 36, y0 + c.h - 30); ctx.closePath(); ctx.fill() }
     ctx.fillStyle = '#fff'; ctx.font = '800 16px "Baloo 2",sans-serif'; for (let i = 0; i < 4; i++) { const k = ((t / 1400 + i / 4) % 1); ctx.globalAlpha = 1 - k; ctx.fillText(i % 2 ? '♪' : '♫', x0 + 30 + i * 40, y0 - k * 40); } ctx.globalAlpha = 1;
+    // multidão em volta, na frente do palco (y 455 a 500)
+    for (let i = 0; i < 16; i++) { const fx = x0 - 20 + hash(i * 3 + 1) * (c.w + 40), fy = y0 + c.h + 4 + hash(i * 3 + 2) * 42;
+      drawPerson(fx, fy - pulo(i), { shirt: SHIRTS_Q[i % SHIRTS_Q.length], skin: BAN_SKINS[i % BAN_SKINS.length], walk: reduceMotion ? 0 : t / 220 + i, face: i % 2 ? 1 : -1, hair: BAN_HAIRS[i % BAN_HAIRS.length], shorts: '#343a40' }) }
     tagTxt(c.x, y0 + c.h + 12, 'SHOW! ' + tempoTxt(g.palco.show) + ' · Clientes x' + (1 + g.bonusShow()).toFixed(2).replace('.', ','));
   } else tagTxt(c.x, y0 + c.h + 12, 'Próximo show em ' + tempoTxt(g.palco.t));
 }
