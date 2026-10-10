@@ -1,193 +1,145 @@
-# Relatório: Barraca na Praia, rodada 4 (refeita)
+# Relatório: Barraca na Praia, rodada 5
 
-Resultado: CONCLUÍDA
-Commit: ce7d059 (último commit de código; o relatório e o roteiro vão no commit final logo depois)
-
-## Partes
-- [x] **Parte 0:** trabalho interrompido salvo (`0ee98cb`).
-- [x] **Parte A:** consentimento de anúncios, UMP (`c631874`).
-- [x] **Parte B:** progressão por áreas independentes (`5447287`; texto do relatório corrigido em `1a17685`).
-- [x] **Parte C:** área 5, quadra de futevôlei (`ce7d059`).
+Resultado: CONCLUÍDA (partes A e B, do Claude Code). A parte C fica para o OpenCode.
+Commit: af36019 (parte A), 07ba09e (parte B); o deste relatório vem logo depois.
 
 ## Critérios de pronto
-- [x] **`npm test` e `npm run build` passam ao fim de cada parte.**
-  - Parte 0: 35 testes. Parte A: 35. Parte B: 40. Parte C: 41, em 6 arquivos. Build ok em todas.
-  - Testes novos pedidos, todos em `src/core/jogo.test.ts`:
-    - a área N+1 só abre com a área N no nível mínimo;
-    - melhorias de uma área não alteram outra;
-    - salva-vidas e cozinheiro nunca ficam travados em 10 minutos sem o jogador;
-    - a fila do chuveirão para com a caixa vazia e volta ao encher;
-    - cadeira bagunçada não é alugada.
-- [x] **Conferido no navegador** (porta 5175, modo ∞, em 390×844 e 360×640):
-  - cada área: Barraca, Sorvete, Chuveirão, Milho e pastel e Quadra;
-  - a placa com progresso: "abre com Barraca do Sol nv 5 (3/5)" e depois "Pronta para abrir: compre na cerca";
-  - um marco de nível: comemoração "Barraca do Sol nível 5! Produção x2" e bandeirinhas; no nível 20, luzinhas e moldura dourada;
-  - o cofre automático: cofre no lugar da pilha, com as vendas entrando direto no caixa;
-  - a seta, apontando "Mais um guarda-sol" (melhor custo-benefício que cabe no bolso);
-  - nenhum erro no console.
-- [x] **Um commit por parte:** `0ee98cb`, `c631874`, `5447287`, `ce7d059`.
+- [x] A praia 1 começa só com a Barraca do Sol, e a praia N tem as áreas 1 a N. Evidência: teste "a praia N só tem as áreas 1 a N" (N de 1 a 5, com todas as áreas levadas ao nível 12, só as N primeiras abrem). No navegador, `?praia=2` mostra Barraca e Sorvete, e o lote do Chuveirão aparece cercado.
+- [x] O quadro de nova praia libera com a área N no nível 10, e a viagem mostra a fama e o anúncio opcional. Evidência: teste "a nova praia só libera com a área N no nível 10". No navegador, o quadro dourado "Viajar para a Praia Grande · +X de fama", depois o litoral com o barquinho, depois o cartão "+3 de fama ⭐" com "Ver anúncio: +20% de fama". O anúncio simulado levou a fama a +4.
+- [x] A fama aparece no HUD e aumenta o lucro. Evidência: "⭐ Fama x1,2" na Praia 2 e "Fama x8,1" na Praia 5. Teste "a fama aumenta o lucro": vendas e ganhos offline × (1 + 0,07 × fama).
+- [x] O começo rápido vale a partir da praia 3. Evidência: teste do começo rápido. Na Praia 2 não há ajudante nem cofre. Na Praia 3 a Barraca começa no Nv 2, com ajudante e cofre, e o Sorvete, ao abrir, já vem com sorveteiro e cofre. A área nova (Chuveirão) começa manual.
+- [x] Só o lote da próxima praia aparece cercado, e os outros ficam escondidos. Evidência: na Praia 2, o lote 3 mostra "Na próxima praia: Chuveirão e cadeiras". Na Praia 5, o lote dos Ambulantes mostra "Na próxima praia: Ambulantes". Os lotes depois do N+1 não são desenhados.
+- [x] O litoral mostra as 10 praias, cada uma no estado certo. Evidência: no navegador, as concluídas aparecem com "+X de fama ⭐", a atual com "Você está aqui" e destaque, a próxima com a área nova e as seguintes com cadeado. No fim, "Praia 11 em diante · em breve".
+- [x] O simulador está dentro das metas da A5, e a tabela está abaixo. Evidência: "Tudo dentro da faixa." nas sementes 1, 2 e 3. O teste do simulador exige `foraDaFaixa = []`.
+- [x] O save v4 tem `mundo` e converte o v3. Evidência: testes "grava com chave própria, versão 4 e o mundo", "o mundo é criado uma vez e nunca muda" e "o v3 vira a praia igual ao número de áreas abertas".
+- [ ] As praias 1 a 10 têm cenário próprio. As praias 1 e 2 estão completas. As praias 3 a 10 têm só nome, cores provisórias e sol: elas são a parte C (OpenCode), que segue `docs/MOLDE-CENARIOS.md`.
+- [x] `npm test` e `npm run build` passam. Evidência: 48 testes passando, e o build gera `dist/`.
 
 ## O que foi feito
 
-### Parte 0: salvar o que ficou da rodada interrompida
-- **`git status`:** 9 arquivos de código modificados sem commit, com 405 linhas a mais e 34 a menos, e o `ROTEIRO.md` atualizado. Os arquivos: `src/core/economia.ts`, `jogo.ts`, `jogo.test.ts`, `simulador.ts`, `simulador.test.ts`, `src/dados/mapa.ts`, `planos.ts`, `src/main.ts` e `src/render/desenho.ts`.
-- **`npm test`:** 35 testes passando. **`npm run build`:** ok.
-- **Revisão:** as mecânicas (chuveirão, cadeiras, milho, pastel, salva-vidas, cozinheiro) estavam prontas e foram reaproveitadas na parte B. A ordem intercalada (`SERV_AT`, `PREP_AT`) foi descartada.
-- **Commit:** "Rodada 4 interrompida: mecânicas das Praias 3 e 4 (incompleto)".
+### Parte A: praias e fama
+- **A1. Regras** (`src/core/jogo.ts`):
+  - `areasPraia()`: com ela, `liberada(a)` só vale para as áreas 1 a N.
+  - `novaPraiaAberta()`: a área N no nível `NIVEL_NOVA_PRAIA` (10).
+  - `proximaExiste()`: falso depois da Praia 5.
+  - `custoNovaPraia()`: o preço do próximo nível da área N.
+  - `viajar()`: zera o dinheiro, os níveis e o ganho, e guarda a fama em `famas` e `famaTotal`.
+  - `famaGanha()`: floor(√(ganho ÷ K)). `lucro()` vale 1 + taxa × fama e substitui o antigo `mult()` nas vendas e nos ganhos offline.
+  - Começo rápido: `makeTrilha(a, b, rapido)` em `economia.ts` põe o 1º ajudante e o cofre logo depois da abertura, com preço 0. `Jogo.gratis(a)` aplica esses passos sozinho, e eles contam como níveis.
+  - Saíram `NIVEL_PRESTIGIO`, `prestige()`, `prestigeOpen()`, `prestigeCost()` e `BEACHES`.
+- **A2. Mapa** (`src/render/desenho.ts`):
+  - Só aparecem os lotes da praia e o lote N+1, este com a placa "Na próxima praia: …".
+  - O quadro dourado (`drawPadPraia`) é maior que os outros, para caber o nome. Na Praia 5 mostra "Praia Dourada · em breve".
+  - O pilar 6 foi atualizado no `CLAUDE.md` e no GDD.
+- **A3. Cenários:**
+  - `src/dados/praias.ts` tem `PRAIAS[10]` com nome, área nova, mar, areia, céu, hora e enfeites.
+  - `src/render/cenarios.ts` desenha o céu (faixa nova de 34 de altura), o mar, as ondas, a areia, a luz da hora e os enfeites `sol`, `nuvens`, `gaivotas`, `boias`, `ilha`, `navio` e `jangadas`. Todos são determinísticos (`hash(i)`, sem `Math.random`) e ficam acima de `SHORE - 6`.
+  - Praia do Sol (manhã): sol, nuvens, gaivotas e boias. Praia Grande (tarde): ilha, navio e jangadas. As praias 3 a 10 têm cores provisórias e só o sol.
+  - Prévia `?praia=N` em `main.ts`, só em dev: abre a praia com as áreas abertas, dinheiro e a fama mínima, sem gravar o save.
+  - `docs/MOLDE-CENARIOS.md` tem as regras, um enfeite comentado e a tabela das praias 3 a 10.
+  - O desenho do cenário não estava em cache, então os enfeites são desenhados a cada quadro.
+- **A4. Save v4** (`src/plataforma/salvar.ts`):
+  - Formato `{ versao: 4, mundo: { id, criadoEm }, jogo }`. O `jogo` traz `praia` (de 1 a 10), `famaTotal`, `famas`, `ganho` e `tempo`.
+  - O `lerMundo` reaproveita o mundo já salvo ou cria um (`crypto.randomUUID`).
+  - O `deV3` leva o save v3 para a praia igual ao número de áreas abertas (no máximo 5), com `ECONOMIA.famaMinima` das praias anteriores, e começa essa praia do zero. O `Jogo.load` aplica o começo rápido depois de carregar.
+- **A5. Simulador** (`src/core/simulador.ts`, `scripts/sim.ts`):
+  - O bot joga as praias de 1 a 5 e compra a viagem assim que ela libera.
+  - O resultado é por praia: minutos, % do tempo até as áreas antigas abrirem, maior espera e fama.
+  - `METAS`, `ESPERA_MAX` e `ANTIGAS_MAX` estão em `foraDaFaixa`.
+  - `npm run sim` roda as sementes 1, 2 e 3 (`-- --compras` lista as compras).
+- **A6. Analytics:** evento `praia_nova` com `{ praia, fama_ganha, minutos, anuncio }`, disparado depois que o jogador escolhe ver ou não o anúncio. O antigo `prestige` saiu.
+- **Testes:**
+  - `jogo.test.ts`: praias, viagem, "em breve", fama, começo rápido e save com praia e fama.
+  - `economia.test.ts`: trilha do começo rápido.
+  - `salvar.test.ts`: v4, mundo e conversão do v3.
+  - `simulador.test.ts`: metas por praia.
+  - O teste de áreas independentes continua.
 
-### Parte A: consentimento de anúncios (UMP)
-- **Onde:** `src/plataforma/anuncios.ts`, em `iniciarAnuncios`, depois do `AdMob.initialize`.
-- **Como funciona:** chama `requestConsentInfo`. Se o status for `REQUIRED` e houver formulário, chama `showConsentForm`. Se `canRequestAds` vier falso, devolve `null` e o app segue sem anúncios; os botões usam o anúncio simulado.
-- **Origem:** copiado e adaptado do Metrô Lotado, sem código compartilhado.
-- **No navegador:** nada muda.
-
-### Parte B: progressão por áreas independentes
-- **Dados** (`src/dados/planos.ts`):
-  - `AREAS` e `TRILHAS` (uma trilha por área), mais `CAUDAS` (melhorias repetidas depois da lista fixa);
-  - `NIVEL_ABRE = 5`, `MARCOS = [5, 10, 15, 20]` e `NIVEL_PRESTIGIO = 10`;
-  - `ECONOMIA` com `abrir`, `base` e `cresce` por área.
-  - Saíram a lista única, `SERV_AT`, `PREP_AT` e `PRESTIGE_AFTER`.
-- **Lugares no chão** (`src/dados/mapa.ts`): todas as melhorias ficam dentro da área delas; o quadro de abrir uma área fica na cerca dela.
-- **Núcleo** (`src/core/jogo.ts`): `trilhas` e `nivel[]` no lugar de `plan`/`done`.
-  - `visibleSteps()`: a próxima compra de cada área aberta e uma prévia da seguinte. Da área fechada, só o quadro de abrir, quando `liberada(a)`.
-  - `applyStep(a)`: compra o próximo nível da área.
-  - `marco(a)` e `tier(a)`: ×2 no dinheiro da área a cada marco.
-  - `receber()`: com o cofre, a venda entra direto no caixa.
-  - `melhorCompra()`: custo-benefício, usado pela seta, pelo HUD e pelo bot.
-  - `comemorar()`: efeito dos marcos.
-  - **Turbo por área:** antes, o turbo da Barraca acelerava também o depósito do sorvete.
-- **Melhorias novas:**
-  - cofre automático em cada área;
-  - Depósito rápido e Mais um sorveteiro no Sorvete;
-  - Banho caprichado no Chuveirão;
-  - Mais um cozinheiro no Milho e pastel.
-- **Desenho** (`src/render/desenho.ts`):
-  - placas com progresso;
-  - prévia apagada do 2º quadro da área ("depois");
-  - selo "Nv N ★" ao lado do balcão;
-  - visual dos marcos: bandeirinhas (nível 5), selo dourado (10), luzinhas (15), moldura dourada (20);
-  - cofre no lugar da pilha;
-  - seta para a melhor compra que cabe no bolso.
-- **HUD** (`src/ui/hud.ts`): "próximo" mostra a sugestão, por exemplo "Barraca do Sol: Mais um guarda-sol".
-- **Salvamento** (`src/plataforma/salvar.ts`): versão 3, com `niveis` por área.
-- **Simulador** (`src/core/simulador.ts`, `scripts/sim.ts`): o bot escolhe a melhor compra entre todas as áreas abertas e mede o ritmo por fase.
-- **GDD:** seções 6, 7 e 8 reescritas.
-
-### Parte C: área 5, quadra de futevôlei (atração)
-- **O que faz:** não vende nada. O jogo na quadra junta público, e `publico()` multiplica a chegada de clientes em todas as outras áreas: balcões, quiosque, chuveirão e cadeiras.
-  - Ao abrir: 1,15.
-  - Arquibancada: +0,10 por nível. Rede nova: +0,06. Torneio da tarde: +0,15.
-  - Os marcos da quadra dobram esse bônus.
-  - Com a quadra fechada, vale exatamente 1. Por isso o simulador das 4 primeiras áreas deu os mesmos tempos.
-- **Trilha própria:** arquibancada, rede nova e torneio da tarde. Abre com o Milho e pastel no nível 5, por R$ 150 mil.
-- **Desenho:**
-  - quadra com dois jogadores e a bola indo e voltando;
-  - rede listrada quando é nova;
-  - arquibancada com público pulando, mais gente a cada nível;
-  - faixa "TORNEIO DA TARDE" com troféu;
-  - plaquinha "Clientes x2,74".
-- **Área 6:** placa "AMBULANTES · em breve", com silhueta de carrinhos.
-- **Teste novo:** "não vende nada, mas aumenta a chegada de clientes em todas as outras áreas".
+### Parte B: litoral e viagem
+- **B1. Litoral:**
+  - O jogo continua abrindo direto na praia.
+  - O botão "Litoral" fica no rodapé, ao lado de "Dinheiro em dobro", e abre `#ovLitoral`: um SVG com a costa e as 10 praias nos estados pedidos (`hud.ts`, `desenharLitoral`).
+  - Com o litoral aberto, o jogo fica parado (estado `litoral`).
+- **B2. Viagem** (`hud.viagem`):
+  1. O litoral abre com o barquinho indo da praia antiga à nova (transição CSS de 1,6 s; com "reduzir movimento", não há animação).
+  2. Vem o intersticial, se puder.
+  3. Aparece o cartão "+X de fama ⭐", com "Ver anúncio: +20% de fama" (`Jogo.bonusFama`) e "Continuar".
+  4. O nome da praia nova aparece grande na tela (`#praiaNome`).
+- **B3. Anúncios:**
+  - `podeIntersticial` agora exige que a praia deixada seja a 4 ou uma depois dela, e vale no máximo 1 a cada 4 min.
+  - Saiu o intersticial logo depois de uma compra (`main.ts`), que contrariava "nunca durante o jogo".
+  - Não há banner (já não havia).
+- **B4. Documentação:**
+  - GDD: seções 6 (litoral, mapa e cenário), 8 (preços, nova praia e fama, começo rápido, ritmo por praia, ganhos offline), 9 (intersticial e o anúncio de fama) e 11 (save v4, `praia_nova`).
+  - `CLAUDE.md` do jogo: praias, estrutura, save, prévia, anúncios e balanceamento.
 
 ## Números
 
-Simulador (`npm run sim`, bot humano, semente 1), igual nas partes B e C:
-```
-Sorvete abriu 11.1 min depois da anterior
-Chuveirão abriu 12.0 min depois da anterior
-Milho e Pastel abriu 14.1 min depois da anterior
-4 áreas abertas em 37.2 min
+Simulador (`npm run sim`, bot humano, sementes 1, 2 e 3), com o código final:
 
-Fora da faixa (3):
-  Fase 2 #12 Chuveirão nv 1 (Chuveirão): 233.2 s (alvo ~90 s)
-  Fase 3 #1 Chuveirão nv 2 (Mais cadeiras): 49.2 s (alvo ~15 s)
-  Fase 3 #12 Chuveirão nv 11 (Aluguel mais caro 2): 226.3 s (alvo ~84 s)
 ```
-
-Tabela completa:
-```
-Fase 1    19.3 s  Barraca do Sol  nv  1  Máquina de açaí 2 (R$ 100)
-Fase 1    23.2 s  Barraca do Sol  nv  2  Guarda-sol (R$ 160)
-Fase 1    25.7 s  Barraca do Sol  nv  3  Coqueiro (R$ 255)
-Fase 1    32.7 s  Barraca do Sol  nv  4  Ajudante (R$ 410)
-Fase 1    45.7 s  Barraca do Sol  nv  5  Açaí com granola (R$ 655)
-Fase 1    33.4 s  Barraca do Sol  nv  6  Bolsa maior (R$ 1050)
-Fase 1    45.9 s  Barraca do Sol  nv  7  Cofre automático (R$ 1680)
-Fase 1    74.5 s  Barraca do Sol  nv  8  Mais um guarda-sol (R$ 2685)
-Fase 1    94.5 s  Barraca do Sol  nv  9  Máquinas turbo (R$ 4295)
-Fase 1   150.8 s  Barraca do Sol  nv 10  Coqueiro 2 (R$ 6870)
-Fase 1   121.7 s  Sorvete         nv  1  Quiosque de sorvete (R$ 12000)
-Fase 2     9.3 s  Sorvete         nv  2  Duas bolas (R$ 1000)
-Fase 2    20.1 s  Sorvete         nv  3  Sorveteiro (R$ 1400)
-Fase 2    16.5 s  Sorvete         nv  4  Freezer maior (R$ 1960)
-Fase 2    30.3 s  Sorvete         nv  5  Cofre automático (R$ 2745)
-Fase 2    22.2 s  Sorvete         nv  6  Três bolas (R$ 3840)
-Fase 2    39.9 s  Sorvete         nv  7  Depósito rápido (R$ 5380)
-Fase 2    52.0 s  Sorvete         nv  8  Freezer maior 2 (R$ 7530)
-Fase 2    79.3 s  Sorvete         nv  9  Granulado (R$ 10540)
-Fase 2    90.3 s  Sorvete         nv 10  Mais um sorveteiro (R$ 14760)
-Fase 2    51.8 s  Barraca do Sol  nv 11  Leite condensado (R$ 10995)
-Fase 2    75.5 s  Barraca do Sol  nv 12  Mais um ajudante (R$ 17590)
-Fase 2   233.2 s  Chuveirão       nv  1  Chuveirão (R$ 55000)
-Fase 3    49.2 s  Chuveirão       nv  2  Mais cadeiras (R$ 3000)
-Fase 3    40.0 s  Sorvete         nv 11  Cereja no topo (R$ 20660)
-Fase 3    17.8 s  Chuveirão       nv  3  Salva-vidas (R$ 3900)
-Fase 3    33.6 s  Chuveirão       nv  4  Caixa d'água maior (R$ 5070)
-Fase 3    23.3 s  Chuveirão       nv  5  Mais um chuveiro (R$ 6590)
-Fase 3    59.6 s  Chuveirão       nv  6  Aluguel mais caro (R$ 8570)
-Fase 3    53.6 s  Sorvete         nv 12  Freezer maior 3 (R$ 28925)
-Fase 3    41.2 s  Chuveirão       nv  7  Cofre automático (R$ 11140)
-Fase 3    51.0 s  Chuveirão       nv  8  Banho caprichado (R$ 14480)
-Fase 3    64.1 s  Chuveirão       nv  9  Mais cadeiras 2 (R$ 18825)
-Fase 3    82.9 s  Chuveirão       nv 10  Caixa d'água maior 2 (R$ 24470)
-Fase 3   226.3 s  Chuveirão       nv 11  Aluguel mais caro 2 (R$ 31815)
-Fase 3   100.8 s  Milho e Pastel  nv  1  Barraca do milho (R$ 72000)
+Bot humano, semente 1
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 8.8 | 8 a 10 | - | 116 s | 3 |
+| 2 | 17.4 | 15 a 20 | 0% | 139 s | 7 |
+| 3 | 21.2 | 20 a 25 | 9% | 139 s | 28 |
+| 4 | 26.7 | 25 a 35 | 18% | 103 s | 69 |
+| 5 | 38.9 | 35 a 45 | 15% | 120 s | 193 |
+Total: 113.0 min
+Tudo dentro da faixa.
+Bot humano, semente 2
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 9.0 | 8 a 10 | - | 113 s | 3 |
+| 2 | 17.8 | 15 a 20 | 0% | 142 s | 7 |
+| 3 | 20.3 | 20 a 25 | 11% | 140 s | 28 |
+| 4 | 25.1 | 25 a 35 | 18% | 105 s | 65 |
+| 5 | 35.5 | 35 a 45 | 16% | 136 s | 178 |
+Total: 107.8 min
+Tudo dentro da faixa.
+Bot humano, semente 3
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 9.0 | 8 a 10 | - | 120 s | 3 |
+| 2 | 17.6 | 15 a 20 | 0% | 138 s | 7 |
+| 3 | 21.5 | 20 a 25 | 10% | 139 s | 27 |
+| 4 | 27.5 | 25 a 35 | 17% | 105 s | 70 |
+| 5 | 35.3 | 35 a 45 | 16% | 117 s | 181 |
+Total: 111.0 min
+Tudo dentro da faixa.
 ```
 
-Robustez (sementes 1 a 3, preços finais):
+Antes do ajuste (os números da rodada 4, com a progressão nova): a Praia 1 levava 11 min, a 3 levava 32 a 33 e a 4, de 50 a 66. Havia esperas de até 307 s, e as áreas antigas só abriam a 27 a 31% do tempo da praia.
 
-| Semente | Sorvete | Chuveirão | Milho e pastel | Total |
-|---|---|---|---|---|
-| 1 | 11,1 | 12,0 | 14,1 | 37,2 min |
-| 2 | 11,2 | 13,1 | 11,2 | 35,5 min |
-| 3 | 11,3 | 12,2 | 12,3 | 35,8 min |
+`ECONOMIA` final (`src/dados/planos.ts`):
 
-Os tempos de cada área são minutos depois da abertura da área anterior.
+| | Barraca | Sorvete | Chuveirão | Milho e pastel | Quadra |
+|---|---|---|---|---|---|
+| abrir | - | 8.500 | 100.000 | 300.000 | 900.000 |
+| base | 100 | 700 | 8.500 | 26.000 | 120.000 |
+| cresce | 1,55 | 1,4 | 1,3 | 1,3 | 1,35 |
 
-Preços finais (Praia 1; × 1,5 por praia):
-
-| Área | Abrir | 1ª melhoria | Cresce |
-|---|---|---|---|
-| Barraca do Sol | (aberta) | 100 | 1,6 |
-| Sorvete | 12 mil | 1.000 | 1,4 |
-| Chuveirão | 55 mil | 3.000 | 1,3 |
-| Milho e pastel | 72 mil | 6.000 | 1,3 |
-| Quadra | 150 mil | 20.000 | 1,35 |
+O fator de preço por praia é 1,45^b. A fama usa K = 2000 e taxa 0,07. As áreas antigas custam 20% do preço (`antiga`). A fama mínima, que é a medida pelo bot, é `[3, 7, 27, 65, 178]`.
 
 ## O que depende do usuário
-- **Gerar o APK** continua dependendo de instalar o Android Studio (traz o Android SDK e o Java 21). O passo a passo está no relatório da rodada 3, seção A.
-- **Consentimento (UMP):** para os anúncios reais, o formulário de consentimento é configurado na própria conta AdMob (*Privacidade e mensagens → Mensagens do GDPR*). Com os IDs de teste, o Google não mostra formulário fora da Europa. Para testar o formulário num aparelho, é preciso adicioná-lo como dispositivo de teste na conta AdMob.
+- Nada nesta parte. O APK está fora do escopo da rodada.
+- A parte C (cenários das praias 3 a 10) é do OpenCode. O status do roteiro foi trocado para `PRONTO PARA OPENCODE`.
 
 ## Problemas e decisões
-- **Saves antigos recomeçam do zero.** O formato subiu para a versão 3, com níveis por área, e as versões 1 e 2 e o save do protótipo não são convertidos, como o roteiro permite. O jogo novo começa do zero sem aviso na tela.
-- **"Produção dobra" nos marcos** virou **dinheiro gerado ×2** (preço de venda). O ritmo é limitado pela chegada de clientes, então dobrar a velocidade das máquinas mudaria pouco.
-- **Nova praia** exige **todas as áreas abertas** (hoje 5) no nível 10, não só as que estiverem abertas. Com só a Barraca aberta, a regra liberava o prestígio aos 4 minutos, e o quadrado dourado no meio da área drenava o dinheiro de quem passava por cima. O quadrado foi para o canto da Barraca.
-- **Prévia do 2º quadro:** cada área mostra a próxima compra e, apagada, a seguinte ("depois"), que só pode ser paga depois da próxima. A trilha é uma sequência, e deixar pagar fora de ordem pediria guardar compras soltas no save.
-- **Preço de abrir separado:** abrir uma área tem preço próprio (`abrir`), separado da base das melhorias da área. Com o mesmo preço, a primeira melhoria de uma área nova custava tanto quanto abri-la, e não dava para ter as compras de ~15 s no começo da fase.
-- **Ritmo:** as fases e o total ficaram dentro da faixa em todas as sementes. Sobram 3 compras isoladas fora da faixa na semente 1: duas esperas de 3,5 a 4 min antes de uma compra cara, e uma 1ª compra de fase com 49 s. Abrir uma área é um salto de preço, e baixá-lo encurta as fases para menos de 8 min. O teste de ritmo exige as fases e o total dentro da faixa e aceita no máximo esses 3 desvios, sem nenhuma espera acima de 4 min.
-- **Bot do simulador:**
-  - contorna obstáculos também quando estão na mesma altura (antes, ficava preso empurrando o depósito do sorvete);
-  - desvia dos outros quadros enquanto junta dinheiro;
-  - recolhe as pilhas paradas das áreas automatizadas.
-- **Desenho:** o selo de nível ficou à esquerda do balcão, preso ao lote da área (cobria a plaquinha de preço e invadia o lote vizinho), e títulos longos de placa usam fonte menor.
-- **Tutorial com cofre:** com o cofre, a venda já conta como "recolheu o dinheiro" (sem pilha, o tutorial ficava parado).
-- **Exceção à independência das áreas:** a quadra aumenta a chegada de clientes nas outras áreas por definição do roteiro. As melhorias das áreas 1 a 4 seguem sem afetar umas às outras, com teste.
-- **Melhorias do jogador:** "Bolsa maior" e "Chinelo novo" estão na trilha da Barraca, mas valem para o jogador em todas as áreas, como antes.
-- **Escrita do relatório:** na parte B, o texto foi gravado pelo bash, que comeu os trechos entre crases. Corrigi num commit separado (`1a17685`).
+- **Desconto das áreas antigas (`ECONOMIA.antiga = 0,2`).** Mexendo só em K, na taxa e no fator de preço, as áreas antigas abriam a 28 a 54% do tempo da praia, porque reabrir em ordem custava caro. Criei esse desconto, que vale junto com o começo rápido (Praia 3 em diante) e fica num lugar só (`makeTrilha`).
+- **Preços das áreas 2 a 5 mudaram.** O Sorvete ficou mais barato, e o Chuveirão, o Milho e a Quadra, mais caros. Era preciso para cada praia caber na meta, já que a área nova é o que mais pesa no tempo da praia.
+- **A seta dá mais peso à área nova.** Na conta do custo-benefício, a melhoria da área nova (já aberta) vale 2 vezes mais. Sem isso, o bot (e a seta) espalhava o dinheiro pelas áreas antigas, e a Praia 5 variava de 27 a 52 min conforme a semente. Com isso, a variação ficou em 35 a 39 min.
+- **O desvio do bot foi corrigido.** O bot pisava sem querer nos quadros das áreas antigas enquanto juntava dinheiro para a viagem, gastando o dinheiro e esperando até 250 s. Agora ele contorna o quadro pela quina mais perto do alvo. A primeira versão desse desvio prendia o bot numa quina (espera de 520 s); a versão final escolhe a quina só pela distância até o alvo.
+- **A viagem custa** o preço do próximo nível da área N, para que pisar no quadro seja uma decisão (o pagamento leva cerca de 1 s) e não um acidente.
+- **"O recorde"** pedido no roteiro não existia no save. A informação nova que fica entre as praias é `famas`, a fama de cada praia concluída, que o litoral mostra.
+- **Os "minutos" de `praia_nova`** contam o tempo de jogo na praia (`tempo`, salvo). Tempo com o app fechado e telas abertas não conta.
+- **Intersticial:** a regra "nunca nas praias 1 a 3" usa a praia que o jogador está deixando. O primeiro pode aparecer na viagem da Praia 4 para a 5.
+- **Conversão do v3:** o jogador vai para a praia certa com a fama mínima, mas o dinheiro e os níveis zeram, como numa viagem. Os ganhos pendentes (`pendente`) ficam.
+- **O "⭐ Fama x…"** fica no canto do canvas, no lugar do antigo "R$ x1,5". O botão "Litoral" foi para o rodapé porque o topo já está cheio no celular. Com ele, "Dinheiro em dobro" quebra em 2 linhas numa tela de 375 px.
 
 ## Sugestões
-- **Aviso na tela para saves antigos:** hoje quem tinha progresso simplesmente recomeça. Vale um aviso ("Nova versão: sua praia recomeçou").
-- **Esperas antes de abrir uma área:** suavizar na etapa 7. Opções: um quadro intermediário (por exemplo, "cerca nova" a 30%) ou o jogador receber parte do preço de volta em vendas da área nova.
-- **Selo de nível da quadra:** fica um pouco sobre a quadra, porque não há espaço à esquerda dela. Vale um lugar próprio quando a área 6 entrar.
-- **Bot com a quadra:** o simulador para na 4ª área. Quando houver metas para a área 5, ensinar o bot a escolher melhorias de atração.
-- **Ícone/abertura e APK:** seguem como na rodada 3.
+- **Analytics:** `step_buy` e `session_*` mandam a praia começando do 0, e `praia_nova` manda a praia começando do 1 (como pede o roteiro). Vale unificar antes de ligar o Firebase.
+- **Nomes:** o nome da área 2 é "Sorvete" no jogo (`AREAS`) e "Sorveteria" no litoral (tabela do roteiro). Vale escolher um só.
+- **Praia 2:** a espera antes da Barraca nv 10 fica em 138 a 142 s, perto do limite de 150. Se o teste fechado mostrar tédio ali, baixe `cresce[0]`.
+- **Simulador:** a métrica das áreas antigas mede quando elas abrem. Se "voltar a funcionar" tiver de incluir o nível 5, dá para medir isso também.
