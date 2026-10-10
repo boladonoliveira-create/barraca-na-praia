@@ -459,8 +459,115 @@ const marcasPe: Enfeite = (c, e) => {
   });
 };
 
+/** Âncora: peça grande na areia, em pontos fixos livres (uma por tela). */
+const ANCORAS = [760, 1560, 2430];
+const ancora: Enfeite = (c, e) => {
+  const y = AREIA.beira.y1;
+  ANCORAS.forEach(cx => {
+    if (cx < e.x0 - 40 || cx > e.x1 + 40 || !livreNaBeira(cx)) return;
+    sombra(c, cx, y + 1, 13);
+    c.strokeStyle = '#5c636b'; c.lineWidth = 3; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(cx, y - 4); c.lineTo(cx, y - 22); c.stroke(); // haste
+    c.beginPath(); c.moveTo(cx - 8, y - 16); c.lineTo(cx + 8, y - 16); c.stroke(); // cepo
+    c.beginPath(); c.arc(cx, y - 25, 3, 0, Math.PI * 2); c.stroke(); // argola
+    c.beginPath(); c.moveTo(cx - 12, y - 11); c.quadraticCurveTo(cx, y, cx + 12, y - 11); c.stroke(); // braços
+  });
+};
+
+/** Boias de veleiro: laranjas redondas, deitadas na areia molhada. */
+const boiasVeleiro: Enfeite = (c, e) => {
+  const B = AREIA.beira;
+  cada(e, 140, (x, i) => {
+    if (hash(i + 1) < 0.35) return;
+    const px = x + 25 + hash(i) * 70, py = B.y1 - 4; if (!livreNaBeira(px)) return;
+    const n = 1 + ((i % 2) + 2) % 2;
+    for (let k = 0; k < n; k++) {
+      const bx = px + k * 9 - 4, by = py - k * 2, r = 4.5;
+      c.fillStyle = ['#ff922b', '#f76707'][((i + k) % 2 + 2) % 2];
+      c.beginPath(); c.arc(bx, by, r, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.8)'; c.fillRect(bx - r, by - 1, r * 2, 2);
+    }
+  });
+};
+
+/** Tochas acesas em pontos fixos: a chama tremula e a luz é um círculo claro, sem shadowBlur. */
+const TOCHAS = [430, 1160, 1900, 2680];
+const tochas: Enfeite = (c, e) => {
+  const y = AREIA.beira.y1;
+  TOCHAS.forEach((tx0, i) => {
+    if (tx0 < e.x0 - 30 || tx0 > e.x1 + 30 || !livreNaBeira(tx0)) return;
+    const tx = tx0 + (hash(i) - 0.5) * 14, topo = y - 30, f = 1 + Math.sin(e.t / 90 + i) * 0.25;
+    sombra(c, tx, y, 5);
+    c.strokeStyle = '#8a6a3a'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(tx, y); c.lineTo(tx, topo); c.stroke(); // mastro
+    c.fillStyle = '#5e4a2a'; c.beginPath(); c.ellipse(tx, topo, 4, 3, 0, 0, Math.PI * 2); c.fill(); // taça
+    c.globalAlpha = 0.25; c.fillStyle = '#ffd166'; c.beginPath(); c.arc(tx, topo - 4, 9 * f, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; // luz
+    c.fillStyle = '#ff9f1c'; c.beginPath(); c.moveTo(tx, topo - 12 * f); c.quadraticCurveTo(tx + 4, topo - 4, tx, topo - 1); c.quadraticCurveTo(tx - 4, topo - 4, tx, topo - 12 * f); c.fill(); // chama
+    c.fillStyle = '#ffe08a'; c.beginPath(); c.ellipse(tx, topo - 5, 1.8, 3.2 * f, 0, 0, Math.PI * 2); c.fill();
+  });
+};
+
+/** Esteiras: palha trançada estendida na areia molhada. */
+const esteiras: Enfeite = (c, e) => {
+  const B = AREIA.beira;
+  cada(e, 150, (x, i) => {
+    const cx = x + 25 + hash(i) * 70, cy = B.y0 + 4 + hash(i + 1) * 6; if (!livreNaBeira(cx + 9) || !livreNaBeira(cx - 9)) return;
+    c.save(); c.translate(cx, cy); c.rotate((hash(i + 2) - 0.5) * 0.3);
+    c.fillStyle = '#e8cf94'; c.fillRect(-10, -5, 20, 10);
+    c.strokeStyle = 'rgba(150,110,60,0.6)'; c.lineWidth = 1; c.beginPath();
+    for (let k = -6; k <= 6; k += 4) { c.moveTo(k, -5); c.lineTo(k, 5) }
+    c.stroke(); c.restore();
+  });
+};
+
+/** Placas de patrocínio: nomes genéricos e inventados, em pontos fixos (nada de marca real). */
+const PLACAS = [
+  { x: 820, txt: 'SORVETÃO DO ZÉ', cor: '#ffd43b' },
+  { x: 1620, txt: 'RÁDIO PRAIA FM', cor: '#74c0fc' },
+  { x: 2520, txt: 'ÁGUA DE COCO BOM', cor: '#95e1a0' },
+];
+const placas: Enfeite = (c, e) => {
+  const y = AREIA.beira.y1;
+  PLACAS.forEach(p => {
+    if (p.x < e.x0 - 60 || p.x > e.x1 + 60 || !livreNaBeira(p.x - 30) || !livreNaBeira(p.x + 30)) return;
+    sombra(c, p.x, y + 1, 20);
+    c.fillStyle = '#8a6a3a'; c.fillRect(p.x - 24, y - 24, 4, 24); c.fillRect(p.x + 20, y - 24, 4, 24); // postes
+    c.fillStyle = '#fffdf5'; c.fillRect(p.x - 32, y - 40, 64, 20); // moldura
+    c.fillStyle = p.cor; c.fillRect(p.x - 29, y - 37, 58, 14); // placa
+    c.fillStyle = '#3a2f1a'; c.font = 'bold 6px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText(p.txt, p.x, y - 30);
+  });
+  c.textAlign = 'start'; c.textBaseline = 'alphabetic';
+};
+
+/** Cones: pequenos cones laranja na areia molhada. */
+const cones: Enfeite = (c, e) => {
+  const B = AREIA.beira;
+  cada(e, 150, (x, i) => {
+    if (hash(i + 1) < 0.4) return;
+    const cx = x + 25 + hash(i) * 70, y = B.y1; if (!livreNaBeira(cx)) return;
+    sombra(c, cx, y + 1, 6);
+    c.fillStyle = '#ff6b3d'; c.beginPath(); c.moveTo(cx, y - 14); c.lineTo(cx - 6, y); c.lineTo(cx + 6, y); c.closePath(); c.fill();
+    c.fillStyle = '#fff3e0'; c.fillRect(cx - 4, y - 8, 8, 2.5);
+    c.fillStyle = '#ff6b3d'; c.fillRect(cx - 7, y - 1.5, 14, 2.5);
+  });
+};
+
+/** Bandeiras: flâmulas que tremulam em mastros na beira. */
+const BANDEIRAS = [340, 890, 1250, 1990, 2680];
+const bandeiras: Enfeite = (c, e) => {
+  const y = AREIA.beira.y1;
+  BANDEIRAS.forEach((bx, i) => {
+    if (bx < e.x0 - 30 || bx > e.x1 + 30 || !livreNaBeira(bx)) return;
+    const topo = y - 26, sway = Math.sin(e.t / 400 + i) * 2;
+    sombra(c, bx, y, 4);
+    c.strokeStyle = '#7a6a4a'; c.lineWidth = 2; c.beginPath(); c.moveTo(bx, y); c.lineTo(bx, topo); c.stroke();
+    c.fillStyle = ['#e64980', '#7950f2', '#22b8cf', '#f59f00'][((i % 4) + 4) % 4];
+    c.beginPath(); c.moveTo(bx, topo); c.lineTo(bx + 14 + sway, topo + 5); c.lineTo(bx, topo + 10); c.closePath(); c.fill();
+  });
+};
+
 /** Todos os enfeites da areia, pelo id usado em PRAIAS[b].enfeitesAreia. */
-export const ENFEITES_AREIA: Record<string, Enfeite> = { conchas, castelinho, guardaSois, cangas, pedrasAreia, redes, coqueirosAreia, cocos, canhao, pedrasForte, brilho, estrelas, pranchasAreia, marcasPe };
+export const ENFEITES_AREIA: Record<string, Enfeite> = { conchas, castelinho, guardaSois, cangas, pedrasAreia, redes, coqueirosAreia, cocos, canhao, pedrasForte, brilho, estrelas, pranchasAreia, marcasPe, ancora, boiasVeleiro, tochas, esteiras, placas, cones, bandeiras };
 
 /* ---------- Cenário ---------- */
 
