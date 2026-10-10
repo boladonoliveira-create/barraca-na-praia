@@ -154,8 +154,42 @@ const barquinhos: Enfeite = (c, e) => {
   });
 };
 
+/** Ondas grandes: cristas brancas mais altas no mar (só o enfeite; as ondas de base não mudam). */
+const ondasGrandes: Enfeite = (c, e) => {
+  c.strokeStyle = 'rgba(255,255,255,0.85)'; c.lineWidth = 2.5; c.lineCap = 'round';
+  cada(e, 150, (x, i) => {
+    const wx = x + 30 + hash(i) * 90, wy = HORIZONTE + 26 + hash(i + 2) * 50, r = 12 + hash(i + 5) * 10, sub = Math.sin(e.t / 900 + i) * 2;
+    c.beginPath(); c.moveTo(wx - r, wy + sub); c.quadraticCurveTo(wx, wy - r, wx + r, wy + sub); c.stroke();
+    c.beginPath(); c.moveTo(wx - r * 0.5, wy + 4 + sub); c.quadraticCurveTo(wx, wy - r * 0.6, wx + r * 0.5, wy + 4 + sub); c.stroke();
+  });
+};
+
+/** Pranchas: pranchas de surf fincadas na beira da água, balançando um pouco. */
+const pranchas: Enfeite = (c, e) => {
+  cada(e, 340, (x, i) => {
+    const px = x + 60 + hash(i) * 220, py = SHORE + 4, tilt = -0.25 + hash(i + 3) * 0.5, sway = Math.sin(e.t / 1000 + i) * 0.04;
+    const cor = ['#ff922b', '#38d9a9', '#f783ac', '#ffd43b'][((i % 4) + 4) % 4];
+    c.save(); c.translate(px, py); c.rotate(tilt + sway);
+    c.fillStyle = cor; c.beginPath(); c.ellipse(0, -16, 5, 16, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.75)'; c.fillRect(-1.2, -26, 2.4, 20);
+    c.restore();
+  });
+};
+
+/** Veleiros: barcos à vela atravessando a baía, devagar. */
+const veleiros: Enfeite = (c, e) => {
+  cada(e, 700, (x, i) => {
+    const vx = x + 260 + hash(i) * 260 + (e.t / 800) % 300, vy = HORIZONTE + 34 + hash(i + 3) * 30;
+    c.fillStyle = '#f1f3f5'; c.beginPath(); c.moveTo(vx - 18, vy); c.lineTo(vx + 18, vy); c.lineTo(vx + 12, vy + 6); c.lineTo(vx - 12, vy + 6); c.closePath(); c.fill();
+    c.fillStyle = '#ced4da'; c.fillRect(vx - 18, vy, 36, 2);
+    c.fillStyle = '#fff'; c.beginPath(); c.moveTo(vx - 2, vy - 20); c.lineTo(vx - 2, vy - 2); c.lineTo(vx - 15, vy - 2); c.closePath(); c.fill();
+    c.fillStyle = '#e9ecef'; c.beginPath(); c.moveTo(vx + 2, vy - 16); c.lineTo(vx + 2, vy - 2); c.lineTo(vx + 13, vy - 2); c.closePath(); c.fill();
+    c.strokeStyle = '#868e96'; c.lineWidth = 1; c.beginPath(); c.moveTo(vx - 2, vy - 20); c.lineTo(vx - 2, vy - 2); c.stroke();
+  });
+};
+
 /** Todos os enfeites, pelo id usado em PRAIAS[b].enfeites. Enfeite novo: uma função aqui e o id na praia. */
-export const ENFEITES: Record<string, Enfeite> = { sol, nuvens, gaivotas, boias, ilha, navio, jangadas, farol, pedras, coqueiros, muralha, barquinhos };
+export const ENFEITES: Record<string, Enfeite> = { sol, nuvens, gaivotas, boias, ilha, navio, jangadas, farol, pedras, coqueiros, muralha, barquinhos, ondasGrandes, pranchas, veleiros };
 
 /* ---------- Cenário ---------- */
 
