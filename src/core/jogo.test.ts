@@ -493,6 +493,32 @@ describe('áreas no mapa', () => {
   });
 });
 
+describe('banhistas', () => {
+  it('de 25 a 40 por tela, variando por praia; a Praia do Pôr do Sol tem menos', () => {
+    const por = (n: number) => naPraia(n).banhistas.length / (WORLD_W / 400);
+    for (let n = 1; n <= 10; n++) { expect(por(n)).toBeGreaterThanOrEqual(24.5); expect(por(n)).toBeLessThanOrEqual(40.5) }
+    expect(por(9)).toBeLessThan(Math.min(...[1, 2, 3, 4, 5, 6, 7, 8, 10].map(por)));
+  });
+
+  it('nunca travam: andam, param e voltam a andar; ficam no mar ou em lugar livre da areia, nunca na rua (10 min)', () => {
+    const g = naPraia(5), antes = g.banhistas.map(b => g.posBanhista(b, 0));
+    const mexeu = g.banhistas.map(() => 0);
+    for (let t = 0; t < 600000; t += 1000) g.banhistas.forEach((b, i) => {
+      const q = g.posBanhista(b, t); if (Math.hypot(q.x - antes[i].x, q.y - antes[i].y) > 1) mexeu[i]++; antes[i] = q;
+      expect(q.y).toBeLessThan(FAIXAS.grama.y0); expect(q.x).toBeGreaterThan(0); expect(q.x).toBeLessThan(WORLD_W + 50);
+      if (q.acao === 'nada') expect(q.y).toBeLessThan(FAIXAS.areia.y0);
+      else if (q.acao !== 'anda' && b.par < 0) expect(livre(q.x, q.y)).toBe(true);
+    });
+    expect(mexeu.every(n => n > 10)).toBe(true);
+  });
+
+  it('não mudam o jogo: com a mesma semente, a praia rende igual com ou sem eles na tela', () => {
+    const a = mundo([8]), b = mundo([8]); b.banhistas = [];
+    rodar(a, 60000); rodar(b, 60000);
+    expect(a.S[0].cashValue + a.money).toBe(b.S[0].cashValue + b.money);
+  });
+});
+
 describe('orla em faixas', () => {
   it('o jogador anda até o fim da calçada e não entra na rua; a câmera desce junto', () => {
     const g = novo(); g.player.x = 200; g.player.y = 600;

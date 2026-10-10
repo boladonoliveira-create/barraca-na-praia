@@ -4,7 +4,7 @@ import { fmt } from '../core/economia.ts';
 import { NIVEL_ABRE, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
 import { desenharCenario, luz } from './cenarios.ts';
-import { zoneOf, padOf, inZone, NUM_AREAS, type Jogo, type Kind, type Machine, type Umbrella, type Carrier, type Vendedor } from '../core/jogo.ts';
+import { zoneOf, padOf, inZone, NUM_AREAS, type Jogo, type Kind, type Machine, type Umbrella, type Carrier, type Vendedor, type Banhista } from '../core/jogo.ts';
 
 export interface Joy { on: boolean; ox: number; oy: number; x: number; y: number }
 interface PersonLook { shirt: string; skin: string; walk?: number; face?: number; cap?: string; hat?: boolean; apron?: boolean; hair?: string; hairStyle?: number; shorts?: string; flip?: string; shades?: boolean; carry?: boolean }
@@ -380,6 +380,27 @@ function drawTorneio() {
   else tagTxt(c.x, y0 + c.h + 12, 'Troféus ' + g.trofeus + '/3 · Clientes x' + g.publico().toFixed(2).replace('.', ','));
 }
 
+/* ---------- Banhistas (desenho simples; o acabamento é da parte B2, docs/MOLDE-ORLA.md) ---------- */
+const CANGAS = ['#ff6b6b', '#4dabf7', '#ffd43b', '#69db7c', '#f783ac', '#9775fa'];
+function drawBanhista(b: Banhista, q: { x: number; y: number; acao: string; face: number; walk: number }) {
+  const shirt = SHIRTS_Q[b.cor % SHIRTS_Q.length], skin = ['#f1c6a0', '#d9a37a', '#a8714c', '#7a4b2e', '#e8b48e'][b.cor % 5];
+  if (q.acao === 'nada') { // cabeça e braços na água, com uma marola em volta
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(q.x, q.y + 4, 12, 4, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = skin; circ(q.x, q.y - 2, 5); ctx.fill(); return;
+  }
+  if (q.acao === 'canga') { // deitado na canga
+    ctx.fillStyle = CANGAS[b.cor % CANGAS.length]; rr(q.x - 16, q.y - 8, 32, 14, 2); ctx.fill();
+    ctx.fillStyle = shirt; rr(q.x - 8, q.y - 5, 14, 8, 3); ctx.fill(); ctx.fillStyle = skin; circ(q.x - 11, q.y - 1, 4); ctx.fill(); ctx.fillRect(q.x + 6, q.y - 3, 8, 4); return;
+  }
+  ctx.save(); ctx.translate(q.x, q.y); if (b.crianca) ctx.scale(0.7, 0.7);
+  drawPerson(0, 0, { shirt, skin, walk: q.walk, face: q.face, hat: b.cor % 3 === 0, hairStyle: b.cor % 5, hair: ['#2b1d14', '#5a3825', '#e0b04a'][b.cor % 3] });
+  if (q.acao === 'frescobol') { ctx.fillStyle = '#8d5a2b'; ctx.beginPath(); ctx.ellipse(q.face * 12, -26, 4, 5, 0, 0, Math.PI * 2); ctx.fill() }
+  if (q.acao === 'brinca') { ctx.fillStyle = '#ff922b'; rr(10, -6, 9, 8, 2); ctx.fill() } // baldinho
+  ctx.restore();
+  // a bola do frescobol vai e volta entre a dupla
+  if (q.acao === 'frescobol' && b.lado > 0 && !reduceMotion) { const k = (Math.sin(g.now / 300 + b.cor) + 1) / 2; ctx.fillStyle = '#fff'; circ(q.x + 10 + 24 * k, q.y - 30 - Math.sin(k * Math.PI) * 10, 2.5); ctx.fill() }
+}
+
 /* ---------- Área 6: ambulantes ---------- */
 function drawCarrinho(x: number, y: number, carga: number, cap: number) {
   shadow(x, y + 14, 20);
@@ -528,6 +549,7 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   const ds: { y: number; d: () => void }[] = [];
   g.machines.forEach(m => ds.push({ y: m.y, d: () => drawMachine(m) }));
   g.vend.forEach(v => ds.push({ y: v.y, d: () => drawVendedor(v) }));
+  for (const b of g.banhistas) { const q = g.posBanhista(b); if (q.x < x0 - 30 || q.x > x1 + 30 || q.y < camY - 40 || q.y > camY + H + 60) continue; ds.push({ y: q.y, d: () => drawBanhista(b, q) }) }
   g.customers.forEach(c => ds.push({ y: c.y, d: () => {
     // aluno da escolinha: no mar, de pé na prancha
     if (c.state === 'surf' || ((c.state === 'irMar' || c.state === 'voltaMar') && c.y < SHORE + 10)) {

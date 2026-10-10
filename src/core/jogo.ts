@@ -1,7 +1,7 @@
 /* Núcleo do jogo: estado, economia, clientes, ajudantes e compras. Sem canvas e sem DOM. */
 import {
   SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, SERVICO, PREPARO, RECEITAS, ATRACAO, PALCO, TORNEIO,
-  AMBULANTE, ESCOLA, PHRASES, SHIRTS, SKINS, W, H, WORLD_W, WORLD_H, ANDA, type Item, type Rect,
+  AMBULANTE, ESCOLA, PHRASES, SHIRTS, SKINS, W, H, WORLD_W, WORLD_H, ANDA, FAIXAS, livre, type Item, type Rect,
 } from '../dados/mapa.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, MARCOS, ECONOMIA, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
@@ -33,6 +33,10 @@ const novoServico = (): Servico => ({ agua: 0, enchT: 0, spawnT: 800, spawnC: 15
 /** Área 6: ambulante com o carrinho. doca: parado na bancada (o 1º parado enche o carrinho com o estoque dela);
     rota: andando pela areia entre as pessoas, vendendo; volta: vazio, voltando para deixar o dinheiro na bancada. */
 export interface Vendedor extends Walker { carga: Item[]; estado: 'doca' | 'rota' | 'volta'; vendaT: number; esperaT: number; dinheiro: number; alvo: Pt | null }
+/** Banhista: gente que não compra. O roteiro (pontos, o que faz em cada um e quanto tempo fica) é sorteado ao criar a
+    praia; a posição sai do tempo (posBanhista), então ninguém trava e não custa nada no laço do jogo. */
+export type Acao = 'anda' | 'canga' | 'nada' | 'frescobol' | 'brinca' | 'parado';
+export interface Banhista { pts: Pt[]; acao: Acao[]; fica: number[]; anda: number[]; periodo: number; fase: number; crianca: boolean; par: number; cor: number; lado: number }
 /** O caminhão de mercadoria na baia da rua. */
 export interface Caminhao { estado: 'fora' | 'chegando' | 'parado' | 'saindo'; x: number; t: number; entregues: number }
 /** Área 7: prancha. seca/secando: na arara; aluno: com o aluno; molhada: largada na areia (spot = índice em ESCOLA.molhadas); mao: na pilha de alguém. */
@@ -82,7 +86,7 @@ export class Jogo {
   boostUntil = 0; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; camY = 0; testMode = false;
   sv: Servico = novoServico(); vend: Vendedor[] = []; esc: Escola = { pranchas: [], fila: [], spawnT: 800 };
   /** Palco: ms até o próximo show e ms que faltam do show (0 = sem show). Torneio: troféus (para sempre) e a partida. */
-  caminhao: Caminhao = { estado: 'fora', x: 0, t: 0, entregues: 0 };
+  caminhao: Caminhao = { estado: 'fora', x: 0, t: 0, entregues: 0 }; banhistas: Banhista[] = [];
   palco = { t: 0, show: 0 }; trofeus = 0; partida = { etapa: 0, ms: 0 };
   pendente = 0; lastBuyAt = 0; // pendente: ganho offline mostrado no cartão e ainda não pego (vai no save)
   player: Carrier = { x: 200, y: 560, stack: [], walk: 0, face: 1, tT: 0 };
@@ -212,7 +216,7 @@ export class Jogo {
     // começo rápido (a partir da Praia 3): as áreas que já foram novidade de uma praia anterior
     this.trilhas = Array.from({ length: NUM_AREAS }, (_, a) => makeTrilha(a, this.beach, this.beach >= 2 && a < this.beach)); this.nivel = Array(NUM_AREAS).fill(0); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.sv = novoServico(); this.vend = []; this.caminhao = { estado: 'fora', x: 0, t: 0, entregues: 0 }; this.esc = { pranchas: [], fila: [], spawnT: 800 }; this.palco = { t: 0, show: 0 }; this.partida = { etapa: 0, ms: 0 };
     this.money = 0; this.shown = 0; this.camX = 0; this.camY = 0; this.freshShops();
-    this.addMachine('acai', 110, 470); this.player.x = 200; this.player.y = 560; this.player.stack = [];
+    this.criarBanhistas(); this.addMachine('acai', 110, 470); this.player.x = 200; this.player.y = 560; this.player.stack = [];
   }
 
   /** Compra o próximo nível da área a. */
@@ -653,7 +657,53 @@ export class Jogo {
     }
   }
   /** Quem está perto do ambulante para comprar: um cliente ou um banhista a menos de 90. */
-  pertoDe(v: Pt): Pt | null { return this.customers.find(c => Math.abs(c.x - v.x) < 90 && Math.abs(c.y - v.y) < 90) || null }
+  pertoDe(v: Pt): Pt | null {
+    const perto = (c: Pt) => Math.abs(c.x - v.x) < 90 && Math.abs(c.y - v.y) < 90;
+    return this.customers.find(perto) || this.banhistas.map(b => this.posBanhista(b)).find(perto) || null;
+  }
+
+  /* ---------- Banhistas ---------- */
+  /** Sorteia os banhistas da praia: PRAIAS[b].banhistas por tela, cada um com 3 pontos de interesse fora das áreas. */
+  criarBanhistas() {
+    const R = this.rand, P = PRAIAS[Math.min(this.beach, PRAIAS.length - 1)], n = Math.round(P.banhistas * WORLD_W / W);
+    const ponto = (mar: boolean): Pt => {
+      for (let k = 0; k < 12; k++) {
+        const p = { x: 20 + R() * (WORLD_W - 40), y: mar ? 46 + R() * 60 : FAIXAS.areia.y0 + 30 + R() * (FAIXAS.areia.y1 - FAIXAS.areia.y0 - 50) };
+        if (mar || livre(p.x, p.y, 20)) return p;
+      }
+      return { x: 20 + R() * (WORLD_W - 40), y: 60 }; // sem lugar livre na areia: vai nadar
+    };
+    this.banhistas = [];
+    while (this.banhistas.length < n) {
+      const crianca = R() < 0.18, frescobol = !crianca && R() < 0.12, pts: Pt[] = [], acao: Acao[] = [], fica: number[] = [], anda: number[] = [];
+      for (let k = 0; k < 3; k++) {
+        const mar = !crianca && R() < 0.25, p = ponto(mar); pts.push(p);
+        acao.push(mar ? 'nada' : frescobol ? 'frescobol' : crianca ? 'brinca' : (['canga', 'canga', 'parado'] as Acao[])[Math.floor(R() * 3)]);
+        fica.push(6000 + R() * 16000);
+      }
+      const vel = (0.45 + R() * 0.3) / 16.67; // unidades por ms, devagar
+      for (let k = 0; k < 3; k++) { const a = pts[k], b = pts[(k + 1) % 3]; anda.push(Math.hypot(b.x - a.x, b.y - a.y) / vel) }
+      const periodo = fica.reduce((x, y) => x + y, 0) + anda.reduce((x, y) => x + y, 0), fase = R() * periodo, cor = Math.floor(R() * 1000);
+      this.banhistas.push({ pts, acao, fica, anda, periodo, fase, crianca, par: -1, cor, lado: frescobol || cor % 2 ? 1 : -1 });
+      if (frescobol && this.banhistas.length < n) { // a dupla: o mesmo roteiro, 44 para o lado, de frente para o outro
+        const i = this.banhistas.length - 1;
+        this.banhistas.push({ pts: pts.map(p => ({ x: p.x + 44, y: p.y })), acao, fica, anda, periodo, fase, crianca: false, par: i, cor: cor + 1, lado: -1 });
+        this.banhistas[i].par = i + 1;
+      }
+    }
+  }
+  /** Onde o banhista está agora e o que está fazendo. */
+  posBanhista(b: Banhista, agora = this.now): { x: number; y: number; acao: Acao; face: number; walk: number } {
+    let t = (agora + b.fase) % b.periodo; const n = b.pts.length;
+    for (let i = 0; i < n; i++) {
+      const a = b.pts[i], c = b.pts[(i + 1) % n];
+      if (t < b.fica[i]) return { x: a.x, y: a.y, acao: b.acao[i], face: b.lado, walk: 0 };
+      t -= b.fica[i];
+      if (t < b.anda[i]) { const k = t / b.anda[i]; return { x: a.x + (c.x - a.x) * k, y: a.y + (c.y - a.y) * k, acao: 'anda', face: c.x >= a.x ? 1 : -1, walk: t * 0.012 } }
+      t -= b.anda[i];
+    }
+    return { x: b.pts[0].x, y: b.pts[0].y, acao: b.acao[0], face: 1, walk: 0 };
+  }
   /** O ambulante voltou: o dinheiro da volta vai para a pilha da bancada ou, com o cofre, direto para o caixa. */
   pagarAmbulante(v: Vendedor) {
     const d = v.dinheiro, st = this.S[5], c = SHOPS[5].cash; if (!d) return;
