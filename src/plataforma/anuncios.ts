@@ -1,7 +1,7 @@
 /* Anúncios (GDD seção 9). No app: AdMob de verdade (@capacitor-community/admob). No navegador: devolve null e a UI
    mostra o anúncio simulado. Os IDs ficam só em admob.config.json (teste até a conta AdMob existir). */
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core';
-import { AdMob, RewardAdPluginEvents } from '@capacitor-community/admob';
+import { AdMob, AdmobConsentStatus, RewardAdPluginEvents } from '@capacitor-community/admob';
 import cfg from '../../admob.config.json';
 
 const r = cfg.reais, usarReais = cfg.usarReais && !!(r.app && r.recompensado && r.intersticial);
@@ -27,7 +27,13 @@ const carregarInt = () => (intPronto = AdMob.prepareInterstitial({ adId: IDS.int
 /** null no navegador (usa o simulado). */
 export async function iniciarAnuncios(): Promise<Anuncios | null> {
   if (!Capacitor.isNativePlatform()) return null;
-  try { await AdMob.initialize({ initializeForTesting: !usarReais }) } catch { return null }
+  try {
+    await AdMob.initialize({ initializeForTesting: !usarReais });
+    // UMP: obrigatório na Europa e no Reino Unido; fora de lá vem NOT_REQUIRED e não mostra nada
+    let info = await AdMob.requestConsentInfo();
+    if (info.status === AdmobConsentStatus.REQUIRED && info.isConsentFormAvailable) info = await AdMob.showConsentForm();
+    if (!info.canRequestAds) return null; // sem consentimento: o app segue sem anúncios
+  } catch { return null }
   carregar(); carregarInt();
   return {
     async recompensado() {
