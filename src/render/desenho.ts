@@ -1,5 +1,5 @@
 /* Câmera, cenário, personagens, máquinas e efeitos. Só lê o estado do núcleo. */
-import { W, H, WORLD_W, SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SLOTS, BEACHES, COUNTER_CAP, CASH_MAGNET, type Item, type Lot, type Rect } from '../dados/mapa.ts';
+import { W, H, WORLD_W, SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SLOTS, BEACHES, COUNTER_CAP, CASH_MAGNET, SERVICO, type Item, type Lot, type Rect } from '../dados/mapa.ts';
 import { fmt } from '../core/economia.ts';
 import { zoneOf, padOf, inZone, type Jogo, type Kind, type Machine, type Umbrella, type Carrier } from '../core/jogo.ts';
 
@@ -38,6 +38,23 @@ function drawItem(kind: Kind, x: number, y: number, s = 1) {
     if (lv >= 4) { ctx.fillStyle = '#c9184a'; circ(0, top - 6, 2); ctx.fill() }
   } else if (kind === 'caixa') {
     ctx.fillStyle = '#c8955a'; rr(-9, -7, 18, 14, 2); ctx.fill(); ctx.fillStyle = '#a87742'; ctx.fillRect(-9, -2, 18, 2); ctx.fillStyle = '#fff'; rr(-5, 1, 10, 5, 1); ctx.fill(); ctx.fillStyle = '#ff8fab'; circ(0, 3.5, 1.6); ctx.fill();
+  } else if (kind === 'milho' || kind === 'milhoCru') {
+    // espiga: crua fica pálida e enrolada na palha; pronta fica amarela e ganha o cardápio por cima
+    const pronto = kind === 'milho', lv = g.L('cardapioM');
+    ctx.fillStyle = pronto ? '#ffd43b' : '#f4e3a1'; ctx.beginPath(); ctx.ellipse(0, -2, 4.5, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = pronto ? '#f59f00' : '#e9d58a'; for (let r = -8; r <= 4; r += 3) for (const c of [-2, 0, 2]) { circ(c, r, 0.9); ctx.fill() }
+    ctx.fillStyle = pronto ? '#69db7c' : '#8ce99a'; ctx.beginPath(); ctx.moveTo(-5, 6); ctx.quadraticCurveTo(-8, -2, -3, -9); ctx.lineTo(-1, 4); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(5, 6); ctx.quadraticCurveTo(8, -2, 3, -9); ctx.lineTo(1, 4); ctx.closePath(); ctx.fill();
+    if (!pronto) { ctx.fillStyle = '#b2f2bb'; rr(-4, -4, 8, 9, 3); ctx.fill() }
+    if (pronto && lv >= 1) { ctx.fillStyle = '#fff3bf'; rr(-3, -7, 6, 3, 1); ctx.fill() }
+    if (pronto && lv >= 3) { ctx.fillStyle = '#fff'; for (let i = 0; i < 4; i++) ctx.fillRect(-3 + i * 2, -3 + (i % 2) * 3, 1.4, 1.4) }
+  } else if (kind === 'pastel' || kind === 'pastelCru') {
+    const pronto = kind === 'pastel', lv = g.L('cardapioM');
+    if (pronto && lv >= 2) ctx.scale(1.12, 1.12);
+    ctx.fillStyle = pronto ? '#f08c00' : '#fff3d6'; ctx.beginPath(); ctx.moveTo(-9, 3); ctx.quadraticCurveTo(0, -11, 9, 3); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = pronto ? '#c76a00' : '#e9d5a8'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(-9, 3); ctx.lineTo(9, 3); ctx.stroke();
+    for (let i = -6; i <= 6; i += 3) { ctx.beginPath(); ctx.moveTo(i, 3); ctx.lineTo(i, 1); ctx.stroke() }
+    if (pronto) { ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.beginPath(); ctx.ellipse(-2, -2, 3, 1.5, -0.4, 0, Math.PI * 2); ctx.fill() }
   } else { ctx.fillStyle = '#2f9e44'; rr(-8, -5, 16, 10, 2); ctx.fill(); ctx.fillStyle = '#b2f2bb'; circ(0, 0, 2.6); ctx.fill() }
   ctx.restore();
 }
@@ -104,6 +121,21 @@ function drawMachine(m: Machine) {
     ctx.fillStyle = '#2f8f3e'; for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + 0.3; ctx.save(); ctx.translate(m.x, m.y - 8); ctx.rotate(a); ctx.beginPath(); ctx.ellipse(18, 0, 20, 6, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore() }
     ctx.fillStyle = '#4c9a2a'; circ(m.x - 5, m.y - 6, 5); ctx.fill(); circ(m.x + 5, m.y - 4, 5); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.85)'; rr(m.x - 20, m.y + 16, 40, 6, 3); ctx.fill(); ctx.fillStyle = '#ffc23d'; rr(m.x - 20, m.y + 16, 40 * Math.min(1, m.t / r), 6, 3); ctx.fill();
+  } else if (m.needs) {
+    // panela (milho) ou fritadeira (pastel): mostra o que está cozinhando e a barra de tempo
+    const tempo = g.cookMs(m), frit = m.type === 'pastel';
+    shadow(m.x, m.y + 22, 34); ctx.fillStyle = '#495057'; rr(m.x - 30, m.y + 4, 60, 18, 5); ctx.fill(); // fogão
+    ctx.fillStyle = frit ? '#adb5bd' : '#868e96'; rr(m.x - 26, m.y - 22, 52, 30, frit ? 4 : 12); ctx.fill();
+    ctx.fillStyle = frit ? '#ffd8a8' : '#d0ebff'; rr(m.x - 22, m.y - 20, 44, 8, 4); ctx.fill(); // óleo / água
+    for (let i = 0; i < (m.loaded || 0); i++) drawItem(m.needs, m.x - 15 + (i % 4) * 10, m.y - 18 - Math.floor(i / 4) * 5, 0.55);
+    if (m.loaded && !reduceMotion) { ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; for (let i = -1; i <= 1; i++) { const o = Math.sin(g.now / 200 + i) * 3; ctx.beginPath(); ctx.moveTo(m.x + i * 12, m.y - 26); ctx.quadraticCurveTo(m.x + i * 12 + o, m.y - 34, m.x + i * 12, m.y - 42); ctx.stroke() } }
+    ctx.fillStyle = '#fff'; ctx.font = '800 10px "Baloo 2",sans-serif'; ctx.fillText((frit ? 'FRITADEIRA ' : 'PANELA ') + (m.loaded || 0) + '/' + g.lote(), m.x, m.y + 13);
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; rr(m.x - 20, m.y - 4, 40, 6, 3); ctx.fill(); ctx.fillStyle = '#ff922b'; rr(m.x - 20, m.y - 4, 40 * Math.min(1, m.t / tempo), 6, 3); ctx.fill();
+  } else if (m.type === 'milhoCru' || m.type === 'pastelCru') {
+    shadow(m.x, m.y + 22, 34); ctx.fillStyle = '#c8955a'; rr(m.x - 30, m.y - 18, 60, 38, 5); ctx.fill(); ctx.fillStyle = '#a87742'; ctx.fillRect(m.x - 30, m.y - 4, 60, 3); ctx.fillRect(m.x - 30, m.y + 8, 60, 3);
+    for (let i = 0; i < 3; i++) drawItem(m.type, m.x - 14 + i * 14, m.y - 20, 0.8);
+    ctx.fillStyle = '#3a2316'; ctx.font = '800 10px "Baloo 2",sans-serif'; ctx.fillText(m.type === 'milhoCru' ? 'MILHO CRU' : 'MASSA', m.x, m.y + 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; rr(m.x - 20, m.y + 12, 40, 6, 3); ctx.fill(); ctx.fillStyle = '#ffc23d'; rr(m.x - 20, m.y + 12, 40 * Math.min(1, m.t / r), 6, 3); ctx.fill();
   } else {
     shadow(m.x, m.y + 22, 34); ctx.fillStyle = '#d9b382'; rr(m.x - 30, m.y - 22, 60, 42, 6); ctx.fill(); ctx.fillStyle = '#c8955a'; rr(m.x - 30, m.y - 22, 60, 10, 6); ctx.fill();
     ctx.fillStyle = '#3a2316'; ctx.font = '800 10px "Baloo 2",sans-serif'; ctx.fillText('DEPÓSITO', m.x, m.y + 1);
@@ -140,18 +172,51 @@ function drawShopCash(si: number) {
 }
 function drawDropZone(dz: Rect, label: string) { rr(dz.x - dz.w / 2, dz.y - dz.h / 2, dz.w, dz.h, 10); ctx.fillStyle = 'rgba(91,35,112,0.12)'; ctx.fill(); ctx.strokeStyle = 'rgba(91,35,112,0.4)'; ctx.setLineDash([5, 4]); ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = 'rgba(91,35,112,0.65)'; ctx.font = '800 11px "Nunito",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, dz.x, dz.y) }
 
-function drawBarraca() {
-  const d = SHOPS[0], st = g.S[0], c = d.counter;
+function drawBarraca(si = 0) {
+  const d = SHOPS[si], st = g.S[si], c = d.counter; if (!st.open) return;
   ctx.fillStyle = 'rgba(120,80,30,0.12)'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 20, 104, 12, 0, 0, Math.PI * 2); ctx.fill();
   rr(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, 10); ctx.fillStyle = '#b8763e'; ctx.fill(); rr(c.x - c.w / 2, c.y - c.h / 2, c.w, 12, 10); ctx.fillStyle = '#d4955a'; ctx.fill();
   ctx.fillStyle = '#8a5229'; for (let i = 1; i < 6; i++) ctx.fillRect(c.x - c.w / 2 + i * c.w / 6, c.y - 6, 2, 24);
   ctx.fillStyle = '#fffdf7'; rr(c.x - 62, c.y + 6, 124, 16, 8); ctx.fill(); ctx.fillStyle = '#5b2370'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.name, c.x, c.y + 14);
   for (const t of d.products) {
-    const n = st.counter[t].length; for (let i = 0; i < Math.min(n, 18); i++) { const s = g.counterSlot(0, t, i); drawItem(t, s.x, s.y, 0.85) }
+    const n = st.counter[t].length; for (let i = 0; i < Math.min(n, 18); i++) { const s = g.counterSlot(si, t, i); drawItem(t, s.x, s.y, 0.85) }
     if (g.machines.some(m => m.type === t)) priceTag(t === d.products[0] ? c.x - 50 : c.x + 50, c.y - 30 - Math.min(2, Math.floor(n / 6)) * 7, t);
     if (n >= COUNTER_CAP) { ctx.fillStyle = '#e03131'; ctx.font = '800 11px "Baloo 2",sans-serif'; ctx.fillText('CHEIO', t === d.products[0] ? c.x - 50 : c.x + 50, c.y - 48) }
   }
-  drawDropZone(d.drop, 'ENTREGAR'); drawShopCash(0);
+  drawDropZone(d.drop, 'ENTREGAR'); drawShopCash(si);
+}
+
+/* ---------- Praia 3: chuveirão, caixa d'água e cadeiras ---------- */
+function tagTxt(x: number, y: number, txt: string) { ctx.font = '800 11px "Baloo 2",sans-serif'; const w = ctx.measureText(txt).width + 12; ctx.fillStyle = '#fff'; rr(x - w / 2, y - 9, w, 18, 9); ctx.fill(); ctx.strokeStyle = '#2f9e44'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = '#2f9e44'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, x, y) }
+function drawCadeira(c: { x: number; y: number; suja: boolean }) {
+  ctx.save(); ctx.translate(c.x, c.y); shadow(0, 12, 16);
+  if (c.suja) ctx.rotate(0.5); // bagunçada: torta, com toalha largada
+  ctx.strokeStyle = '#8d5a2b'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(-12, 12); ctx.lineTo(-8, -12); ctx.moveTo(12, 12); ctx.lineTo(8, -12); ctx.stroke();
+  for (let i = 0; i < 4; i++) { ctx.fillStyle = i % 2 ? '#fff' : '#4dabf7'; ctx.fillRect(-9 + i * 4.5, -12, 4.5, 22) }
+  if (c.suja) { ctx.fillStyle = '#ff8787'; rr(-6, -2, 14, 8, 2); ctx.fill() }
+  ctx.restore();
+  if (c.suja) { ctx.fillStyle = '#e03131'; ctx.font = '800 13px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', c.x + 16, c.y - 14) }
+}
+function drawServico() {
+  const d = SHOPS[2], sv = g.sv; if (!g.S[2].open) return;
+  const cap = g.aguaCap(), pct = sv.agua / cap, tx = 840, ty = 232;
+  // cano da caixa até os chuveiros
+  ctx.fillStyle = '#868e96'; ctx.fillRect(SHOPS[2].counter.x - 100, 236, tx - (SHOPS[2].counter.x - 100), 5);
+  for (const ch of sv.chuveiros) {
+    ctx.fillStyle = '#bde0fe'; rr(ch.x - 22, ch.y - 12, 44, 18, 6); ctx.fill(); // piso molhado
+    ctx.fillStyle = '#868e96'; ctx.fillRect(ch.x - 3, 236, 6, ch.y - 236); ctx.beginPath(); ctx.arc(ch.x, 244, 9, Math.PI, 0); ctx.fill();
+    if (ch.user && !reduceMotion) { ctx.strokeStyle = 'rgba(77,171,247,0.8)'; ctx.lineWidth = 1.5; for (let i = 0; i < 6; i++) { const yy = 248 + ((g.now / 4 + i * 9) % 36); ctx.beginPath(); ctx.moveTo(ch.x - 7 + i * 3, yy); ctx.lineTo(ch.x - 7 + i * 3, yy + 5); ctx.stroke() } }
+  }
+  // caixa d'água com o nível
+  shadow(tx, ty + 70, 34); ctx.fillStyle = '#ced4da'; rr(tx - 30, ty, 60, 66, 8); ctx.fill();
+  ctx.fillStyle = pct === 0 ? '#ffc9c9' : '#4dabf7'; rr(tx - 24, ty + 6 + 54 * (1 - pct), 48, 54 * pct || 4, 4); ctx.fill();
+  ctx.fillStyle = '#3a2316'; ctx.font = '800 11px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(sv.agua + '/' + cap, tx, ty + 33);
+  if (sv.agua === 0) { ctx.fillStyle = '#e03131'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText('VAZIA!', tx, ty - 10) }
+  drawDropZone(d.drop, 'ENCHER'); ctx.fillStyle = '#e03131'; circ(d.drop.x + 30, d.drop.y - 12, 5); ctx.fill(); // registro
+  tagTxt(SERVICO.filaX - 70, 250, 'Banho R$ ' + fmt(g.precoBanho()));
+  tagTxt(745, 530, 'Cadeira R$ ' + fmt(g.precoCadeira()));
+  sv.cadeiras.forEach(drawCadeira);
+  drawShopCash(2);
 }
 function drawKiosk() {
   const d = SHOPS[1], st = g.S[1], c = d.counter; if (!st.open) return;
@@ -166,6 +231,7 @@ function drawKiosk() {
   if (st.stock === 0) { ctx.fillStyle = '#e03131'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText('VAZIO!', c.x, c.y - 2) }
   drawDropZone(d.drop, 'ABASTECER'); drawShopCash(1);
 }
+// placa a 66 do começo do lote: inteira dentro das 140 unidades que a câmera mostra além do último lote aberto
 function drawLockedLot(lot: Lot) {
   const w = lot.x1 - lot.x0, cx = lot.x0 + w / 2;
   ctx.fillStyle = 'rgba(58,35,22,0.07)'; ctx.fillRect(lot.x0, WALL_Y - 10, w, PLAY_BOTTOM - WALL_Y + 30);
@@ -173,12 +239,16 @@ function drawLockedLot(lot: Lot) {
   if (lot.kind === 'shower') {
     for (const sx of [cx - 60, cx + 40]) { ctx.fillStyle = '#868e96'; ctx.fillRect(sx - 3, WALL_Y + 60, 6, 90); ctx.fillRect(sx - 3, WALL_Y + 60, 24, 6); ctx.fillStyle = '#4dabf7'; for (let i = 0; i < 5; i++) ctx.fillRect(sx + 14 + i * 2 - 4, WALL_Y + 72 + i * 7, 2, 10) }
     for (let i = 0; i < 4; i++) { ctx.fillStyle = '#ffd8a8'; rr(lot.x0 + 40 + i * 56, WALL_Y + 230, 26, 40, 4); ctx.fill() }
+  } else if (lot.kind === 'volei') {
+    ctx.fillStyle = '#868e96'; ctx.fillRect(cx - 70, WALL_Y + 90, 5, 120); ctx.fillRect(cx + 65, WALL_Y + 90, 5, 120);
+    ctx.strokeStyle = '#868e96'; ctx.lineWidth = 1.5; for (let y = WALL_Y + 92; y < WALL_Y + 140; y += 8) { ctx.beginPath(); ctx.moveTo(cx - 65, y); ctx.lineTo(cx + 65, y); ctx.stroke() }
+    ctx.fillStyle = '#ffd43b'; circ(cx + 20, WALL_Y + 70, 10); ctx.fill();
   } else if (lot.kind === 'corn') { ctx.fillStyle = '#ffd43b'; rr(cx - 50, WALL_Y + 90, 100, 60, 10); ctx.fill(); ctx.fillStyle = '#868e96'; circ(cx - 30, WALL_Y + 160, 12); ctx.fill(); circ(cx + 30, WALL_Y + 160, 12); ctx.fill(); ctx.fillStyle = '#e9c46a'; rr(cx - 30, WALL_Y + 240, 60, 40, 8); ctx.fill() }
   else { ctx.fillStyle = '#4dabf7'; rr(cx - 46, WALL_Y - 30, 92, 40, 10); ctx.fill(); ctx.fillStyle = '#d9b382'; rr(cx - 30, WALL_Y + 210, 60, 42, 6); ctx.fill() }
   ctx.globalAlpha = 1;
   for (let y = WALL_Y - 14; y < PLAY_BOTTOM + 10; y += 22) { ctx.fillStyle = '#c08a4a'; rr(lot.x0 - 4, y, 8, 18, 3); ctx.fill() }
   ctx.fillStyle = '#a26b2f'; ctx.fillRect(lot.x0 - 6, WALL_Y + 40, 12, 4); ctx.fillRect(lot.x0 - 6, PLAY_BOTTOM - 40, 12, 4);
-  ctx.save(); ctx.translate(lot.x0 + 80, WALL_Y + 150); ctx.rotate(-0.04); ctx.fillStyle = '#fff3c4'; rr(-72, -30, 144, 60, 10); ctx.fill(); ctx.strokeStyle = '#e0b84f'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.save(); ctx.translate(lot.x0 + 66, WALL_Y + 150); ctx.rotate(-0.04); ctx.fillStyle = '#fff3c4'; rr(-72, -30, 144, 60, 10); ctx.fill(); ctx.strokeStyle = '#e0b84f'; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.fillStyle = '#3a2316'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 11px "Nunito",sans-serif'; ctx.fillText(lot.title!, 0, -12);
   ctx.fillStyle = '#e0a800'; ctx.font = '800 15px "Baloo 2",sans-serif'; ctx.fillText('abre na Praia ' + lot.praia, 0, 8);
   ctx.fillStyle = '#8a6a52'; ctx.beginPath(); ctx.arc(0, -34, 7, Math.PI, 0); ctx.lineWidth = 3; ctx.strokeStyle = '#8a6a52'; ctx.stroke(); ctx.fillRect(-8, -34, 16, 12); ctx.restore();
@@ -195,6 +265,7 @@ function tutorialTarget(): { t: Rect | { x: number; y: number; h: number } | nul
   else if (g.tutorial === 2) { t = g.S[0].cashValue > 0 ? { x: SHOPS[0].cash.x, y: SHOPS[0].cash.y, h: 48 } : null }
   else {
     if (g.kioskOpen() && g.S[1].stock <= 3 && !g.helpers.some(h => h.shop === 1)) { const dep = g.machines.find(m => m.type === 'caixa'); if (dep) { t = p.stack.includes('caixa') ? SHOPS[1].drop : zoneOf(dep); up = !p.stack.includes('caixa') } }
+    if (!t && g.S[2]?.open && g.sv.agua === 0 && !g.helpers.some(h => h.shop === 2) && !inZone(p, SHOPS[2].drop)) t = SHOPS[2].drop;
     if (!t) {
       const v = g.visibleSteps().find(v => g.money >= v.s.price - (g.paid[v.i] || 0));
       if (v) { const pad = padOf(v.s.slot); if (!inZone(p, pad)) t = pad }
@@ -215,10 +286,10 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4; ctx.beginPath(); for (let x = Math.floor(x0 / 8) * 8; x <= x1; x += 8) { const y = SHORE + Math.sin(x / 38 + g.now / 900) * 5; x === Math.floor(x0 / 8) * 8 ? ctx.moveTo(x, y) : ctx.lineTo(x, y) } ctx.stroke();
   for (const s of specks) { if (s.x < x0 || s.x > x1) continue; ctx.fillStyle = s.c; circ(s.x, s.y, s.r); ctx.fill() }
   ctx.fillStyle = 'rgba(255,255,255,0.22)'; rr(10, WALL_Y + 4, 380, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill();
-  if (g.kioskOpen()) { rr(410, WALL_Y + 4, 180, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill() }
+  LOTS.forEach((l, i) => { if (i && g.S[i]?.open) { rr(l.x0 + 10, WALL_Y + 4, l.x1 - l.x0 - 20, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill() } });
   g.umbrellas.forEach(drawUmbrella);
-  drawBarraca(); drawKiosk();
-  for (const lot of LOTS) { if (!lot.praia) continue; if (lot.praia === 2 && g.kioskOpen()) continue; if (lot.x1 < x0 || lot.x0 > x1) continue; drawLockedLot(lot) }
+  drawBarraca(); drawKiosk(); drawServico(); drawBarraca(3);
+  LOTS.forEach((lot, i) => { if (!lot.praia || g.S[i]?.open || lot.x1 < x0 || lot.x0 > x1) return; drawLockedLot(lot) });
   for (const v of g.visibleSteps()) { const s = SLOTS[v.s.slot], got = g.paid[v.i] || 0; drawPad(s.x, s.y, v.s.name, v.s.price - got, got / v.s.price, v.s.k === 'up', false) }
   if (g.prestigeOpen()) { const s = SLOTS.praia, pr = g.prestigeCost(), got = g.paid.praia || 0; drawPad(s.x, s.y, 'Nova praia', pr - got, got / pr, false, true) }
 
@@ -230,7 +301,7 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
     if (c.has) drawItem(c.has, c.x + (c.face > 0 ? 12 : -12), c.y - 18, 0.9);
     else { const qi = g.S[c.shop].queue.indexOf(c); if (qi >= 0 && qi < 4) { ctx.fillStyle = '#fff'; rr(c.x + 10, c.y - 58, 26, 22, 8); ctx.fill(); ctx.beginPath(); ctx.moveTo(c.x + 14, c.y - 38); ctx.lineTo(c.x + 10, c.y - 32); ctx.lineTo(c.x + 20, c.y - 37); ctx.fill(); drawItem(c.want, c.x + 23, c.y - 47, 0.8) } }
   } }));
-  g.helpers.forEach(h => ds.push({ y: h.y, d: () => { drawPerson(h.x, h.y, { shirt: h.shirt, skin: '#c68a5e', walk: h.walk, face: h.face, cap: h.shop ? '#e64980' : '#1c7ed6', apron: true, hair: '#2b1d14', shorts: '#343a40', flip: '#fff', carry: h.stack.length > 0 }); drawStack(h) } }));
+  g.helpers.forEach(h => ds.push({ y: h.y, d: () => { drawPerson(h.x, h.y, { shirt: h.shirt, skin: '#c68a5e', walk: h.walk, face: h.face, cap: ['#1c7ed6', '#e64980', '#ffd43b', '#fff'][h.shop], apron: h.shop !== 2, hair: '#2b1d14', shorts: '#343a40', flip: '#fff', carry: h.stack.length > 0 }); drawStack(h) } }));
   ds.push({ y: p.y, d: () => {
     drawPerson(p.x, p.y, { shirt: '#ff922b', skin: '#e0a77d', walk: p.walk, face: p.face, cap: '#e03131', apron: true, hair: '#5a3825', shorts: '#1c7ed6', flip: '#ffd43b', carry: p.stack.length > 0 }); drawStack(p);
     if (p.stack.length >= g.playerCap()) { ctx.fillStyle = '#e03131'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.fillText('CHEIO', p.x, p.y - 52 - p.stack.length * 9) }

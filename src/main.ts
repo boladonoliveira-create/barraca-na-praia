@@ -92,4 +92,6 @@ requestAnimationFrame(frame);
   get state() { return { beach: g.beach, done: g.done.size, next: g.visibleSteps().map(v => v.s.name), helpers: g.helpers.map(h => h.shop + ':' + h.mode + ':' + h.stack.join(',')), stock: g.S.map((s, i) => i === 1 ? s.stock : Object.values(s.counter).map(a => a.length)), queues: g.S.map(s => s.queue.length), cash: g.S.map(s => s.cashValue), cam: Math.round(g.camX) } },
   buyAll(n: number) { for (let i = 0; i < n; i++) { const v = g.visibleSteps()[0]; if (v) g.applyStep(v.i, true) } },
   prestige() { g.prestige() }, tp(x: number, y: number) { g.player.x = x; g.player.y = y },
+  /** Roda o jogo ms milissegundos de uma vez e redesenha (para conferir com a aba em segundo plano). */
+  avancar(ms: number) { for (let t = 0; t < ms; t += 16.67) { g.now += 16.67; g.update(16.67, { x: 0, y: 0 }); g.updateFx(16.67) } desenhar(ctx, g, k, joy) },
 };

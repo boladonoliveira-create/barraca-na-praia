@@ -3,7 +3,7 @@
    O bot humano (padrão, usado nas metas de ritmo) reage com 200 a 400 ms de atraso, anda com desvio leve
    e para 3 a 5 s a cada 30 s. O perfeito (humano: false) decide a cada quadro e anda reto.
    Relatório no terminal: npm run sim [praias] (scripts/sim.ts) */
-import { SHOPS, COUNTER_CAP, PRODUCTS, type Item, type Rect } from '../dados/mapa.ts';
+import { SHOPS, SLOTS, COUNTER_CAP, PRODUCTS, type Item, type Rect } from '../dados/mapa.ts';
 import { Jogo, zoneOf, padOf, inZone, type Pt } from './jogo.ts';
 
 /** Gerador determinístico (mulberry32) para o resultado não variar entre execuções. */
@@ -16,10 +16,11 @@ export interface Resultado { compras: Compra[]; praias: { praia: number; segundo
 
 const DT = 1000 / 60;
 
-/** Contorna a máquina que estiver entre o jogador e o alvo (ela bloqueia o caminho direto). */
-function waypoint(g: Jogo, p: Pt, t: Pt): Pt {
+/** Contorna a máquina que estiver entre o jogador e o alvo (ela bloqueia o caminho direto).
+    Juntando para a nova praia, contorna também os quadrados de compra que estiverem no caminho (pisar neles gastaria o dinheiro). */
+function waypoint(g: Jogo, p: Pt, t: Pt, desviar: Pt[] = []): Pt {
   let best: Pt | null = null, bd = Infinity;
-  for (const m of g.machines) {
+  for (const m of [...g.machines, ...desviar]) {
     if (Math.abs(p.x - m.x) >= 46 || Math.abs(t.x - m.x) >= 46) continue;
     if (Math.sign(p.y - m.y) === Math.sign(t.y - m.y)) continue;
     const d = Math.abs(p.y - m.y); if (d >= bd) continue;
@@ -31,8 +32,38 @@ function waypoint(g: Jogo, p: Pt, t: Pt): Pt {
 
 function canDeliver(g: Jogo, t: Item) {
   const si = PRODUCTS[t].shop, st = g.S[si];
+  if (si < 0) return g.machines.some(m => m.needs === t && g.espaco(m) > 0); // cru: vai para a panela
   if (!st.open) return false;
   return t === 'caixa' ? st.stock < g.freezerCap() : st.counter[t].length < COUNTER_CAP;
+}
+
+/** Para onde levar o item: cru vai para a panela que o recebe; o resto, para o balcão da loja. */
+function destino(g: Jogo, t: Item): Rect {
+  if (PRODUCTS[t].shop >= 0) return SHOPS[PRODUCTS[t].shop].drop;
+  const ms = g.machines.filter(m => m.needs === t);
+  return zoneOf(ms.find(m => g.espaco(m) > 0) || ms[0]);
+}
+
+/** Praias 3 e 4: trabalhos que só existem com as lojas novas (as regras das Praias 1 e 2 não mudam). */
+function alvoNovo(g: Jogo): Rect | Pt | null {
+  const p = g.player, sv = g.sv, reg = SHOPS[2].drop;
+  if (g.S[2]?.open) {
+    const salva = g.helpers.some(h => h.shop === 2), cap = g.aguaCap();
+    // enche a caixa: começa quando secou (ou está baixa sem salva-vidas) e só sai cheia
+    if (inZone(p, reg) && sv.agua < cap) return reg;
+    if (sv.agua === 0 && sv.fila.length || (!salva && sv.agua <= 1)) return reg;
+    // cadeiras bagunçadas (sem salva-vidas, quando já são 2 ou mais)
+    const sujas = sv.cadeiras.filter(c => c.suja);
+    if (!salva && sujas.length >= 2) return sujas.reduce((a, b) => Math.hypot(b.x - p.x, b.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? b : a);
+    // dinheiro parado nas lojas que os ajudantes já tocam: busca a maior pilha quando ela completa a compra ou pesa nela
+    const v = g.visibleSteps()[0], falta = g.prestigeOpen() || !v ? g.prestigeCost() - (g.paid.praia || 0) : v.s.price - (g.paid[v.i] || 0);
+    const pilhas = g.S.map((st, i) => st.open ? st.cashValue : 0), total = pilhas.reduce((x, y) => x + y, 0), maior = pilhas.indexOf(Math.max(...pilhas));
+    if (g.money < falta && pilhas[maior] > 0 && (g.money + total >= falta || pilhas[maior] >= 0.3 * falta)) return SHOPS[maior].cash;
+  }
+  // panela: com cru na mão e espaço, fica carregando
+  const panela = g.machines.find(m => m.needs && inZone(p, zoneOf(m)) && g.espaco(m) > 0 && p.stack.includes(m.needs));
+  if (panela) return zoneOf(panela);
+  return null;
 }
 
 /** Decide o próximo alvo do bot. */
@@ -44,6 +75,7 @@ function alvo(g: Jogo): Rect | Pt {
     const v = g.visibleSteps().find(v => g.money >= v.s.price - (g.paid[v.i] || 0));
     if (v) return padOf(v.s.slot);
   }
+  const novo = alvoNovo(g); if (novo) return novo;
   const full = p.stack.length >= g.playerCap();
   const ms = g.machines.filter(m => m.pile > 0 && g.canCarry(p, m.type) && canDeliver(g, m.type));
   // termina o que está fazendo: pega até encher, entrega tudo o que couber
@@ -53,11 +85,11 @@ function alvo(g: Jogo): Rect | Pt {
   if (drop) return drop.drop;
   if (!full && ms.length) {
     // máquina mais cheia; o produto que a fila pede e acabou no balcão vem antes
-    const score = (t: Item) => { const st = g.S[PRODUCTS[t].shop]; return t !== 'caixa' && !st.counter[t].length && st.queue.slice(0, 4).some(c => c.want === t) ? 100 : 0 };
+    const score = (t: Item) => { const st = g.S[PRODUCTS[t].shop]; return st && t !== 'caixa' && !st.counter[t].length && st.queue.slice(0, 4).some(c => c.want === t) ? 100 : 0 };
     return zoneOf(ms.reduce((a, b) => b.pile + score(b.type) > a.pile + score(a.type) ? b : a));
   }
   const it = p.stack.find(t => canDeliver(g, t)) ?? p.stack[0];
-  if (it) return SHOPS[PRODUCTS[it].shop].drop;
+  if (it) return destino(g, it);
   const cash = g.S.findIndex(s => s.open && s.cashValue > 0);
   if (cash >= 0) return SHOPS[cash].cash;
   // nada para fazer: espera ao lado da máquina mais perto de encher
@@ -82,7 +114,8 @@ export function simular({ praias = 2, seed = 1, limiteMin = 60, humano = true } 
     if (humano && t >= pensa) { const n = alvo(g); if (n !== a && JSON.stringify(n) !== JSON.stringify(a)) { fase = R() * 6.28; desvio = entre(0.15, 0.35) } a = n; pensa = t + entre(200, 400) }
     // dentro da zona-alvo: fica parado (inZone exige estar dentro do retângulo)
     if (t >= pausaAte && (!('w' in a) || !inZone(p, { ...a, w: a.w - 16, h: a.h - 16 }))) {
-      const w = waypoint(g, p, a), dx = w.x - p.x, dy = w.y - p.y, d = Math.hypot(dx, dy);
+      const juntando = g.prestigeOpen(); // juntando para a nova praia: não pisa nos outros quadrados
+      const w = waypoint(g, p, a, juntando ? g.visibleSteps().map(v => SLOTS[v.s.slot]) : []), dx = w.x - p.x, dy = w.y - p.y, d = Math.hypot(dx, dy);
       // desvio leve: a direção balança devagar, e some perto do alvo para não ficar rodando em volta
       const ang = humano ? desvio * Math.sin(t / 600 + fase) * Math.min(1, d / 60) : 0, c = Math.cos(ang), sn = Math.sin(ang);
       if (d > 2) input = { x: (dx * c - dy * sn) / d, y: (dx * sn + dy * c) / d };

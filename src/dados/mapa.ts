@@ -1,29 +1,34 @@
 /* Mapa: uma praia, vários lotes. Coordenadas do mundo em unidades do canvas lógico (400 x 760). */
-export const W = 400, H = 760, WORLD_W = 1200;
+export const W = 400, H = 760, WORLD_W = 1400;
 export const SHORE = 118, WALL_Y = 326, PLAY_BOTTOM = 742;
 
 export interface Rect { x: number; y: number; w: number; h: number }
 export interface Lot { x0: number; x1: number; title?: string; praia?: number; kind?: string }
-export type Item = 'acai' | 'coco' | 'sorvete' | 'caixa';
+export type Item = 'acai' | 'coco' | 'sorvete' | 'caixa' | 'milho' | 'pastel' | 'milhoCru' | 'pastelCru';
 
 export const LOTS: Lot[] = [
   { x0: 0, x1: 400 },
   { x0: 400, x1: 600, title: 'QUIOSQUE DE SORVETE', praia: 2 },
   { x0: 600, x1: 900, title: 'CHUVEIRÃO E CADEIRAS', praia: 3, kind: 'shower' },
   { x0: 900, x1: 1200, title: 'MILHO E PASTEL', praia: 4, kind: 'corn' },
+  { x0: 1200, x1: 1400, title: 'QUADRA DE FUTEVÔLEI', praia: 5, kind: 'volei' }, // só a placa (pilar 6)
 ];
 
-// price 0 = não é vendido; rate 0 = não sai de máquina
+// price 0 = não é vendido; rate 0 = não sai de máquina; shop -1 = cru (vai para a panela, não para o balcão)
 export const PRODUCTS: Record<Item, { price: number; rate: number; shop: number }> = {
   acai: { price: 6, rate: 900, shop: 0 },
   coco: { price: 10, rate: 1400, shop: 0 },
   sorvete: { price: 12, rate: 0, shop: 1 },
   caixa: { price: 0, rate: 1800, shop: 1 },
+  milho: { price: 20, rate: 0, shop: 3 },
+  pastel: { price: 26, rate: 0, shop: 3 },
+  milhoCru: { price: 0, rate: 700, shop: -1 },
+  pastelCru: { price: 0, rate: 800, shop: -1 },
 };
 export const BOX_SORVETES = 6, BOX_MAX_CARRY = 3;
 
 export interface Shop {
-  kind: 'counter' | 'kiosk'; name: string; cx: number; products: Item[]; side: number; base: number; spawnX: number;
+  kind: 'counter' | 'kiosk' | 'servico'; name: string; cx: number; products: Item[]; side: number; base: number; spawnX: number;
   counter: Rect; drop: Rect; cash: { x: number; y: number };
 }
 export const SHOPS: Shop[] = [
@@ -31,7 +36,31 @@ export const SHOPS: Shop[] = [
     counter: { x: 200, y: 300, w: 200, h: 40 }, drop: { x: 200, y: 360, w: 104, h: 44 }, cash: { x: 296, y: 362 } },
   { kind: 'kiosk', name: 'SORVETE', cx: 500, products: ['sorvete'], side: 1, base: 1600, spawnX: 780,
     counter: { x: 500, y: 298, w: 92, h: 44 }, drop: { x: 500, y: 362, w: 92, h: 40 }, cash: { x: 574, y: 364 } },
+  // Praia 3: serviço. O "drop" é o registro da caixa d'água; as regras ficam em SERVICO
+  { kind: 'servico', name: 'CHUVEIRÃO', cx: 740, products: [], side: 1, base: 1800, spawnX: 0,
+    counter: { x: 740, y: 296, w: 240, h: 30 }, drop: { x: 840, y: 372, w: 84, h: 44 }, cash: { x: 676, y: 392 } },
+  // Praia 4: venda com preparo. Balcão comum; o milho e o pastel saem das panelas (PREPARO)
+  { kind: 'counter', name: 'MILHO E PASTEL', cx: 1050, products: ['milho', 'pastel'], side: 1, base: 1500, spawnX: 1460,
+    counter: { x: 1050, y: 300, w: 200, h: 40 }, drop: { x: 1050, y: 360, w: 104, h: 44 }, cash: { x: 1146, y: 362 } },
 ];
+
+/** Praia 3: chuveirão (fila, banho, caixa d'água) e cadeiras de aluguel. */
+export const SERVICO = {
+  chuveiros: [{ x: 660, y: 296 }, { x: 760, y: 296 }], // o 2º entra com a melhoria "chuveiro2"
+  filaX: 710, filaMax: 5,
+  banhoMs: 2400, precoBanho: 8, // banhos por caixa: aguaBase + aguaPorNivel × "caixaAgua"
+  aguaBase: 5, aguaPorNivel: 4, encherMs: 110, // no registro, 1 banho de água a cada encherMs
+  cadeiras: [{ x: 650, y: 572 }, { x: 715, y: 572 }, { x: 780, y: 572 }, { x: 845, y: 572 }, { x: 650, y: 652 }, { x: 715, y: 652 }, { x: 780, y: 652 }, { x: 845, y: 652 }],
+  cadeirasBase: 3, cadeirasPorNivel: 2, precoCadeira: 14, aluguelMs: [6000, 9000], chegadaCadeiraMs: 2600,
+};
+
+/** Praia 4: panelas e fritadeira cozinham em lote o que recebem cru. */
+export const PREPARO = {
+  milho: { cru: 'milhoCru' as Item, cozinharMs: 5000 },
+  pastel: { cru: 'pastelCru' as Item, cozinharMs: 4000 },
+  loteBase: 4, lotePorNivel: 2, // itens por panela: loteBase + lotePorNivel × "panelaMaior"
+  saidaMax: 12, // prontos esperando na panela
+};
 export const CASH_MAGNET = 72, COUNTER_CAP = 20;
 
 export const BEACHES = [
@@ -43,6 +72,10 @@ export const SLOTS: Record<string, { x: number; y: number }> = {
   maq2: { x: 290, y: 470 }, sombra: { x: 40, y: 446 }, voce: { x: 350, y: 696 }, equipe: { x: 200, y: 690 }, coco: { x: 110, y: 612 },
   cardapio: { x: 92, y: 372 }, turbo: { x: 200, y: 470 }, coco2: { x: 290, y: 612 }, praia: { x: 200, y: 548 },
   fence: { x: 360, y: 548 }, cardapioS: { x: 450, y: 440 }, frzUp: { x: 550, y: 440 }, equipeS: { x: 500, y: 690 },
+  // Praia 3 (lote 600-900)
+  fence2: { x: 560, y: 548 }, cadeiras: { x: 740, y: 480 }, salva: { x: 760, y: 712 }, caixaAgua: { x: 850, y: 460 }, chuveiro2: { x: 766, y: 412 }, aluguel: { x: 650, y: 480 },
+  // Praia 4 (lote 900-1200)
+  fence3: { x: 860, y: 548 }, pastel: { x: 1150, y: 470 }, panela2: { x: 1050, y: 612 }, cozinheiro: { x: 1150, y: 700 }, panelaUp: { x: 1050, y: 712 }, fritaUp: { x: 1150, y: 612 }, cardapioM: { x: 960, y: 372 },
 };
 
 export const UMBRELLA_POS = [{ x: 64, y: 226 }, { x: 336, y: 226 }, { x: 316, y: 158 }, { x: 40, y: 168 }];

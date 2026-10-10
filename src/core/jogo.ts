@@ -1,6 +1,6 @@
 /* Núcleo do jogo: estado, economia, clientes, ajudantes e compras. Sem canvas e sem DOM. */
 import {
-  SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, BEACHES,
+  SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, BEACHES, LOTS, SERVICO, PREPARO,
   PHRASES, SHIRTS, SKINS, W, WALL_Y, PLAY_BOTTOM, type Item, type Rect,
 } from '../dados/mapa.ts';
 import { PRESTIGE_AFTER, ECONOMIA } from '../dados/planos.ts';
@@ -10,17 +10,24 @@ export type Kind = Item | 'bill';
 export interface Pt { x: number; y: number }
 export interface Walker extends Pt { walk: number; face: number }
 export interface Carrier extends Walker { stack: Item[]; tT: number }
-export interface Machine extends Pt { type: Item; pile: number; cap: number; t: number }
-export interface Helper extends Carrier { shop: number; cap: number; mode: 'pick' | 'drop'; type: Item | null; target: Machine | null; wait: number; shirt: string }
+/** needs: panela/fritadeira (Praia 4) — só cozinha o que recebe cru (loaded), em lote. */
+export interface Machine extends Pt { type: Item; pile: number; cap: number; t: number; needs?: Item; loaded?: number }
+export interface Helper extends Carrier { shop: number; cap: number; mode: 'pick' | 'drop'; type: Item | null; target: Machine | null; wait: number; shirt: string; tarefa?: Tarefa | null }
+type Tarefa = 'entregar' | 'carregar' | 'pegar' | 'cru' | 'esperar';
 export interface Umbrella extends Pt { seats: (Customer | null)[] }
 export interface Customer extends Walker {
   shop: number; want: Item; shirt: string; skin: string; hat: boolean; has: Item | null;
-  state: 'queue' | 'toSeat' | 'sit' | 'leave'; sitT: number; seat: { u: Umbrella; s: number } | null; tx: number; ty: number; arr?: boolean; gone?: boolean;
+  state: 'queue' | 'toSeat' | 'sit' | 'leave' | 'fila' | 'banho' | 'toChair' | 'chair' | 'sair'; sitT: number; seat: { u: Umbrella; s: number } | null; tx: number; ty: number; arr?: boolean; gone?: boolean;
 }
 export interface ShopState { open: boolean; counter: Record<string, Item[]>; stock: number; queue: Customer[]; cashValue: number; cashBills: number; spawnT: number }
 export interface Flyer { kind: Kind; x0: number; y0: number; x1: number; y1: number; t: number; dur: number }
 export interface Popup { x: number; y: number; txt: string; life: number; col: string; size: number }
 export interface Spark { x: number; y: number; vx: number; vy: number; life: number; col: string }
+/** Praia 3: estado do chuveirão e das cadeiras. */
+export interface Chuveiro extends Pt { user: Customer | null; t: number }
+export interface Cadeira extends Pt { user: Customer | null; suja: boolean }
+export interface Servico { agua: number; enchT: number; spawnT: number; spawnC: number; chuveiros: Chuveiro[]; fila: Customer[]; cadeiras: Cadeira[] }
+const novoServico = (): Servico => ({ agua: 0, enchT: 0, spawnT: 800, spawnC: 1500, chuveiros: [], fila: [], cadeiras: [] });
 export type Estado = 'inicio' | 'play' | 'ad' | 'offline' | 'beach';
 export interface Save { money: number; done: number[]; paid: Record<string, number>; beach: number; last: number; tutorial: number; pendente?: number }
 
@@ -46,6 +53,7 @@ export class Jogo {
   money = 0; shown = 0; lv: Record<string, number> = {}; beach = 0; plan: Step[] = makePlan(0); done = new Set<number>(); paid: Record<string, number> = {};
   machines: Machine[] = []; customers: Customer[] = []; flyers: Flyer[] = []; popups: Popup[] = []; sparks: Spark[] = []; helpers: Helper[] = []; umbrellas: Umbrella[] = []; S: ShopState[] = [];
   boostUntil = 0; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; testMode = false;
+  sv: Servico = novoServico();
   pendente = 0; lastBuyAt = 0; // pendente: ganho offline mostrado no cartão e ainda não pego (vai no save)
   player: Carrier = { x: 200, y: 560, stack: [], walk: 0, face: 1, tT: 0 };
   io: Io; rand: () => number;
@@ -57,14 +65,23 @@ export class Jogo {
   /* ---------- Valores derivados ---------- */
   L(id: string) { return this.lv[id] || 0 }
   mult() { return Math.pow(ECONOMIA.praia, this.beach) }
-  cardLv(shop: number) { return shop === 0 ? this.L('cardapio') : this.L('cardapioS') }
+  cardLv(shop: number) { return this.L(['cardapio', 'cardapioS', '', 'cardapioM'][shop]) }
   price(t: Item) { return Math.round(PRODUCTS[t].price * Math.pow(1.25, this.cardLv(PRODUCTS[t].shop)) * this.mult()) }
   rateOf(t: Item) { return PRODUCTS[t].rate / (1 + 0.25 * this.L('turbo')) }
   playerCap() { return 8 + 3 * this.L('bolsa') }
   freezerCap() { return 18 + 12 * this.L('freezer') }
   prestigeCost() { return Math.round(ECONOMIA.novaPraia * this.mult() / 50) * 50 }
   kioskOpen() { return !!this.S[1] && this.S[1].open }
-  openEdge() { return this.kioskOpen() ? 600 : 400 }
+  /** Borda direita do último lote aberto (lote i abre com a loja i). */
+  openEdge() { let e = 400; LOTS.forEach((l, i) => { if (this.S[i]?.open) e = l.x1 }); return e }
+  /* Praia 3 */
+  aguaCap() { return SERVICO.aguaBase + SERVICO.aguaPorNivel * this.L('caixaAgua') }
+  precoBanho() { return Math.round(SERVICO.precoBanho * this.mult()) }
+  precoCadeira() { return Math.round(SERVICO.precoCadeira * Math.pow(1.25, this.L('aluguel')) * this.mult()) }
+  /* Praia 4 */
+  lote() { return PREPARO.loteBase + PREPARO.lotePorNivel * this.L('panelaMaior') }
+  espaco(m: Machine) { return Math.min(this.lote() - (m.loaded || 0), m.cap - m.pile - (m.loaded || 0)) }
+  cookMs(m: Machine) { return PREPARO[m.type as 'milho' | 'pastel'].cozinharMs / (m.type === 'pastel' ? 1 + 0.3 * this.L('fritaRapida') : 1) }
   boostOn() { return this.now < this.boostUntil }
   prestigeOpen() { return this.done.size >= PRESTIGE_AFTER }
   beachName() { const n = BEACHES.length; return BEACHES[this.beach % n].n + (this.beach >= n ? ' ' + (Math.floor(this.beach / n) + 1) : '') }
@@ -84,16 +101,18 @@ export class Jogo {
   /* ---------- Mundo ---------- */
   freshShops() { this.S = SHOPS.map((d, i) => ({ open: i === 0, counter: Object.fromEntries(d.products.map(p => [p, []])), stock: 0, queue: [], cashValue: 0, cashBills: 0, spawnT: 800 })) }
   addMachine(type: Item, x: number, y: number) { this.machines.push({ type, x, y, pile: 0, cap: type === 'caixa' ? 4 : 10, t: 0 }) }
+  addCooker(type: 'milho' | 'pastel', x: number, y: number) { this.machines.push({ type, x, y, pile: 0, cap: PREPARO.saidaMax, t: 0, needs: PREPARO[type].cru, loaded: 0 }) }
+  syncCadeiras() { const n = Math.min(SERVICO.cadeiras.length, SERVICO.cadeirasBase + SERVICO.cadeirasPorNivel * this.L('cadeiras')); while (this.sv.cadeiras.length < n) this.sv.cadeiras.push({ ...SERVICO.cadeiras[this.sv.cadeiras.length], user: null, suja: false }) }
   addHelper(shop: number) {
     const sh = ['#4dabf7', '#38d9a9', '#f783ac', '#74c0fc'];
-    this.helpers.push({ shop, x: SHOPS[shop].cx, y: 620, stack: [], cap: shop ? 2 : 4, mode: 'pick', type: null, target: null, tT: 0, walk: 0, face: 1, wait: 0, shirt: shop ? '#ff8fab' : sh[this.helpers.length % 4] });
+    this.helpers.push({ shop, x: SHOPS[shop].cx, y: 620, stack: [], cap: shop === 1 ? 2 : 4, mode: 'pick', type: null, target: null, tT: 0, walk: 0, face: 1, wait: 0, shirt: ['', '#ff8fab', '#e03131', '#f8f9fa'][shop] || sh[this.helpers.length % 4] });
   }
   syncUmbrellas() {
     const n = this.L('sombras');
     while (this.umbrellas.length < n && this.umbrellas.length < UMBRELLA_POS.length) { const p = UMBRELLA_POS[this.umbrellas.length]; this.umbrellas.push({ x: p.x, y: p.y, seats: [null, null] }) }
   }
   resetWorld() {
-    this.plan = makePlan(this.beach); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.done = new Set();
+    this.plan = makePlan(this.beach); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.done = new Set(); this.sv = novoServico();
     this.money = 0; this.shown = 0; this.camX = 0; this.freshShops();
     this.addMachine('acai', 110, 470); this.player.x = 200; this.player.y = 560; this.player.stack = [];
   }
@@ -105,11 +124,19 @@ export class Jogo {
       if (s.id === 'coco') this.addMachine('coco', 110, 612);
       if (s.id === 'coco2') this.addMachine('coco', 290, 612);
       if (s.id === 'sorv') { this.S[1].open = true; this.S[1].stock = 6; this.addMachine('caixa', 500, 556) }
+      if (s.id === 'servico') { this.S[2].open = true; this.sv.agua = this.aguaCap(); this.sv.chuveiros.push({ ...SERVICO.chuveiros[0], user: null, t: 0 }); this.syncCadeiras() }
+      if (s.id === 'chuveiro2') this.sv.chuveiros.push({ ...SERVICO.chuveiros[1], user: null, t: 0 });
+      if (s.id === 'milho') { this.S[3].open = true; this.addMachine('milhoCru', 950, 470); this.addCooker('milho', 1050, 470) }
+      if (s.id === 'pastel') { this.addMachine('pastelCru', 950, 612); this.addCooker('pastel', 1150, 470) }
+      if (s.id === 'panela2') this.addCooker('milho', 1050, 612);
     } else {
       this.lv[s.id] = this.L(s.id) + 1;
       if (s.id === 'ajud') this.addHelper(0);
       if (s.id === 'ajudS') this.addHelper(1);
       if (s.id === 'sombras') this.syncUmbrellas();
+      if (s.id === 'cadeiras') this.syncCadeiras();
+      if (s.id === 'salva') this.addHelper(2);
+      if (s.id === 'cozinheiro') this.addHelper(3);
     }
     if (silent) return;
     const p = SLOTS[s.slot]; this.burst(p.x, p.y, '#ffc23d', 26); this.popups.push({ x: p.x, y: p.y - 42, txt: s.name + '!', life: 1.4, col: '#5b2370', size: 20 });
@@ -117,6 +144,9 @@ export class Jogo {
     if (s.id === 'cardapio') this.popups.push({ x: SHOPS[0].cx, y: 250, txt: 'Açaí agora R$ ' + this.price('acai'), life: 1.8, col: '#2f9e44', size: 18 });
     if (s.id === 'cardapioS') this.popups.push({ x: SHOPS[1].cx, y: 250, txt: 'Sorvete agora R$ ' + this.price('sorvete'), life: 1.8, col: '#2f9e44', size: 18 });
     if (s.id === 'sorv') this.popups.push({ x: 500, y: 250, txt: 'Leve caixas do depósito ao freezer!', life: 2.4, col: '#1c7ed6', size: 15 });
+    if (s.id === 'servico') this.popups.push({ x: 750, y: 250, txt: "Encha a caixa d'água no registro!", life: 2.4, col: '#1c7ed6', size: 15 });
+    if (s.id === 'milho') this.popups.push({ x: 1050, y: 250, txt: 'Leve o milho cru à panela!', life: 2.4, col: '#e8590c', size: 15 });
+    if (s.id === 'cardapioM') this.popups.push({ x: SHOPS[3].cx, y: 250, txt: 'Milho agora R$ ' + this.price('milho'), life: 1.8, col: '#2f9e44', size: 18 });
     this.io.compra(this.beach, i, (this.now - this.lastBuyAt) / 1000); this.lastBuyAt = this.now;
     this.io.fanfare(); this.io.buzz(40); this.io.goal(); this.io.save();
   }
@@ -191,6 +221,10 @@ export class Jogo {
     const P = a === this.player; a.tT += dt;
     for (const m of this.machines) {
       if (onlyType && m.type !== onlyType) continue; const z = zoneOf(m);
+      if (m.needs && inZone(a, z) && a.tT > 90 && this.espaco(m) > 0) {
+        const idx = a.stack.lastIndexOf(m.needs);
+        if (idx >= 0) { a.tT = 0; a.stack.splice(idx, 1); m.loaded!++; this.fly(m.needs, a.x, a.y - 30, m.x, m.y - 10, 200); if (P) this.io.tone(480, 0.06, 'triangle', 0.05, 0.8) }
+      }
       if (inZone(a, z) && m.pile > 0 && this.canCarry(a, m.type) && a.tT > 90) {
         a.tT = 0; m.pile--; a.stack.push(m.type); this.fly(m.type, m.x, m.y + 44, a.x, a.y - 30 - a.stack.length * 9, 200);
         if (P) { this.io.tone(400 + a.stack.length * 30, 0.06, 'triangle', 0.05, 1.2); if (this.tutorial === 0) this.tutorial = 1 }
@@ -268,9 +302,14 @@ export class Jogo {
       }
     }
 
-    for (const m of this.machines) { if (m.pile < m.cap) { m.t += dt; if (m.t >= this.rateOf(m.type)) { m.t = 0; m.pile++ } } }
+    for (const m of this.machines) {
+      if (m.needs) { if (m.loaded) { m.t += dt; if (m.t >= this.cookMs(m)) { m.t = 0; m.pile += m.loaded; m.loaded = 0 } } continue }
+      if (m.pile < m.cap) { m.t += dt; if (m.t >= this.rateOf(m.type)) { m.t = 0; m.pile++ } }
+    }
 
     for (const h of this.helpers) {
+      if (h.shop === 2) { this.salvaVidas(h, dt, f); continue }
+      if (h.shop === 3) { this.cozinheiro(h, dt, f); continue }
       const d = SHOPS[h.shop], same = this.helpers.filter(x => x.shop === h.shop), hi = same.indexOf(h);
       if (h.mode === 'pick') {
         if (!h.target || h.target.pile === 0 && !h.stack.length) this.helperThink(h);
@@ -286,6 +325,7 @@ export class Jogo {
 
     for (let si = 0; si < SHOPS.length; si++) {
       const st = this.S[si], d = SHOPS[si]; if (!st.open) continue;
+      if (d.kind === 'servico') { this.updateServico(dt, f); continue }
       const stock = this.stockOf(si), stockF = stock >= 8 ? 0.5 : stock >= 3 ? 0.75 : 1.25, demand = si === 0 ? 1 + 0.35 * this.umbrellas.length : 1;
       const maxQ = si === 0 ? 6 + this.umbrellas.length : 7, interval = d.base / demand * stockF;
       st.spawnT -= dt; if (st.spawnT <= 0) { st.spawnT = interval * (0.75 + this.rand() * 0.5); if (st.queue.length < maxQ) this.spawnCustomer(si) }
@@ -320,6 +360,111 @@ export class Jogo {
     this.customers = this.customers.filter(c => !c.gone);
 
     const camMax = Math.max(0, this.openEdge() - W + 140); const target = Math.max(0, Math.min(camMax, p.x - W / 2)); this.camX += (target - this.camX) * Math.min(1, 0.12 * f);
+  }
+
+  /* ---------- Praia 3: chuveirão e cadeiras ---------- */
+  private novoCliente(x: number, y: number, state: Customer['state']): Customer {
+    const R = this.rand, c: Customer = { shop: 2, x, y, want: 'acai', shirt: SHIRTS[Math.floor(R() * SHIRTS.length)], skin: SKINS[Math.floor(R() * SKINS.length)], hat: R() < .35, walk: R() * 6, face: 1, has: null, state, sitT: 0, seat: null, tx: 0, ty: 0 };
+    this.customers.push(c); return c;
+  }
+  private pagar(si: number, valor: number, x: number, y: number) {
+    const st = this.S[si], d = SHOPS[si];
+    st.cashValue += valor * (this.boostOn() ? 2 : 1); st.cashBills += 1; this.fly('bill', x, y, d.cash.x, d.cash.y, 320);
+    if (this.rand() < .28) this.popups.push({ x, y: y - 46, txt: PHRASES[Math.floor(this.rand() * PHRASES.length)], life: 1.2, col: '#3a2316', size: 15 });
+    this.io.tone(880, 0.07, 'sine', 0.05, 1.2);
+  }
+  /** Parado no registro: enche a caixa d'água (jogador e salva-vidas). */
+  encher(dt: number, P: boolean) {
+    const sv = this.sv; if (sv.agua >= this.aguaCap()) return;
+    sv.enchT += dt; if (sv.enchT < SERVICO.encherMs) return;
+    sv.enchT = 0; sv.agua++; if (P) this.io.tone(300 + sv.agua * 20, 0.05, 'sine', 0.04, 1.1);
+  }
+  /** Passou por cima: arruma a cadeira bagunçada. */
+  arrumar(a: Pt, P: boolean) {
+    for (const c of this.sv.cadeiras) if (c.suja && Math.abs(a.x - c.x) < 22 && Math.abs(a.y - c.y) < 22) {
+      c.suja = false; this.burst(c.x, c.y, '#ffd8a8', 8); if (P) this.io.tone(660, 0.06, 'triangle', 0.05, 1.3);
+    }
+  }
+  updateServico(dt: number, f: number) {
+    const sv = this.sv, p = this.player, R = this.rand;
+    if (inZone(p, SHOPS[2].drop)) this.encher(dt, true);
+    this.arrumar(p, true);
+    // chuveirão: quem sai do mar entra na fila; sem água, a fila para
+    sv.spawnT -= dt;
+    if (sv.spawnT <= 0) { sv.spawnT = SHOPS[2].base * (0.75 + R() * 0.5); if (sv.fila.length < SERVICO.filaMax) sv.fila.push(this.novoCliente(SERVICO.filaX + (R() - 0.5) * 120, 110, 'fila')) }
+    sv.fila.forEach((c, i) => { c.arr = moveTo(c, SERVICO.filaX, 250 - i * 26, 2.5, f) });
+    for (const ch of sv.chuveiros) {
+      if (!ch.user && sv.agua > 0 && sv.fila[0]?.arr) { const c = sv.fila.shift()!; ch.user = c; ch.t = SERVICO.banhoMs; sv.agua--; c.state = 'banho' }
+      const c = ch.user; if (!c) continue;
+      if (!moveTo(c, ch.x, ch.y - 26, 2.5, f)) continue;
+      ch.t -= dt; if (ch.t > 0) continue;
+      this.pagar(2, this.precoBanho(), c.x, c.y); ch.user = null; c.state = 'sair'; c.tx = c.x; c.ty = 100;
+    }
+    // cadeiras: só aluga cadeira livre e arrumada; paga ao sair e deixa a cadeira bagunçada
+    sv.spawnC -= dt;
+    if (sv.spawnC <= 0) {
+      sv.spawnC = SERVICO.chegadaCadeiraMs * (0.75 + R() * 0.5);
+      const livres = sv.cadeiras.filter(c => !c.user && !c.suja);
+      if (livres.length) { const cad = livres[Math.floor(R() * livres.length)], c = this.novoCliente(cad.x, 110, 'toChair'); cad.user = c; c.tx = cad.x; c.ty = cad.y - 6 }
+    }
+    for (const cad of sv.cadeiras) {
+      const c = cad.user; if (!c) continue;
+      if (c.state === 'toChair') { if (moveTo(c, c.tx, c.ty, 2.2, f)) { c.state = 'chair'; c.sitT = SERVICO.aluguelMs[0] + R() * (SERVICO.aluguelMs[1] - SERVICO.aluguelMs[0]) } }
+      else if ((c.sitT -= dt) <= 0) { this.pagar(2, this.precoCadeira(), c.x, c.y); cad.user = null; cad.suja = true; c.state = 'sair'; c.tx = c.x; c.ty = 100 }
+    }
+    for (const c of this.customers) if (c.state === 'sair' && moveTo(c, c.tx, c.ty, 2.1, f)) c.gone = true;
+  }
+  /** Salva-vidas: enche a caixa quando está pela metade e arruma as cadeiras. */
+  salvaVidas(h: Helper, dt: number, f: number) {
+    const sv = this.sv, reg = SHOPS[2].drop, cap = this.aguaCap(), sujas = sv.cadeiras.filter(c => c.suja && !c.user);
+    if (h.mode === 'drop') { if (sv.agua >= cap) h.mode = 'pick' }
+    else if (sv.agua <= cap / 2 || (!sujas.length && sv.agua < cap)) h.mode = 'drop';
+    let alvo: Pt;
+    if (h.mode === 'drop') alvo = reg;
+    else if (sujas.length) alvo = sujas.reduce((a, b) => Math.hypot(b.x - h.x, b.y - h.y) < Math.hypot(a.x - h.x, a.y - h.y) ? b : a);
+    else alvo = { x: reg.x, y: reg.y + 56 };
+    if (moveTo(h, alvo.x, alvo.y, 2.4, f) && h.mode === 'drop') this.encher(dt, false);
+    this.arrumar(h, false);
+  }
+
+  /* ---------- Praia 4: o cozinheiro faz o ciclo inteiro ---------- */
+  cozinheiro(h: Helper, dt: number, f: number) {
+    const st = this.S[3], drop = SHOPS[3].drop, cookers = this.machines.filter(m => m.needs);
+    const cru = (t: Item) => PRODUCTS[t].shop < 0, temPronto = h.stack.some(t => !cru(t)), meuCru = h.stack.find(cru);
+    const pronto = cookers.find(m => m.pile > 0 && st.counter[m.type].length < COUNTER_CAP);
+    if (!h.tarefa) {
+      h.wait = 0; h.target = null; h.type = null;
+      if (temPronto && (h.stack.length >= h.cap || !pronto)) h.tarefa = 'entregar';
+      else if (meuCru) {
+        const m = cookers.find(m => m.needs === meuCru && this.espaco(m) > 0);
+        if (m) { h.tarefa = 'carregar'; h.target = m } else if (pronto && h.stack.length < h.cap) { h.tarefa = 'pegar'; h.target = pronto } else h.tarefa = temPronto ? 'entregar' : 'esperar';
+      } else if (pronto) { h.tarefa = 'pegar'; h.target = pronto }
+      else {
+        // panela parada e com espaço: busca um lote de cru
+        const m = cookers.find(m => !m.loaded && this.espaco(m) > 0), src = m && this.machines.find(x => x.type === m.needs);
+        if (m && src) { h.tarefa = 'cru'; h.target = src; h.type = m.needs! }
+        else h.tarefa = temPronto ? 'entregar' : 'esperar';
+      }
+    }
+    const hi = this.helpers.filter(x => x.shop === 3).indexOf(h);
+    h.wait += dt;
+    if (h.tarefa === 'esperar') { if (h.wait > 800) h.tarefa = null; return }
+    if (h.tarefa === 'entregar') {
+      if (moveTo(h, drop.x - 30 + hi * 20, drop.y, 2.4, f) && this.stepTransfer(h, dt)) h.wait = 0;
+      if (!h.stack.some(t => !cru(t)) || h.wait > 1500) h.tarefa = null;
+      return;
+    }
+    const m = h.target!, z = zoneOf(m);
+    if (moveTo(h, z.x + (hi - 1) * 12, z.y, 2.4, f)) {
+      const antes = h.stack.length; this.stepTransfer(h, dt, m.type); if (h.stack.length !== antes) h.wait = 0;
+      if (h.tarefa === 'carregar' && (!h.stack.includes(m.needs!) || this.espaco(m) <= 0)) h.tarefa = null;
+      else if (h.tarefa === 'pegar' && (m.pile === 0 || h.stack.length >= h.cap)) h.tarefa = null;
+      else if (h.tarefa === 'cru') {
+        const alvo = cookers.find(c => c.needs === h.type);
+        if (h.stack.length >= h.cap || (alvo && h.stack.filter(t => t === h.type).length >= this.espaco(alvo)) || (m.pile === 0 && h.stack.length)) h.tarefa = null;
+      }
+    }
+    if (h.wait > 4000) h.tarefa = null; // nada mudou em 4 s: replaneja
   }
 
   updateFx(dt: number) {

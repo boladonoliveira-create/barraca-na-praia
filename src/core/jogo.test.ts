@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Jogo, padOf } from './jogo.ts';
 import { rng } from './simulador.ts';
 import { PRESTIGE_AFTER } from '../dados/planos.ts';
+import { SHOPS } from '../dados/mapa.ts';
 
 const DT = 1000 / 60, PARADO = { x: 0, y: 0 };
 function novo(seed = 1) { const g = new Jogo({}, rng(seed)); g.load(null); g.tutorial = 4; return g }
@@ -140,5 +141,62 @@ describe('aviso de compra', () => {
     g.now = 15000; g.applyStep(0); g.now = 40000; g.applyStep(1);
     g.applyStep(2, true); // silenciosa (carregar save) não conta
     expect(avisos).toEqual([[0, 0, 15], [0, 1, 25]]);
+  });
+});
+
+/** Mundo da praia b com as compras pedidas (por id, na ordem). */
+function praia(b: number, ids: string[], seed = 5) {
+  const g = novo(seed); g.beach = b; g.resetWorld(); g.tutorial = 4;
+  for (const id of ids) g.applyStep(g.plan.findIndex((s, i) => s.id === id && !g.done.has(i)), true);
+  g.player.x = 380; g.player.y = 740; // longe de tudo
+  return g;
+}
+
+describe('Praia 3: chuveirão e cadeiras', () => {
+  it('a fila do chuveirão para com a caixa vazia e volta ao encher', () => {
+    const g = praia(2, ['sorv', 'servico']); g.sv.agua = 0;
+    let banhos = 0; rodar(g, 15000, () => { banhos += g.sv.chuveiros.filter(c => c.user).length });
+    expect(banhos).toBe(0); expect(g.sv.fila.length).toBeGreaterThan(0);
+    Object.assign(g.player, SHOPS[2].drop); // parado no registro
+    rodar(g, 2000);
+    expect(g.sv.agua).toBeGreaterThan(0);
+    rodar(g, 4000, () => { banhos += g.sv.chuveiros.filter(c => c.user).length });
+    expect(banhos).toBeGreaterThan(0);
+  });
+
+  it('cadeira bagunçada não é alugada; arrumada, volta a alugar', () => {
+    const g = praia(2, ['sorv', 'servico']); g.sv.agua = 0;
+    for (const c of g.sv.cadeiras) c.suja = true;
+    rodar(g, 20000);
+    expect(g.sv.cadeiras.every(c => !c.user)).toBe(true);
+    Object.assign(g.player, { x: g.sv.cadeiras[0].x, y: g.sv.cadeiras[0].y }); rodar(g, 100); // passa por cima
+    expect(g.sv.cadeiras[0].suja).toBe(false);
+    g.player.x = 380; g.player.y = 740;
+    rodar(g, 10000);
+    expect(g.sv.cadeiras[0].user).not.toBeNull();
+  });
+});
+
+describe('ajudantes das Praias 3 e 4', () => {
+  // conta as vendas de uma loja e falha se ela ficar 30 s sem vender
+  function semTravar(g: Jogo, si: number) {
+    let vendas = 0, ultimo = 0, parado = 0;
+    rodar(g, 600000, () => {
+      const c = g.S[si].cashValue; if (c > ultimo) { vendas++; parado = 0 } else parado += DT; ultimo = c;
+      expect(parado).toBeLessThan(30000);
+    });
+    return vendas;
+  }
+
+  it('salva-vidas nunca fica travado: chuveirão e cadeiras rendem 10 min sem o jogador', () => {
+    const g = praia(2, ['sorv', 'servico', 'salva', 'cadeiras', 'chuveiro2']);
+    expect(semTravar(g, 2)).toBeGreaterThan(150);
+    expect(g.sv.cadeiras.some(c => c.user)).toBe(true);
+  });
+
+  it('cozinheiro nunca fica travado: milho e pastel vendem 10 min sem o jogador', () => {
+    const g = praia(3, ['sorv', 'servico', 'milho', 'pastel', 'cozinheiro']);
+    const vendas = semTravar(g, 3);
+    expect(vendas).toBeGreaterThan(60);
   });
 });
