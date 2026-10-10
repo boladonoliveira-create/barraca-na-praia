@@ -130,8 +130,32 @@ const coqueiros: Enfeite = (c, e) => {
   });
 };
 
+/** Muralha: pedra do forte antigo correndo pelo horizonte, com ameias no topo. */
+const muralha: Enfeite = (c, e) => {
+  cada(e, 70, (x) => {
+    const top = HORIZONTE - 12;
+    c.fillStyle = '#b8a179'; c.fillRect(x, top, 70, 14);
+    c.fillStyle = '#9c8660'; c.beginPath();
+    for (let k = 0; k < 5; k++) c.rect(x + 4 + k * 14, top - 5, 8, 6);
+    c.fill();
+    c.fillStyle = 'rgba(120,100,70,0.35)'; c.fillRect(x, top + 8, 70, 1.5);
+  });
+};
+
+/** Barquinhos: barcos coloridos balançando perto da areia. */
+const barquinhos: Enfeite = (c, e) => {
+  cada(e, 300, (x, i) => {
+    const bx = x + 70 + hash(i) * 160, by = HORIZONTE + 30 + hash(i + 4) * 30 + Math.sin(e.t / 800 + i) * 1.5;
+    const cor = ['#e03131', '#1971c2', '#2f9e44', '#f08c00'][((i % 4) + 4) % 4];
+    c.fillStyle = '#8d5a2b'; c.fillRect(bx - 9, by, 18, 3);
+    c.fillStyle = cor; c.beginPath(); c.moveTo(bx - 10, by); c.lineTo(bx + 10, by); c.lineTo(bx + 7, by + 4); c.lineTo(bx - 7, by + 4); c.closePath(); c.fill();
+    c.fillStyle = '#fff'; c.beginPath(); c.moveTo(bx, by - 1); c.lineTo(bx, by - 12); c.lineTo(bx + 8, by - 2); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.4)'; c.fillRect(bx - 10, by + 5, 20, 1.5);
+  });
+};
+
 /** Todos os enfeites, pelo id usado em PRAIAS[b].enfeites. Enfeite novo: uma função aqui e o id na praia. */
-export const ENFEITES: Record<string, Enfeite> = { sol, nuvens, gaivotas, boias, ilha, navio, jangadas, farol, pedras, coqueiros };
+export const ENFEITES: Record<string, Enfeite> = { sol, nuvens, gaivotas, boias, ilha, navio, jangadas, farol, pedras, coqueiros, muralha, barquinhos };
 
 /* ---------- Cenário ---------- */
 
