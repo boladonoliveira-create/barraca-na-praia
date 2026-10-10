@@ -281,8 +281,95 @@ const castelinho: Enfeite = (c, e) => {
   });
 };
 
+/** Sombra clara sob um objeto da areia (a única sombra permitida pelo molde). */
+function sombra(c: CanvasRenderingContext2D, x: number, y: number, rx: number) {
+  c.fillStyle = 'rgba(120,80,30,0.15)'; c.beginPath(); c.ellipse(x, y, rx, rx * 0.35, 0, 0, Math.PI * 2); c.fill();
+}
+
+/** Guarda-sóis: pequenos e fechados ou meio abertos na beira (não são os da Barraca do Sol, que são compra). */
+const guardaSois: Enfeite = (c, e) => {
+  const B = AREIA.beira;
+  cada(e, 110, (x, i) => {
+    const gx = x + 30 + hash(i) * 60, base = B.y1; if (!livreNaBeira(gx)) return;
+    const cor = ['#f06595', '#4dabf7', '#ffd43b', '#38d9a9'][((i % 4) + 4) % 4];
+    sombra(c, gx, base, 7);
+    c.strokeStyle = '#9c8660'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(gx, base); c.lineTo(gx, base - 20); c.stroke();
+    if (hash(i + 9) < 0.5) { // fechado: cone estreito
+      c.fillStyle = cor; c.beginPath(); c.moveTo(gx, base - 26); c.lineTo(gx - 4, base - 12); c.lineTo(gx + 4, base - 12); c.closePath(); c.fill();
+    } else { // meio aberto: meia cúpula
+      c.fillStyle = cor; c.beginPath(); c.ellipse(gx, base - 18, 9, 7, 0, Math.PI, 0); c.fill();
+    }
+  });
+};
+
+/** Cangas: toalhas estendidas na areia molhada, listradas. */
+const cangas: Enfeite = (c, e) => {
+  const B = AREIA.beira;
+  cada(e, 150, (x, i) => {
+    const cx = x + 20 + hash(i) * 70, cy = B.y0 + 3 + hash(i + 2) * 6; if (!livreNaBeira(cx + 8) || !livreNaBeira(cx - 8)) return;
+    const cor = ['#ff8787', '#74c0fc', '#ffd43b'][((i % 3) + 3) % 3];
+    c.save(); c.translate(cx, cy); c.rotate((hash(i + 4) - 0.5) * 0.4);
+    c.fillStyle = '#fff7e6'; c.fillRect(-9, -4, 18, 8);
+    c.fillStyle = cor; c.fillRect(-9, -4, 18, 2); c.fillRect(-9, 2, 18, 2);
+    c.restore();
+  });
+};
+
+/** Pedras: pedras redondas na areia molhada (as do mar ficam no enfeite 'pedras', do cenário). */
+const pedrasAreia: Enfeite = (c, e) => {
+  const B = AREIA.beira;
+  cada(e, 130, (x, i) => {
+    if (hash(i + 6) < 0.3) return;
+    const px = x + 20 + hash(i) * 80, py = B.y1 - 1 - hash(i + 2) * 5, w = 7 + hash(i + 4) * 7; if (!livreNaBeira(px)) return;
+    sombra(c, px, B.y1 + 1, w * 1.1);
+    c.fillStyle = '#9aa1a8'; c.beginPath(); c.ellipse(px, py, w, w * 0.7, 0, Math.PI, 0); c.fill();
+    c.fillStyle = '#c2c8cf'; c.beginPath(); c.ellipse(px - w * 0.2, py - w * 0.25, w * 0.45, w * 0.3, 0, 0, Math.PI * 2); c.fill();
+  });
+};
+
+/** Redes de pesca: penduradas em duas estacas na beira, com a malha aberta (pontos fixos bem livres). */
+const REDES = [640, 1180, 1980, 2660];
+const redes: Enfeite = (c, e) => {
+  const B = AREIA.beira, y = B.y1, topo = y - 22;
+  REDES.forEach(rx => {
+    if (rx < e.x0 - 30 || rx > e.x1 + 30 || !livreNaBeira(rx - 14) || !livreNaBeira(rx + 14)) return;
+    c.strokeStyle = '#a0713c'; c.lineWidth = 2; c.beginPath(); c.moveTo(rx - 14, y); c.lineTo(rx - 14, topo); c.moveTo(rx + 14, y); c.lineTo(rx + 14, topo); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = 1; c.beginPath();
+    for (let k = -2; k <= 2; k++) { c.moveTo(rx - 14, topo + 4 + k * 4); c.lineTo(rx + 14, topo + 5 + k * 4); }
+    for (let k = -1; k <= 1; k++) { c.moveTo(rx + k * 9, topo + 2); c.lineTo(rx + k * 9, y - 2); }
+    c.stroke();
+  });
+};
+
+/** Coqueiros: palmeiras plantadas na beira, com sombra; a copa sobe em direção ao mar. */
+const coqueirosAreia: Enfeite = (c, e) => {
+  const B = AREIA.beira, base = B.y1;
+  cada(e, 210, (x, i) => {
+    const px = x + 30 + hash(i) * 90; if (!livreNaBeira(px)) return;
+    const altura = 30 + hash(i + 1) * 14, dobra = 4 + hash(i + 2) * 6, sway = Math.sin(e.t / 1200 + i) * 1.5;
+    const topX = px + dobra + sway, topY = base - altura + sway;
+    sombra(c, px, base, 9);
+    c.strokeStyle = '#7a5230'; c.lineWidth = 3; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(px, base); c.quadraticCurveTo(px + 1, base - altura / 2, topX, topY); c.stroke();
+    c.fillStyle = '#2f7a45';
+    for (const a of [-2.6, -2.0, -1.4, -0.8]) { c.beginPath(); c.ellipse(topX + Math.cos(a) * 7, topY + Math.sin(a) * 4, 8, 2.2, a, 0, Math.PI * 2); c.fill() }
+    c.fillStyle = '#3f9a55'; c.beginPath(); c.ellipse(topX, topY + 1, 5, 2, 0, 0, Math.PI * 2); c.fill();
+  });
+};
+
+/** Cocos caídos: na areia molhada, perto de onde os coqueiros estão. */
+const cocos: Enfeite = (c, e) => {
+  const B = AREIA.beira;
+  cada(e, 120, (x, i) => {
+    if (hash(i + 3) < 0.45) return;
+    const cx = x + 20 + hash(i) * 80, cy = B.y1 - 2 - hash(i + 1) * 6; if (!livreNaBeira(cx)) return;
+    c.fillStyle = '#7a5230'; c.beginPath(); c.ellipse(cx, cy, 4, 4, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#5e3f24'; c.beginPath(); c.ellipse(cx - 1, cy - 1, 1.5, 1.5, 0, 0, Math.PI * 2); c.fill();
+  });
+};
+
 /** Todos os enfeites da areia, pelo id usado em PRAIAS[b].enfeitesAreia. */
-export const ENFEITES_AREIA: Record<string, Enfeite> = { conchas, castelinho };
+export const ENFEITES_AREIA: Record<string, Enfeite> = { conchas, castelinho, guardaSois, cangas, pedrasAreia, redes, coqueirosAreia, cocos };
 
 /* ---------- Cenário ---------- */
 
