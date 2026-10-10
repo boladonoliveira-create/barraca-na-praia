@@ -31,9 +31,10 @@ const sol: Enfeite = (c, e, P) => {
   c.fillStyle = P.hora === 'manha' ? '#ffe066' : '#ffd43b'; circ(c, x, 17, 10);
 };
 
-/** Nuvens: andam devagar para a direita; 1 a cada 260 unidades, de tamanho e altura variados. */
-const nuvens: Enfeite = (c, e) => {
-  c.fillStyle = 'rgba(255,255,255,0.9)';
+/** Nuvens: andam devagar para a direita; 1 a cada 260 unidades, de tamanho e altura variados. A cor segue a hora. */
+const COR_NUVEM = { manha: 'rgba(255,255,255,0.9)', tarde: 'rgba(255,247,232,0.9)', porDoSol: 'rgba(255,190,150,0.9)' };
+const nuvens: Enfeite = (c, e, P) => {
+  c.fillStyle = COR_NUVEM[P.hora];
   cada(e, 260, (x, i) => {
     const h = hash(i), cx = x + h * 120 + (e.t / 400) % 260, cy = 9 + h * 14, s = 0.7 + hash(i + 50) * 0.5;
     circ(c, cx, cy, 7 * s); circ(c, cx + 9 * s, cy - 3 * s, 8 * s); circ(c, cx + 19 * s, cy, 6 * s); c.fillRect(cx, cy, 19 * s, 6 * s);
@@ -197,8 +198,13 @@ const reflexo: Enfeite = (c, e) => {
   }
 };
 
-/** Bandeirinhas: cordão de bandeirinhas coloridas entre dois postes no céu. */
-const bandeirinhas: Enfeite = (c, e) => {
+/** O painel "Fama" fica fixo no canto de cima, à esquerda da tela: o que é desenhado no alto do céu pula essa área. */
+function semPainel(c: CanvasRenderingContext2D, e: Vista, fn: () => void) {
+  c.save(); c.beginPath(); c.rect(e.x0, 0, e.x1 - e.x0, HORIZONTE + 4); c.rect(e.cam + 4, 0, 150, 42); c.clip('evenodd'); fn(); c.restore();
+}
+
+/** Bandeirinhas: cordão de bandeirinhas coloridas entre dois postes no céu (fora do painel de fama). */
+const bandeirinhas: Enfeite = (c, e) => semPainel(c, e, () => {
   cada(e, 340, (x, i) => {
     const y0 = HORIZONTE - 22, meio = 5 + hash(i) * 3, sag = (u: number) => y0 + Math.sin(u * Math.PI) * meio;
     c.strokeStyle = 'rgba(90,60,30,0.7)'; c.lineWidth = 1.5; c.beginPath();
@@ -211,10 +217,10 @@ const bandeirinhas: Enfeite = (c, e) => {
       c.beginPath(); c.moveTo(xx - 4, yy); c.lineTo(xx + 4, yy); c.lineTo(xx, yy + 9); c.closePath(); c.fill();
     }
   });
-};
+});
 
-/** Faixas: faixas de campeonato esticadas no horizonte, com painéis coloridos em sequência. */
-const faixas: Enfeite = (c, e) => {
+/** Faixas: faixas de campeonato esticadas no horizonte, com painéis coloridos em sequência (fora do painel de fama). */
+const faixas: Enfeite = (c, e) => semPainel(c, e, () => {
   cada(e, 300, (x, i) => {
     const y = HORIZONTE - 26, w = 300;
     c.fillStyle = '#f8f9fa'; c.fillRect(x, y, w, 10);
@@ -222,7 +228,7 @@ const faixas: Enfeite = (c, e) => {
     for (let k = 0; k < 6; k++) { c.fillStyle = cores[((i + k) % 3 + 3) % 3]; c.fillRect(x + k * 50, y, 25, 10) }
     c.fillStyle = '#343a40'; c.fillRect(x - 2, y - 3, 4, 16); c.fillRect(x + w - 2, y - 3, 4, 16);
   });
-};
+});
 
 /** Todos os enfeites, pelo id usado em PRAIAS[b].enfeites. Enfeite novo: uma função aqui e o id na praia. */
 export const ENFEITES: Record<string, Enfeite> = { sol, nuvens, gaivotas, boias, ilha, navio, jangadas, farol, pedras, coqueiros, muralha, barquinhos, ondasGrandes, pranchas, veleiros, reflexo, bandeirinhas, faixas };

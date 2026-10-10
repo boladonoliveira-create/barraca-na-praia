@@ -1,7 +1,7 @@
 /* Núcleo do jogo: estado, economia, clientes, ajudantes e compras. Sem canvas e sem DOM. */
 import {
   SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, LOTS, SERVICO, PREPARO, ATRACAO,
-  PHRASES, SHIRTS, SKINS, W, WALL_Y, PLAY_BOTTOM, type Item, type Rect,
+  AMBULANTE, ESCOLA, FAIXA, PHRASES, SHIRTS, SKINS, W, WALL_Y, PLAY_BOTTOM, type Item, type Rect,
 } from '../dados/mapa.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, MARCOS, ECONOMIA, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
@@ -18,7 +18,7 @@ type Tarefa = 'entregar' | 'carregar' | 'pegar' | 'cru' | 'esperar';
 export interface Umbrella extends Pt { seats: (Customer | null)[] }
 export interface Customer extends Walker {
   shop: number; want: Item; shirt: string; skin: string; hat: boolean; has: Item | null;
-  state: 'queue' | 'toSeat' | 'sit' | 'leave' | 'fila' | 'banho' | 'toChair' | 'chair' | 'sair'; sitT: number; seat: { u: Umbrella; s: number } | null; tx: number; ty: number; arr?: boolean; gone?: boolean;
+  state: 'queue' | 'toSeat' | 'sit' | 'leave' | 'fila' | 'banho' | 'toChair' | 'chair' | 'sair' | 'irMar' | 'surf' | 'voltaMar'; sitT: number; seat: { u: Umbrella; s: number } | null; tx: number; ty: number; arr?: boolean; gone?: boolean;
 }
 export interface ShopState { open: boolean; counter: Record<string, Item[]>; stock: number; queue: Customer[]; cashValue: number; cashBills: number; spawnT: number }
 export interface Flyer { kind: Kind; x0: number; y0: number; x1: number; y1: number; t: number; dur: number }
@@ -29,6 +29,12 @@ export interface Chuveiro extends Pt { user: Customer | null; t: number }
 export interface Cadeira extends Pt { user: Customer | null; suja: boolean }
 export interface Servico { agua: number; enchT: number; spawnT: number; spawnC: number; chuveiros: Chuveiro[]; fila: Customer[]; cadeiras: Cadeira[] }
 const novoServico = (): Servico => ({ agua: 0, enchT: 0, spawnT: 800, spawnC: 1500, chuveiros: [], fila: [], cadeiras: [] });
+/** Área 6: vendedor com o carrinho. doca: parado esperando carga (o 1º parado é o que está sendo abastecido);
+    sobe: indo para a faixa de cima; rota: vendendo, vai e volta pela faixa; volta: vazio, voltando para a doca. */
+export interface Vendedor extends Walker { carga: Item[]; estado: 'doca' | 'sobe' | 'rota' | 'volta'; dir: number; vendaT: number }
+/** Área 7: prancha. seca/secando: na arara; aluno: com o aluno; molhada: largada na areia (spot = índice em ESCOLA.molhadas); mao: na pilha de alguém. */
+export interface Prancha extends Pt { estado: 'seca' | 'secando' | 'aluno' | 'molhada' | 'mao'; t: number; aluno: Customer | null; spot: number }
+export interface Escola { pranchas: Prancha[]; fila: Customer[]; spawnT: number }
 export type Estado = 'inicio' | 'play' | 'ad' | 'offline' | 'beach' | 'litoral';
 /** niveis: quantas compras cada área já fez (a trilha é refeita na mesma ordem ao carregar).
     praia: número da praia (1 a 10). famas: fama ganha em cada praia concluída. ganho e tempo: desta praia (dinheiro e ms de jogo). */
@@ -38,7 +44,8 @@ export interface Save {
 }
 /** Uma compra visível no chão: área, nível (índice na trilha da área) e o passo. */
 export interface Visivel { a: number; k: number; s: Step }
-export const NUM_AREAS = 5;
+/** Áreas que já existem no jogo (a área i é SHOPS[i]). */
+export const NUM_AREAS = SHOPS.length;
 
 /** Saídas do núcleo para som, vibração, salvar e interface. */
 export interface Io {
@@ -46,7 +53,7 @@ export interface Io {
   fanfare(): void; buzz(ms: number): void; save(): void; goal(): void;
   /** Comprou a nova praia: fama ganha e minutos de jogo na praia que ficou para trás. */
   viagem(fama: number, minutos: number): void;
-  /** Compra feita: praia, área, novo nível da área e segundos de jogo desde a compra anterior. */
+  /** Compra feita: praia (de 1 a 10), área, novo nível da área e segundos de jogo desde a compra anterior. */
   compra(praia: number, area: number, nivel: number, segundos: number): void;
 }
 const NO_IO: Io = { tone() {}, fanfare() {}, buzz() {}, save() {}, goal() {}, viagem() {}, compra() {} };
@@ -64,7 +71,7 @@ export class Jogo {
   money = 0; shown = 0; lv: Record<string, number> = {}; beach = 0; famaTotal = 0; famas: number[] = []; ganho = 0; tempo = 0; trilhas: Step[][] = []; nivel: number[] = []; paid: Record<string, number> = {};
   machines: Machine[] = []; customers: Customer[] = []; flyers: Flyer[] = []; popups: Popup[] = []; sparks: Spark[] = []; helpers: Helper[] = []; umbrellas: Umbrella[] = []; S: ShopState[] = [];
   boostUntil = 0; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; testMode = false;
-  sv: Servico = novoServico();
+  sv: Servico = novoServico(); vend: Vendedor[] = []; esc: Escola = { pranchas: [], fila: [], spawnT: 800 };
   pendente = 0; lastBuyAt = 0; // pendente: ganho offline mostrado no cartão e ainda não pego (vai no save)
   player: Carrier = { x: 200, y: 560, stack: [], walk: 0, face: 1, tT: 0 };
   io: Io; rand: () => number;
@@ -79,7 +86,7 @@ export class Jogo {
   lucro() { return 1 + ECONOMIA.taxaFama * this.famaTotal }
   /** Fama que a viagem daria agora: cresce com o total ganho na praia, cada vez mais devagar. */
   famaGanha() { return Math.floor(Math.sqrt(this.ganho / ECONOMIA.famaK)) }
-  cardLv(shop: number) { return this.L(['cardapio', 'cardapioS', '', 'cardapioM'][shop]) }
+  cardLv(shop: number) { return this.L(['cardapio', 'cardapioS', '', 'cardapioM', '', 'cardapioA'][shop] || '') }
   price(t: Item) { const a = PRODUCTS[t].shop; return Math.round(PRODUCTS[t].price * Math.pow(1.25, this.cardLv(a)) * this.marco(a) * this.lucro()) }
   /** Cada área tem o seu turbo: o da Barraca não acelera o depósito do sorvete. */
   rateOf(t: Item) { return PRODUCTS[t].rate / (1 + 0.25 * this.L(['turbo', 'turboS'][PRODUCTS[t].shop] || '')) }
@@ -101,7 +108,15 @@ export class Jogo {
   freezerCap() { return 18 + 12 * this.L('freezer') }
   kioskOpen() { return !!this.S[1] && this.S[1].open }
   /** Borda direita do último lote aberto (lote i abre com a loja i). */
-  openEdge() { let e = 400; LOTS.forEach((l, i) => { if (this.S[i]?.open) e = l.x1 }); return e }
+  openEdge() { let e = 400; LOTS.forEach((l, i) => { if (this.S[i]?.open) e = l.x1 }); return this.S[FAIXA.lote]?.open ? Math.max(e, FAIXA.fim) : e }
+  /* Área 6 */
+  isoporCap() { return AMBULANTE.isoporBase + AMBULANTE.isoporPorNivel * this.L('isopor') }
+  /** O carrinho que está sendo abastecido: o primeiro parado na doca (ou nenhum, se todos estão na rua). */
+  carregando() { return this.vend.find(v => v.estado === 'doca') }
+  /* Área 7 */
+  araraCap() { return ESCOLA.araraBase + ESCOLA.araraPorNivel * this.L('arara') }
+  naArara() { return this.esc.pranchas.filter(b => b.estado === 'seca' || b.estado === 'secando').length }
+  precoAula() { return Math.round(ESCOLA.precoAula * Math.pow(1.25, this.L('aulaUp')) * this.marco(6) * this.lucro()) }
   /* Praia 3 */
   aguaCap() { return SERVICO.aguaBase + SERVICO.aguaPorNivel * this.L('caixaAgua') }
   precoBanho() { return Math.round(SERVICO.precoBanho * Math.pow(1.25, this.L('banhoUp')) * this.marco(2) * this.lucro()) }
@@ -154,9 +169,17 @@ export class Jogo {
   addMachine(type: Item, x: number, y: number) { this.machines.push({ type, x, y, pile: 0, cap: type === 'caixa' ? 4 : 10, t: 0 }) }
   addCooker(type: 'milho' | 'pastel', x: number, y: number) { this.machines.push({ type, x, y, pile: 0, cap: PREPARO.saidaMax, t: 0, needs: PREPARO[type].cru, loaded: 0 }) }
   syncCadeiras() { const n = Math.min(SERVICO.cadeiras.length, SERVICO.cadeirasBase + SERVICO.cadeirasPorNivel * this.L('cadeiras')); while (this.sv.cadeiras.length < n) this.sv.cadeiras.push({ ...SERVICO.cadeiras[this.sv.cadeiras.length], user: null, suja: false }) }
+  syncVendedores() {
+    const n = Math.min(AMBULANTE.vagas.length, 1 + this.L('carrinhos'));
+    while (this.vend.length < n) { const v = AMBULANTE.vagas[this.vend.length]; this.vend.push({ x: v.x, y: v.y, walk: 0, face: -1, carga: [], estado: 'doca', dir: -1, vendaT: 0 }) }
+  }
+  syncPranchas() {
+    const n = Math.min(ESCOLA.maxPranchas, ESCOLA.pranchasBase + this.L('pranchas'));
+    while (this.esc.pranchas.length < n) this.esc.pranchas.push({ x: SHOPS[6].counter.x, y: SHOPS[6].counter.y, estado: 'seca', t: 0, aluno: null, spot: -1 });
+  }
   addHelper(shop: number) {
     const sh = ['#4dabf7', '#38d9a9', '#f783ac', '#74c0fc'];
-    this.helpers.push({ shop, x: SHOPS[shop].cx, y: 620, stack: [], cap: shop === 1 ? 2 : 4, mode: 'pick', type: null, target: null, tT: 0, walk: 0, face: 1, wait: 0, shirt: ['', '#ff8fab', '#e03131', '#f8f9fa'][shop] || sh[this.helpers.length % 4] });
+    this.helpers.push({ shop, x: SHOPS[shop].cx, y: 620, stack: [], cap: shop === 1 || shop === 6 ? 2 : 4, mode: 'pick', type: null, target: null, tT: 0, walk: 0, face: 1, wait: 0, shirt: ['', '#ff8fab', '#e03131', '#f8f9fa'][shop] || sh[this.helpers.length % 4] });
   }
   syncUmbrellas() {
     const n = this.L('sombras');
@@ -164,7 +187,7 @@ export class Jogo {
   }
   resetWorld() {
     // começo rápido (a partir da Praia 3): as áreas que já foram novidade de uma praia anterior
-    this.trilhas = Array.from({ length: NUM_AREAS }, (_, a) => makeTrilha(a, this.beach, this.beach >= 2 && a < this.beach)); this.nivel = Array(NUM_AREAS).fill(0); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.sv = novoServico();
+    this.trilhas = Array.from({ length: NUM_AREAS }, (_, a) => makeTrilha(a, this.beach, this.beach >= 2 && a < this.beach)); this.nivel = Array(NUM_AREAS).fill(0); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.sv = novoServico(); this.vend = []; this.esc = { pranchas: [], fila: [], spawnT: 800 };
     this.money = 0; this.shown = 0; this.camX = 0; this.freshShops();
     this.addMachine('acai', 110, 470); this.player.x = 200; this.player.y = 560; this.player.stack = [];
   }
@@ -183,6 +206,9 @@ export class Jogo {
       if (s.id === 'pastel') { this.addMachine('pastelCru', 950, 612); this.addCooker('pastel', 1150, 470) }
       if (s.id === 'panela2') this.addCooker('milho', 1050, 612);
       if (s.id === 'quadra') this.S[4].open = true;
+      if (s.id === 'ambulantes') { this.S[5].open = true; this.addMachine('mate', 1475, 495); this.syncVendedores() }
+      if (s.id === 'biscoito') this.addMachine('biscoito', 1615, 495);
+      if (s.id === 'escola') { this.S[6].open = true; this.syncPranchas() }
     } else {
       this.lv[s.id] = this.L(s.id) + 1;
       if (s.id === 'ajud') this.addHelper(0);
@@ -191,6 +217,10 @@ export class Jogo {
       if (s.id === 'cadeiras') this.syncCadeiras();
       if (s.id === 'salva') this.addHelper(2);
       if (s.id === 'cozinheiro') this.addHelper(3);
+      if (s.id === 'gerente') this.addHelper(5);
+      if (s.id === 'carrinhos') this.syncVendedores();
+      if (s.id === 'instrutor') this.addHelper(6);
+      if (s.id === 'pranchas') this.syncPranchas();
     }
     if (silent) return;
     const p = SLOTS[s.slot]; this.burst(p.x, p.y, '#ffc23d', 26); this.popups.push({ x: p.x, y: p.y - 42, txt: s.name + '!', life: 1.4, col: '#5b2370', size: 20 });
@@ -201,9 +231,12 @@ export class Jogo {
     if (s.id === 'servico') this.popups.push({ x: 750, y: 250, txt: "Encha a caixa d'água no registro!", life: 2.4, col: '#1c7ed6', size: 15 });
     if (s.id === 'milho') this.popups.push({ x: 1050, y: 250, txt: 'Leve o milho cru à panela!', life: 2.4, col: '#e8590c', size: 15 });
     if (s.id === 'quadra' || s.id === 'arquibancada' || s.id === 'rede' || s.id === 'torneio') this.popups.push({ x: 1300, y: 160, txt: 'Mais público: clientes x' + this.publico().toFixed(2).replace('.', ','), life: 2, col: '#2f9e44', size: 15 });
+    if (s.id === 'cardapioA') this.popups.push({ x: SHOPS[5].cx, y: 250, txt: 'Mate agora R$ ' + this.price('mate'), life: 1.8, col: '#2f9e44', size: 18 });
+    if (s.id === 'ambulantes') this.popups.push({ x: SHOPS[5].cx, y: 250, txt: 'Abasteça o carrinho com mate!', life: 2.4, col: '#e8590c', size: 15 });
+    if (s.id === 'escola') this.popups.push({ x: SHOPS[6].cx, y: 250, txt: 'Leve as pranchas molhadas à arara!', life: 2.4, col: '#1c7ed6', size: 15 });
     if (s.id === 'cardapioM') this.popups.push({ x: SHOPS[3].cx, y: 250, txt: 'Milho agora R$ ' + this.price('milho'), life: 1.8, col: '#2f9e44', size: 18 });
     if (MARCOS.includes(i)) this.comemorar(a, i);
-    this.io.compra(this.beach, a, i, (this.now - this.lastBuyAt) / 1000); this.lastBuyAt = this.now;
+    this.io.compra(this.beach + 1, a, i, (this.now - this.lastBuyAt) / 1000); this.lastBuyAt = this.now;
     this.io.fanfare(); this.io.buzz(40); this.io.goal(); this.io.save();
   }
 
@@ -293,7 +326,7 @@ export class Jogo {
   canCarry(a: Carrier, type: Item) {
     const isP = a === this.player, cap = isP ? this.playerCap() : (a as Helper).cap;
     if (a.stack.length >= cap) return false;
-    if (type === 'caixa') return a.stack.filter(t => t === 'caixa').length < (isP ? BOX_MAX_CARRY : cap);
+    if (type === 'caixa' || type === 'prancha') return a.stack.filter(t => t === type).length < (isP ? BOX_MAX_CARRY : cap);
     return true;
   }
   stepTransfer(a: Carrier, dt: number, onlyType?: Item | null) {
@@ -316,6 +349,19 @@ export class Jogo {
         a.tT = 0; a.stack.splice(idx, 1); st.stock = Math.min(this.freezerCap(), st.stock + BOX_SORVETES); this.fly('caixa', a.x, a.y - 30, d.counter.x, d.counter.y, 220);
         if (P) this.io.tone(520, 0.1, 'triangle', 0.06, 1.4); return true;
       }
+      if (d.kind === 'ambulante') { // abastece o carrinho parado; cheio, ele sai para vender
+        const v = this.carregando(), cap = this.isoporCap(); if (!v || v.carga.length >= cap) continue;
+        let idx = -1; for (let i = a.stack.length - 1; i >= 0; i--) if (PRODUCTS[a.stack[i]].shop === si) { idx = i; break }
+        if (idx < 0) continue;
+        a.tT = 0; const it = a.stack.splice(idx, 1)[0]; v.carga.push(it); this.fly(it, a.x, a.y - 30 - (idx + 1) * 9, v.x, v.y - 20, 220);
+        if (v.carga.length >= cap) { v.estado = 'sobe'; v.dir = -1; this.popups.push({ x: v.x, y: v.y - 50, txt: 'Saiu para vender!', life: 1.4, col: '#2f9e44', size: 14 }) }
+        if (P) this.io.tone(700 - a.stack.length * 25, 0.05, 'triangle', 0.05, 0.9); return true;
+      }
+      if (d.kind === 'escola') { // pendura a prancha molhada na arara, se tiver lugar
+        const idx = a.stack.lastIndexOf('prancha'), b = this.esc.pranchas.find(x => x.estado === 'mao'); if (idx < 0 || !b || this.naArara() >= this.araraCap()) continue;
+        a.tT = 0; a.stack.splice(idx, 1); b.estado = 'secando'; b.t = ESCOLA.secarMs; this.fly('prancha', a.x, a.y - 30, d.counter.x, d.counter.y, 220);
+        if (P) this.io.tone(560, 0.08, 'triangle', 0.05, 1.3); return true;
+      }
       // solta qualquer item da pilha que caiba, não só o de cima
       let idx = -1; for (let i = a.stack.length - 1; i >= 0; i--) { const t = a.stack[i]; if (PRODUCTS[t].shop === si && t !== 'caixa' && st.counter[t].length < COUNTER_CAP) { idx = i; break } }
       if (idx >= 0) {
@@ -325,11 +371,25 @@ export class Jogo {
     }
     return false;
   }
+  /** Passou por cima de uma prancha molhada: pega (até 3 na mão do jogador; o instrutor, até a carga dele). */
+  pegarPranchas(a: Carrier) {
+    const P = a === this.player;
+    for (const b of this.esc.pranchas) {
+      if (b.estado !== 'molhada' || Math.abs(a.x - b.x) > 26 || Math.abs(a.y - b.y) > 22 || a.tT <= 90 || !this.canCarry(a, 'prancha')) continue;
+      a.tT = 0; b.estado = 'mao'; b.spot = -1; a.stack.push('prancha'); this.fly('prancha', b.x, b.y, a.x, a.y - 30 - a.stack.length * 9, 200);
+      if (P) this.io.tone(440, 0.06, 'triangle', 0.05, 1.2);
+    }
+  }
 
   /* ---------- Ajudantes ---------- */
   helperThink(h: Helper) {
     const d = SHOPS[h.shop], st = this.S[h.shop];
     if (d.kind === 'kiosk') { const dep = this.machines.find(m => m.type === 'caixa'); if (dep && st.stock < this.freezerCap() - 3) { h.type = 'caixa'; h.target = dep } else { h.type = null; h.target = null } return }
+    if (d.kind === 'ambulante') { // gerente: abastece enquanto houver carrinho parado; busca na máquina mais cheia
+      const ms = this.machines.filter(m => PRODUCTS[m.type].shop === h.shop), v = this.carregando();
+      if (!v || !ms.length) { h.type = null; h.target = null; return }
+      h.target = ms.reduce((a, b) => b.pile > a.pile ? b : a); h.type = h.target.type; return;
+    }
     let best: Item | null = null, bs = -1;
     for (const t of d.products) {
       if (!this.machines.some(m => m.type === t)) continue; const space = COUNTER_CAP - st.counter[t].length; if (space <= 0) continue;
@@ -351,7 +411,7 @@ export class Jogo {
     if (il > 0.05) { p.walk += 0.3 * f; if (Math.abs(ix) > 0.1) p.face = ix > 0 ? 1 : -1; this.moved += sp * f * Math.min(1, il) }
     p.x = Math.max(16, Math.min(this.openEdge() - 12, p.x)); p.y = Math.max(WALL_Y + 12, Math.min(PLAY_BOTTOM, p.y));
     for (const m of this.machines) { const hw = 34, hh = 26, dx = p.x - m.x, dy = p.y - m.y; if (Math.abs(dx) < hw && Math.abs(dy) < hh) { const px = hw - Math.abs(dx), py = hh - Math.abs(dy); if (px < py) p.x += px * Math.sign(dx || 1); else p.y += py * Math.sign(dy || 1) } }
-    this.stepTransfer(p, dt);
+    this.stepTransfer(p, dt); this.pegarPranchas(p);
 
     // dinheiro vai sozinho para o jogador perto da pilha ou no "Entregar"
     for (let si = 0; si < SHOPS.length; si++) {
@@ -391,6 +451,7 @@ export class Jogo {
     for (const h of this.helpers) {
       if (h.shop === 2) { this.salvaVidas(h, dt, f); continue }
       if (h.shop === 3) { this.cozinheiro(h, dt, f); continue }
+      if (h.shop === 6) { this.instrutor(h, dt, f); continue }
       const d = SHOPS[h.shop], same = this.helpers.filter(x => x.shop === h.shop), hi = same.indexOf(h);
       if (h.mode === 'pick') {
         if (!h.target || h.target.pile === 0 && !h.stack.length) this.helperThink(h);
@@ -407,6 +468,8 @@ export class Jogo {
     for (let si = 0; si < SHOPS.length; si++) {
       const st = this.S[si], d = SHOPS[si]; if (!st.open) continue;
       if (d.kind === 'atracao') continue; // a quadra não tem clientes próprios
+      if (d.kind === 'ambulante') { this.updateAmbulantes(dt, f); continue }
+      if (d.kind === 'escola') { this.updateEscola(dt, f); continue }
       if (d.kind === 'servico') { this.updateServico(dt, f); continue }
       const stock = this.stockOf(si), stockF = stock >= 8 ? 0.5 : stock >= 3 ? 0.75 : 1.25, demand = si === 0 ? 1 + 0.35 * this.umbrellas.length : 1;
       const maxQ = si === 0 ? 6 + this.umbrellas.length : 7, interval = d.base / demand * stockF / this.publico();
@@ -438,6 +501,7 @@ export class Jogo {
           } else { c.state = 'leave'; c.tx = -30; c.ty = 130 + this.rand() * 30 }
         }
       } else if (c.state === 'leave') { moveTo(c, c.tx, c.ty, 2.1, f); if (c.x < -28 || c.x > c.tx - 2 && c.tx > W) c.gone = true }
+      else if (c.state === 'sair' && moveTo(c, c.tx, c.ty, 2.1, f)) c.gone = true;
     }
     this.customers = this.customers.filter(c => !c.gone);
 
@@ -445,8 +509,8 @@ export class Jogo {
   }
 
   /* ---------- Praia 3: chuveirão e cadeiras ---------- */
-  private novoCliente(x: number, y: number, state: Customer['state']): Customer {
-    const R = this.rand, c: Customer = { shop: 2, x, y, want: 'acai', shirt: SHIRTS[Math.floor(R() * SHIRTS.length)], skin: SKINS[Math.floor(R() * SKINS.length)], hat: R() < .35, walk: R() * 6, face: 1, has: null, state, sitT: 0, seat: null, tx: 0, ty: 0 };
+  private novoCliente(x: number, y: number, state: Customer['state'], shop = 2): Customer {
+    const R = this.rand, c: Customer = { shop, x, y, want: 'acai', shirt: SHIRTS[Math.floor(R() * SHIRTS.length)], skin: SKINS[Math.floor(R() * SKINS.length)], hat: R() < .35, walk: R() * 6, face: 1, has: null, state, sitT: 0, seat: null, tx: 0, ty: 0 };
     this.customers.push(c); return c;
   }
   /** Dinheiro de uma venda: vai para a pilha da área ou, com o cofre automático, direto para o caixa. */
@@ -501,7 +565,71 @@ export class Jogo {
       if (c.state === 'toChair') { if (moveTo(c, c.tx, c.ty, 2.2, f)) { c.state = 'chair'; c.sitT = SERVICO.aluguelMs[0] + R() * (SERVICO.aluguelMs[1] - SERVICO.aluguelMs[0]) } }
       else if ((c.sitT -= dt) <= 0) { this.pagar(2, this.precoCadeira(), c.x, c.y); cad.user = null; cad.suja = true; c.state = 'sair'; c.tx = c.x; c.ty = 100 }
     }
-    for (const c of this.customers) if (c.state === 'sair' && moveTo(c, c.tx, c.ty, 2.1, f)) c.gone = true;
+  }
+
+  /* ---------- Área 6: ambulantes ---------- */
+  updateAmbulantes(dt: number, f: number) {
+    const A = AMBULANTE, sp = A.velocidade * (1 + A.rapidoPorNivel * this.L('carrinhoRapido')), doca = A.vagas[0];
+    let k = 0;
+    for (const v of this.vend) {
+      if (v.estado === 'doca') { const vg = A.vagas[k++]; moveTo(v, vg.x, vg.y, sp * 1.5, f); continue } // a fila da doca anda
+      if (v.estado === 'sobe') { if (moveTo(v, v.x, A.rotaY, sp, f)) v.estado = 'rota'; continue }
+      if (v.estado === 'volta') {
+        if (Math.abs(v.x - doca.x) > 1) moveTo(v, doca.x, A.rotaY, sp, f); else if (moveTo(v, doca.x, doca.y, sp, f)) v.estado = 'doca';
+        continue;
+      }
+      // rota: vai até a ponta esquerda e volta até a última área aberta, vendendo para quem passa
+      if (moveTo(v, v.dir < 0 ? A.rotaX0 : this.openEdge() - 40, A.rotaY, sp, f)) v.dir = -v.dir;
+      v.vendaT -= dt;
+      if (v.vendaT <= 0 && v.carga.length) {
+        v.vendaT = A.vendaMs / this.publico() * (0.75 + this.rand() * 0.5);
+        const it = v.carga.pop()!, perto = this.customers.find(c => Math.abs(c.x - v.x) < 90 && Math.abs(c.y - v.y) < 90);
+        this.fly(it, v.x, v.y - 20, perto ? perto.x : v.x + 30 * v.dir, perto ? perto.y - 26 : A.rotaY - 60, 260);
+        this.receber(5, this.price(it), v.x, v.y);
+      }
+      if (!v.carga.length) v.estado = 'volta';
+    }
+  }
+
+  /* ---------- Área 7: escolinha de surf ---------- */
+  updateEscola(dt: number, f: number) {
+    const E = ESCOLA, es = this.esc, R = this.rand, arara = SHOPS[6].counter;
+    let n = 0;
+    for (const b of es.pranchas) {
+      if (b.estado === 'secando' && (b.t -= dt) <= 0) b.estado = 'seca';
+      if (b.estado === 'seca' || b.estado === 'secando') { b.x = arara.x - arara.w / 2 + 14 + (n++ % 8) * 20; b.y = arara.y }
+    }
+    // alunos chegam do mar e fazem fila
+    es.spawnT -= dt;
+    if (es.spawnT <= 0) { es.spawnT = SHOPS[6].base / this.publico() * (0.75 + R() * 0.5); if (es.fila.length < E.filaMax) es.fila.push(this.novoCliente(E.filaX + (R() - 0.5) * 100, 110, 'fila', 6)) }
+    es.fila.forEach((c, i) => { c.arr = moveTo(c, E.filaX, 250 - i * 26, 2.5, f) });
+    // aluga: só prancha seca (a molhada não serve)
+    const seca = es.pranchas.find(b => b.estado === 'seca');
+    if (seca && es.fila[0]?.arr) { const c = es.fila.shift()!; seca.estado = 'aluno'; seca.aluno = c; c.state = 'irMar'; c.tx = LOTS[6].x0 + 30 + R() * 240; c.ty = 70 }
+    for (const b of es.pranchas) {
+      const c = b.aluno; if (b.estado !== 'aluno' || !c) continue;
+      if (c.state === 'irMar') { if (moveTo(c, c.tx, c.ty, 2.4, f)) { c.state = 'surf'; c.sitT = E.aulaMs } }
+      else if (c.state === 'surf') {
+        c.walk += 0.1 * f; c.x += Math.sin(this.now / 400 + c.tx) * 0.5 * f; // pegando onda
+        if ((c.sitT -= dt) <= 0) {
+          const ocup = new Set(es.pranchas.map(x => x.spot)), spot = E.molhadas.findIndex((_, i) => !ocup.has(i));
+          b.spot = spot; c.state = 'voltaMar'; c.tx = E.molhadas[spot].x; c.ty = E.molhadas[spot].y - 6;
+        }
+      } else if (c.state === 'voltaMar' && moveTo(c, c.tx, c.ty, 2.4, f)) {
+        // paga a aula e larga a prancha molhada na areia
+        this.pagar(6, this.precoAula(), c.x, c.y); const s = E.molhadas[b.spot];
+        b.estado = 'molhada'; b.aluno = null; b.x = s.x; b.y = s.y; c.state = 'sair'; c.tx = c.x; c.ty = 100;
+      }
+      if (b.estado === 'aluno') { b.x = c.x; b.y = c.y }
+    }
+  }
+  /** Instrutor: recolhe as pranchas molhadas e pendura na arara. */
+  instrutor(h: Helper, dt: number, f: number) {
+    const molhadas = this.esc.pranchas.filter(b => b.estado === 'molhada'), drop = SHOPS[6].drop, hi = this.helpers.filter(x => x.shop === 6).indexOf(h);
+    h.tT += dt;
+    if (h.stack.length && (h.stack.length >= h.cap || !molhadas.length)) { if (moveTo(h, drop.x - 20 + hi * 30, drop.y, 2.4, f)) this.stepTransfer(h, dt); return }
+    if (molhadas.length) { const b = molhadas.reduce((a, x) => Math.hypot(x.x - h.x, x.y - h.y) < Math.hypot(a.x - h.x, a.y - h.y) ? x : a); moveTo(h, b.x, b.y, 2.4, f); this.pegarPranchas(h); return }
+    moveTo(h, drop.x - 20 + hi * 30, drop.y + 50, 2.4, f);
   }
   /** Salva-vidas: enche a caixa quando está pela metade e arruma as cadeiras. */
   salvaVidas(h: Helper, dt: number, f: number) {

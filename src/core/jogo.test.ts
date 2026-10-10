@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Jogo, padOf, NUM_AREAS } from './jogo.ts';
 import { rng } from './simulador.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, ECONOMIA } from '../dados/planos.ts';
-import { SHOPS, LOTS, SLOTS } from '../dados/mapa.ts';
+import { SHOPS, LOTS, SLOTS, ESCOLA, FAIXA } from '../dados/mapa.ts';
 import type { Save } from './jogo.ts';
 
 const DT = 1000 / 60, PARADO = { x: 0, y: 0 };
@@ -172,12 +172,12 @@ describe('compras', () => {
     const g = mundo([8, 6, 6, 6, 2]);
     for (let n = 0; n < 30; n++) {
       const vs = g.visibleSteps();
-      for (let a = 0; a < NUM_AREAS; a++) {
+      for (let a = 0; a < 5; a++) {
         const da = vs.filter(v => v.a === a); expect(da.length).toBeGreaterThan(0); expect(da.length).toBeLessThanOrEqual(2);
         if (da.length === 2) expect(da[0].s.slot).not.toBe(da[1].s.slot);
         for (const v of da) { const x = SLOTS_X(v.s.slot); expect(x).toBeGreaterThan(LOTS[a].x0); expect(x).toBeLessThan(LOTS[a].x1) }
       }
-      g.applyStep(n % NUM_AREAS, true);
+      g.applyStep(n % 5, true);
     }
   });
 
@@ -208,14 +208,14 @@ describe('praias', () => {
     rodar(g, 3000);
     expect(g.beach).toBe(2); expect(g.state).toBe('beach');
     expect(g.money).toBe(0); expect(g.famas).toEqual([7]); expect(g.famaTotal).toBe(7); expect(g.ganho).toBe(0);
-    expect(g.S.map(s => s.open)).toEqual([true, false, false, false, false]);
+    expect(g.S.map(s => s.open)).toEqual(g.S.map((_, a) => a === 0));
   });
 
-  it('depois da Praia 5 o quadro aparece, mas a Praia 6 ainda não pode ser comprada', () => {
-    const g = naPraia(5); for (let a = 0; a < NUM_AREAS; a++) subir(g, a, a < 4 ? NIVEL_ABRE : NIVEL_NOVA_PRAIA);
+  it('depois da última praia pronta o quadro aparece, mas a seguinte ainda não pode ser comprada', () => {
+    const g = naPraia(NUM_AREAS); for (let a = 0; a < NUM_AREAS; a++) subir(g, a, a < NUM_AREAS - 1 ? NIVEL_ABRE : NIVEL_NOVA_PRAIA);
     expect(g.novaPraiaAberta()).toBe(true); expect(g.proximaExiste()).toBe(false);
     Object.assign(g.player, padOf('praia')); g.money = 1e12; rodar(g, 3000);
-    expect(g.beach).toBe(4); expect(g.paid.praia).toBeUndefined();
+    expect(g.beach).toBe(NUM_AREAS - 1); expect(g.paid.praia).toBeUndefined();
   });
 
   it('a fama aumenta o lucro de todas as áreas e os ganhos com o app fechado', () => {
@@ -245,9 +245,10 @@ describe('salvar', () => {
   it('salva e carrega praia, fama e o progresso por área; ganhos com o app fechado = 24 × ajudantes × fama por minuto, até 2 h', () => {
     const g = mundo([12, 3]); g.beach = 1; g.money = 321; g.famaTotal = 5; g.famas = [5]; g.ganho = 777; g.tempo = 60000;
     const s = JSON.parse(JSON.stringify(g.snapshot(1000)));
-    expect(s).toMatchObject({ praia: 2, famaTotal: 5, famas: [5], ganho: 777, tempo: 60000, niveis: [12, 3, 0, 0, 0] });
+    const niveis = [12, 3, ...Array(NUM_AREAS - 2).fill(0)];
+    expect(s).toMatchObject({ praia: 2, famaTotal: 5, famas: [5], ganho: 777, tempo: 60000, niveis });
     const h = new Jogo(); const off = h.load(s, 1000 + 30 * 60000);
-    expect(h.beach).toBe(1); expect(h.money).toBe(321); expect(h.nivel).toEqual([12, 3, 0, 0, 0]); expect(h.famaTotal).toBe(5);
+    expect(h.beach).toBe(1); expect(h.money).toBe(321); expect(h.nivel).toEqual(niveis); expect(h.famaTotal).toBe(5);
     expect(h.helpers.length).toBe(g.helpers.length); expect(h.aberta(1)).toBe(true);
     const k = 1 + ECONOMIA.taxaFama * 5;
     expect(off).toBe(Math.round(30 * 24 * h.helpers.length * k));
@@ -275,7 +276,7 @@ describe('aviso de compra', () => {
     const avisos: number[][] = []; const g = new Jogo({ compra: (...a) => { avisos.push(a) } }, rng(1)); g.load(null);
     g.now = 15000; g.applyStep(0); g.now = 40000; g.applyStep(0);
     g.applyStep(0, true); // silenciosa (carregar save) não conta
-    expect(avisos).toEqual([[0, 0, 1, 15], [0, 0, 2, 25]]);
+    expect(avisos).toEqual([[1, 0, 1, 15], [1, 0, 2, 25]]);
   });
 });
 
@@ -326,6 +327,74 @@ describe('ajudantes das áreas 3 e 4', () => {
     const g = mundo([5, 5, 5, 4]); // barraca do milho, cardápio, fritadeira, cozinheiro
     expect(g.helpers.some(h => h.shop === 3)).toBe(true);
     expect(semTravar(g, 3)).toBeGreaterThan(60);
+  });
+});
+
+describe('área 6: ambulantes', () => {
+  it('cheio, o carrinho sai para vender; os vendedores sempre voltam vazios à doca e nunca travam (10 min com o gerente)', () => {
+    const g = mundo([5, 5, 5, 5, 5, 10]); // ambulantes, cardápio, gerente, isopor, mais um vendedor, biscoito...
+    g.lv.cofre5 = 0; // sem cofre, para contar as vendas pela pilha
+    expect(g.vend.length).toBe(3); expect(g.helpers.some(h => h.shop === 5)).toBe(true);
+    const viagens = g.vend.map(() => 0), naRua = g.vend.map(() => 0), antes = g.vend.map(v => v.estado);
+    let vendas = 0, ultimo = 0;
+    rodar(g, 600000, () => {
+      const c = g.S[5].cashValue; if (c > ultimo) vendas++; ultimo = c;
+      g.vend.forEach((v, i) => {
+        if (antes[i] === 'volta' && v.estado === 'doca') { viagens[i]++; expect(v.carga).toHaveLength(0) }
+        naRua[i] = v.estado === 'doca' ? 0 : naRua[i] + DT; expect(naRua[i]).toBeLessThan(90000);
+        antes[i] = v.estado;
+      });
+    });
+    for (const n of viagens) expect(n).toBeGreaterThan(5);
+    expect(vendas).toBeGreaterThan(100);
+  });
+
+  it('os vendedores andam só na faixa dos clientes, longe de onde o jogador anda', () => {
+    const g = mundo([5, 5, 5, 5, 5, 10]); let max = 0;
+    rodar(g, 120000, () => { for (const v of g.vend) if (v.estado === 'rota') max = Math.max(max, v.y) });
+    expect(max).toBeLessThan(326); // WALL_Y: o jogador fica abaixo disso
+  });
+});
+
+describe('área 7: escolinha de surf', () => {
+  it('prancha molhada não é alugada; seca na arara, volta a alugar', () => {
+    const g = mundo([5, 5, 5, 5, 5, 5, 1]), es = g.esc;
+    es.pranchas.forEach((b, i) => { b.estado = 'molhada'; b.spot = i; Object.assign(b, ESCOLA.molhadas[i]) });
+    rodar(g, 20000);
+    expect(es.pranchas.every(b => b.estado === 'molhada')).toBe(true); expect(es.fila.length).toBeGreaterThan(0);
+    Object.assign(g.player, ESCOLA.molhadas[0]); rodar(g, 300); // passa por cima: pega
+    expect(g.player.stack).toContain('prancha');
+    Object.assign(g.player, SHOPS[6].drop); rodar(g, 300); // pendura na arara
+    expect(g.player.stack).not.toContain('prancha'); expect(es.pranchas.filter(b => b.estado === 'secando')).toHaveLength(1);
+    g.player.x = 1950; g.player.y = 740;
+    let alugou = false; rodar(g, ESCOLA.secarMs + 3000, () => { alugou ||= es.pranchas.some(b => b.estado === 'aluno') });
+    expect(alugou).toBe(true);
+  });
+
+  it('o instrutor nunca fica travado: a escolinha rende 10 min sem o jogador', () => {
+    const g = mundo([5, 5, 5, 5, 5, 5, 6]); g.lv.cofre6 = 0;
+    expect(g.helpers.some(h => h.shop === 6)).toBe(true);
+    let aulas = 0, ultimo = 0, parado = 0;
+    rodar(g, 600000, () => { const c = g.S[6].cashValue; if (c > ultimo) { aulas++; parado = 0 } else parado += DT; ultimo = c; expect(parado).toBeLessThan(40000) });
+    expect(aulas).toBeGreaterThan(60);
+  });
+
+  it('na Praia 7 a faixa grande abre com a Escolinha, e os lotes 8 e 9 não existem para o jogo', () => {
+    const g = naPraia(7); for (let a = 0; a < NUM_AREAS; a++) subir(g, a, 12);
+    expect(g.aberta(6)).toBe(true); expect(g.openEdge()).toBe(FAIXA.fim);
+    for (const a of [7, 8]) { expect(g.liberada(a)).toBe(false); expect(g.aberta(a)).toBe(false); expect(LOTS[a].faixa).toBe(true) }
+    expect(g.visibleSteps().every(v => v.a <= 6)).toBe(true);
+    expect(g.machines.every(m => m.x < LOTS[7].x0)).toBe(true);
+  });
+
+  it('melhorias das áreas 6 e 7 não alteram as outras', () => {
+    const g = mundo([5, 5, 5, 5, 5, 1, 1]);
+    const outras = () => [g.price('acai'), g.price('sorvete'), g.precoBanho(), g.price('milho'), g.publico(), g.freezerCap(), g.aguaCap()];
+    const antes = outras(), amb = [g.isoporCap(), g.price('mate')];
+    while (g.nivel[6] < 20) g.applyStep(6, true);
+    expect([g.isoporCap(), g.price('mate')]).toEqual(amb);
+    while (g.nivel[5] < 20) g.applyStep(5, true);
+    expect(outras()).toEqual(antes);
   });
 });
 

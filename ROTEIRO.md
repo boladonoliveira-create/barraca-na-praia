@@ -1,176 +1,170 @@
 # Roteiro: Barraca na Praia
 
-Status: AGUARDANDO REVISÃO
-Rodada: 5
+Status: PRONTO PARA EXECUTAR
+Rodada: 6
 Porta: 5175
-Quem faz: partes A e B = Claude Code. Parte C = OpenCode.
+Quem faz: partes A, B e C = Claude Code. Parte D = OpenCode.
 
 ## Contexto
 
-O usuário testou a rodada 4. O problema é que dá para sair comprando área por área numa praia só, e a "nova praia" é opcional e reabre o mesmo mapa.
+A rodada 5 foi aprovada: praias como no Cash Inc, fama, começo rápido, litoral, viagem e save v4. O simulador ficou dentro das metas nas 3 sementes (praias 1 a 5 em 108 a 113 min).
 
-A estrutura certa segue o Cash Inc:
-- **Começo devagar:** a primeira praia começa devagar.
-- **A cada praia nova:** o jogador recomeça mais forte (fama) e libera a próxima área da lista.
+O revisor desenhou os 10 cenários fora do jogo e conferiu. Funcionam, mas uma praia parece pouco diferente da outra:
+- tudo muda só numa faixa de 34 de altura no topo, enquanto a areia, que é o que o jogador mais vê, é igual em todas;
+- os coqueiros da Praia 4 parecem boiar no horizonte.
 
-| Praia | Área nova |
-|---|---|
-| 1 Praia do Sol | Barraca do Sol (açaí e coco) |
-| 2 Praia Grande | Sorveteria |
-| 3 Praia do Farol | Chuveirão e cadeiras |
-| 4 Praia dos Coqueiros | Milho e pastel |
-| 5 Praia do Forte | Quadra de futevôlei |
-| 6 Praia Dourada | Ambulantes |
-| 7 Praia Brava | Escolinha de surf |
-| 8 Baía Azul | Sucos e vitaminas |
-| 9 Praia do Pôr do Sol | Palco de pagode |
-| 10 Praia do Campeonato | Torneio de futevôlei |
+Nesta rodada entram as áreas 6 a 10 (praias 6 a 10), a faixa grande de areia da Praia 7 e a decoração da areia por praia.
 
-Hoje existem as áreas 1 a 5. Esta rodada troca a progressão e deixa as praias 1 a 5 jogáveis. As áreas 6 a 10 entram na próxima rodada.
+| Praia | Área nova | Tipo |
+|---|---|---|
+| 6 Praia Dourada | Ambulantes | Venda automática |
+| 7 Praia Brava | Escolinha de surf | Serviço com fila |
+| 8 Baía Azul | Sucos e vitaminas | Preparo e venda |
+| 9 Praia do Pôr do Sol | Palco de pagode | Atração em evento |
+| 10 Praia do Campeonato | Torneio de futevôlei | Meta do lançamento |
+
+**Cada área nova entra como dados** (`SHOPS`, `LOTS`, `TRILHAS`, regras em `dados/`), sem reescrever o motor. Toda área nova começa manual, e o ajudante dela automatiza depois (pilar 5).
 
 ## Fluxo desta rodada
 
-1. **Claude Code** faz as partes A e B, com um commit por parte. Depois:
+1. **Claude Code** faz as partes A, B e C, com um commit por parte. Depois:
    - escreve `RELATORIO.md` no formato de `../RODADA.md`;
    - troca o status para `Status: PRONTO PARA OPENCODE`;
    - faz um commit.
-2. **OpenCode** faz a parte C, seguindo as regras de `AGENTS.md`. Depois:
+2. **OpenCode** faz a parte D, seguindo as regras de `AGENTS.md`. Depois:
    - acrescenta a seção dele no `RELATORIO.md`;
    - troca o status para `Status: AGUARDANDO REVISÃO`;
    - faz um commit.
 
 Se uma sessão cair, a próxima continua da primeira parte sem commit.
 
-## Parte A [CLAUDE]: praias e fama
+## Parte A [CLAUDE]: Ambulantes, Escolinha de surf e a faixa grande
 
-**A1. Regras da praia.**
-- **Áreas disponíveis:** na praia N estão as áreas 1 a N.
-  - A área N é a novidade e só existe a partir da praia N.
-  - Dentro da praia, as áreas abrem em ordem, como hoje: a próxima abre quando a anterior chega ao nível `NIVEL_ABRE`.
-- **Quadro de nova praia:** aparece quando a área N chega ao nível 10 (`NIVEL_NOVA_PRAIA`).
-  - É um quadro dourado no chão, no lugar do quadro de prestígio de hoje: "Viajar para a Praia Grande · +X de fama".
-  - É obrigatório para avançar, mas o jogador pode continuar crescendo antes de comprar para ganhar mais fama.
-- **Ao comprar:**
-  - zeram o dinheiro e os níveis;
-  - ficam a fama total, as preferências e o recorde.
-- **Fama:**
-  - a fama ganha cresce com o total ganho na praia, numa curva que desacelera (algo como `floor(sqrt(ganho / K))`);
-  - o lucro de todas as áreas é multiplicado por `1 + taxa × famaTotal`;
-  - ajuste `K`, `taxa` e o fator de preço por praia com o simulador (A5).
-  - O HUD mostra "⭐ Fama x1,8".
-- **Começo rápido:** a partir da praia 3, as áreas que já foram a área nova de uma praia anterior recomeçam com o cofre automático e o 1º ajudante já comprados. Esses passos da trilha contam como feitos, sem custo.
-- **O que sai:** o prestígio opcional antigo (`NIVEL_PRESTIGIO`).
+**A0. Correções da rodada 5.**
+- **Nome:** a área 2 se chama "Sorveteria" em todo lugar.
+- **Analytics:** `step_buy` e `session_*` passam a contar a praia a partir de 1, como `praia_nova`.
+- **"Dinheiro em dobro":** não quebra em 2 linhas em 375 px (texto curto "Dobro" com ícone, ou outro arranjo).
+- **Nuvens:** ganham a cor da hora (alaranjadas no pôr do sol).
+- **Bandeirinhas e faixas da Praia 10:** não podem ficar atrás do painel de fama.
 
-**A2. O que aparece no mapa.**
-- **Câmera:** vai até o lote N+1.
-- **Lote N+1:** aparece cercado, com a silhueta e a placa "Na próxima praia: Sorveteria".
-- **Lotes depois disso:** não aparecem (nada de cerca, placa ou silhueta).
-- **Depois da praia 5:** o quadro da praia 6 mostra "Praia Dourada · em breve" e não pode ser comprado.
-- **Documentação:** atualize o pilar 6 no `CLAUDE.md` e no GDD: "o futuro próximo fica à vista: a área da próxima praia aparece cercada; o resto fica escondido".
+**A1. Ambulantes (área 6, venda automática).**
+- **Depósito:** o jogador abastece os carrinhos de isopor no depósito (mate e biscoito).
+- **Vendedores:** cada carrinho cheio sai com um vendedor que anda pela areia, vende sozinho para os clientes que passam e volta vazio.
+- **Trilha:** mais vendedores, isopor maior, carrinho mais rápido, cardápio (mate → mate com limão → biscoito de polvilho → combo).
+- **Ajudante:** o gerente abastece os carrinhos.
+- **Nada de travar:** os vendedores não podem atrapalhar o caminho do jogador nem prender clientes.
 
-**A3. Cenário de cada praia (molde).** Crie `src/dados/praias.ts` com `PRAIAS[10]`. Cada praia tem:
-- `nome` (da tabela);
-- `mar`, `areia` e `ceu: [topo, base]`;
-- `hora`: `manha`, `tarde` ou `porDoSol`;
-- `enfeites: string[]`, os ids de desenhos de fundo, como farol, coqueiros ou barcos.
+**A2. Escolinha de surf (área 7, serviço com fila).**
+- **Fila e pagamento:** o aluno entra na fila, aluga uma prancha, vai ao mar, volta e paga.
+- **Prancha molhada:** volta molhada e precisa secar na arara (o jogador pega da areia e leva até a arara). Prancha molhada não é alugada.
+- **Trilha:** mais pranchas, arara maior, aula mais cara, instrutor (ajudante que leva as pranchas para secar).
+- **Visual:** os alunos aparecem surfando no mar, que é a faixa da água.
 
-Faça também:
-- **Função de desenho:** `src/render/cenarios.ts`, com as funções dos enfeites, aplicadas no desenho do cenário (em cache, se o desenho atual for em cache).
-- **Praias 1 e 2:** preencha completas, com o capricho final. Elas são o molde.
-- **Praias 3 a 10:** deixe só o nome e as cores provisórias. O OpenCode faz o resto.
-- **Prévia (só em dev):** `?praia=N` abre direto na praia N, com as áreas abertas e um pouco de dinheiro.
-- **Molde:** escreva `docs/MOLDE-CENARIOS.md` com:
-  - as regras (cores, onde os enfeites podem ficar sem atrapalhar o jogo, sem `Math.random`);
-  - um enfeite comentado;
-  - a lista do que cada praia de 3 a 10 deve ter:
+**A3. A faixa grande da Praia 7.**
+- **Ao chegar na Praia 7:** abre uma faixa larga de areia para os lotes 7, 8 e 9.
+- **Na Praia 7:** o lote 7 é a Escolinha, e os lugares do 8 e do 9 ficam vazios: areia sem cerca, sem placa e sem silhueta (decisão do usuário).
+- **Praias 8 e 9:** o 8 e o 9 aparecem nesse espaço quando chegar a vez deles.
+- **Lote 10:** a regra "lote N+1 cercado com a placa da próxima praia" continua valendo para ele.
 
-| Praia | Hora | O que deve ter |
-|---|---|---|
-| 3 | manhã | Farol na ponta e pedras |
-| 4 | manhã | Muitos coqueiros |
-| 5 | tarde | Muralha de forte antigo ao fundo |
-| 6 | tarde | Areia dourada, barquinhos |
-| 7 | tarde | Ondas maiores, pranchas na areia |
-| 8 | tarde | Mar bem azul, veleiros |
-| 9 | pôr do sol | Céu alaranjado, sol baixo |
-| 10 | tarde | Bandeirinhas e faixas de campeonato |
+**Testes:**
+- os vendedores sempre voltam ao depósito e nunca travam (simulação longa);
+- prancha molhada não é alugada;
+- na Praia 7, os lotes 8 e 9 não existem para o jogo;
+- as áreas continuam independentes.
 
-**A4. Save v4.** O formato passa a ser `{ versao: 4, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal` e o resto de hoje.
-- **O `mundo`:** um identificador aleatório criado uma vez. Serve para salvar na nuvem e para o co-op no futuro.
-- **Conversão do v3:** vai para a praia igual ao número de áreas abertas (no máximo 5), com a fama mínima de quem passou pelas praias anteriores.
+## Parte B [CLAUDE]: Sucos, Palco e Torneio
 
-**A5. Simulador.** O bot compra a nova praia assim que ela libera. Rode com 3 sementes.
+**B1. Sucos e vitaminas (área 8, preparo e venda).**
+- **Ciclo:** o jogador leva a fruta à liquidificadora, espera a barra e leva o copo ao balcão.
+- **Sabores:** dois, laranja e açaí com banana. Cada um tem a sua caixa de frutas.
+- **Trilha:** liquidificadora 2, mais rápida, copo maior, cardápio, barman (ajudante que faz o ciclo).
 
-Metas por praia:
-- Praia 1: 8 a 10 min.
-- Praia 2: 15 a 20 min.
-- Praia 3: 20 a 25 min.
-- Praia 4: 25 a 35 min.
-- Praia 5: 35 a 45 min.
+**B2. Palco de pagode (área 9, atração em evento).**
+- **Show:** de tempos em tempos (começa a cada 4 min), um show de 60 s traz multidão e multiplica a chegada de clientes em todas as áreas.
+- **Na tela:** a contagem "Próximo show em 2:10" fica visível. Durante o show, o palco tem luzes e notas musicais.
+- **Trilha:** show mais longo, intervalo menor, bônus maior, som melhor (só visual).
+- **Fora do show:** o bônus só vale durante o show.
 
-Outras metas:
-- as áreas antigas voltam a funcionar nos primeiros 20 a 25% do tempo da praia;
+**B3. Torneio de futevôlei (área 10, meta do lançamento).**
+- **Etapas:** 3, em ordem: Classificatória, Semifinal, Final.
+- **Cada etapa:** custa uma compra e leva um tempo, com uma partida animada na quadra.
+- **Prêmio:** cada etapa vencida dá um troféu e um bônus permanente de público, que vale nesta e nas próximas praias.
+- **Fim:** "Campeão da Praia!", com confete, e uma prévia da Arena: "A Arena de futevôlei chega na próxima temporada".
+- **Depois da Praia 10:** o quadro de nova praia mostra "Praia 11 · em breve".
+
+**Testes:**
+- o palco só dá bônus durante o show;
+- as etapas do torneio liberam em ordem;
+- o bônus do troféu fica depois da viagem.
+
+## Parte C [CLAUDE]: balanceamento das praias 6 a 10
+
+**C1. Simulador:** o bot sabe operar as mecânicas novas (carrinhos, pranchas, liquidificadora, etapas do torneio) e roda as praias de 1 a 10.
+
+**C2. Metas** (bot humano, sementes 1, 2 e 3):
+
+| Praia | Meta |
+|---|---|
+| 1 a 5 | as mesmas de antes |
+| 6 | 45 a 55 min |
+| 7 | 55 a 65 min |
+| 8 | 60 a 75 min |
+| 9 | 70 a 85 min |
+| 10 | 80 a 95 min |
+
+Também valem:
+- as áreas antigas abrem em até 25% do tempo da praia;
 - nenhuma espera passa de 150 s;
-- os ganhos com o app fechado são multiplicados pela fama.
+- o total das 10 praias fica entre 8 e 10 horas de jogo ativo.
 
 Coloque a tabela no relatório.
 
-**A6. Analytics.** Evento `praia_nova` com `{ praia, fama_ganha, minutos, anuncio }`.
+**C3. Praia 2:** a espera chega a 142 s. Baixe a espera para menos de 120 s, se der sem sair das metas.
 
-**Testes:**
-- a praia N só tem as áreas 1 a N;
-- a nova praia só libera com a área N no nível 10;
-- a fama aumenta o lucro;
-- o começo rápido vale a partir da praia 3;
-- a conversão de v3 para v4 funciona;
-- as áreas continuam independentes entre si.
+**C4. Documentação:** atualize as seções 6 a 8 do GDD e o `CLAUDE.md`.
 
-## Parte B [CLAUDE]: litoral e viagem
+## Parte D [OPENCODE]: decoração da areia por praia
 
-**B1. O jogo continua abrindo direto na praia atual** (pilar "sem menus"). Um botão pequeno "Litoral" no HUD abre o mapa do litoral:
-- **Desenho:** uma costa com as 10 praias em sequência.
-- **Concluídas:** mostram a fama ganha.
-- **Atual:** aparece em destaque.
-- **Próxima:** mostra o nome e a área nova ("Praia Grande · Sorveteria").
-- **Seguintes:** mostram o nome e um cadeado, sem dizer a área (é surpresa).
-- **No fim:** "Praia 11 em diante · em breve".
+**O problema:** hoje cada praia só muda numa faixa fina de céu e mar. O jogador passa o tempo olhando a areia, e ela é igual em todas.
 
-**B2. Viagem.** Ao comprar a nova praia:
-1. O litoral abre com um barquinho indo até a próxima praia.
-2. A tela mostra a fama ganha e o botão opcional "Ver anúncio: +20% de fama".
-3. A praia nova começa com o nome grande na tela.
+**D1. Molde do Claude.** Antes de trocar o status, o Claude Code cria:
+- `docs/MOLDE-AREIA.md`, com:
+  - onde a decoração pode ficar (só nas bordas e entre os lotes, nunca nos balcões, quadros, filas ou no caminho);
+  - o limite de formas;
+  - o uso de `hash(i)`, sem `Math.random`;
+- `enfeitesAreia` em `PRAIAS`;
+- um exemplo pronto na Praia 1: conchas e um castelinho de areia.
 
-**B3. Anúncios.**
-- **Intersticial:**
-  - nunca nas praias 1 a 3;
-  - depois disso, só na viagem (depois da animação), e no máximo 1 a cada 4 min;
-  - nunca durante o jogo.
-- **Banner:** nenhum.
-- Confira as regras que já existem e retire as que contrariam isso.
+**D2. OpenCode.** Siga `docs/MOLDE-AREIA.md` e coloque 2 ou 3 enfeites de areia em cada praia de 2 a 10:
 
-**B4. Documentação.** Atualize as seções 6 a 8 do GDD e o `CLAUDE.md`.
+| Praia | Enfeites de areia |
+|---|---|
+| 2 | guarda-sóis coloridos e cangas |
+| 3 | pedras e redes de pesca |
+| 4 | coqueiros plantados na areia, com sombra; tire os coqueiros do horizonte |
+| 5 | canhão antigo e pedras do forte |
+| 6 | areia com brilho e estrelas-do-mar |
+| 7 | pranchas fincadas e marcas de pé |
+| 8 | âncora e boias de veleiro |
+| 9 | tochas acesas e esteiras |
+| 10 | placas de patrocínio genéricas (sem marcas reais), cones e bandeiras |
 
-## Parte C [OPENCODE]: cenários das praias 3 a 10
-
-- **O que fazer:** siga `docs/MOLDE-CENARIOS.md` e preencha as praias 3 a 10 em `src/dados/praias.ts`, com os enfeites em `src/render/cenarios.ts`.
-- **Arquivos:** mexa só nesses dois.
-- **Commits:** um a cada 2 praias.
-- **Conferir:** veja cada praia em `?praia=N`. Os enfeites não podem cobrir balcões, quadros de compra nem o caminho do jogador.
+- **Commits:** um a cada 3 praias.
+- **Arquivos:** mexa só em `src/dados/praias.ts` e `src/render/cenarios.ts`.
+- **Conferir:** use `?praia=N`.
 - **Antes de cada commit:** `npm test` e `npm run build` passando.
-- **No fim:** escreva no `RELATORIO.md` a seção "## Parte C (OpenCode)". Depois troque o status para `Status: AGUARDANDO REVISÃO` e faça um commit.
+- **No fim:** escreva no `RELATORIO.md` a seção "## Parte D (OpenCode)" e troque o status para `Status: AGUARDANDO REVISÃO`.
 
 ## Critérios de pronto
 
-- [ ] A praia 1 começa só com a Barraca do Sol. A praia N tem as áreas 1 a N.
-- [ ] O quadro de nova praia libera com a área N no nível 10. A viagem mostra a fama e o anúncio opcional.
-- [ ] A fama aparece no HUD e aumenta o lucro. O começo rápido vale a partir da praia 3.
-- [ ] Só o lote da próxima praia aparece cercado. Os outros ficam escondidos.
-- [ ] O litoral mostra as 10 praias, cada uma no estado certo.
-- [ ] O simulador está dentro das metas da A5, e a tabela está no relatório.
-- [ ] O save v4 tem `mundo` e converte o v3.
-- [ ] As praias 1 a 10 têm cenário próprio.
+- [ ] As praias 6 a 10 são jogáveis, cada uma com a sua área nova funcionando manual e com o seu ajudante.
+- [ ] Na Praia 7, a faixa grande aparece e os lugares do 8 e do 9 ficam vazios.
+- [ ] O torneio termina em "Campeão da Praia!", com a prévia da Arena.
+- [ ] O simulador está dentro das metas da C2 nas 3 sementes, com a tabela no relatório.
+- [ ] As correções da A0 estão feitas.
+- [ ] Cada praia tem decoração de areia própria. Os coqueiros da Praia 4 estão na areia.
 - [ ] `npm test` e `npm run build` passam.
 
 ## Fora do escopo
 
-Mecânicas das áreas 6 a 10, a faixa grande de areia da praia 7, Arena, Acampamento de inverno, co-op, recompensa diária e APK.
+Arena, praias 11 em diante, Acampamento de inverno, co-op, recompensa diária e APK.

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { simular, foraDaFaixa, METAS, ESPERA_MAX, ANTIGAS_MAX } from './simulador.ts';
 
 describe('simulador de economia (praias 1 a 5)', () => {
-  const r = simular();
+  const r = simular({ praias: 5 });
 
   it('o bot humano joga as 5 praias sem travar, comprando a viagem assim que libera', () => {
     expect(r.travou).toBe(false);

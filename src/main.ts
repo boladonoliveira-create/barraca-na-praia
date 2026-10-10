@@ -66,10 +66,10 @@ function frame(ms: number) {
 // Ciclo de vida: ao sair, salva e pausa jogo, sons e mar. Na volta, os ajudantes renderam o tempo fora.
 // No app vem do @capacitor/app; no navegador, da visibilidade da aba.
 let hiddenAt = 0;
-function aoSair() { if (pausado) return; pausado = true; save(); pauseAudio(true); hiddenAt = Date.now(); analytics.registrar('session_end', { praia: g.beach }) }
+function aoSair() { if (pausado) return; pausado = true; save(); pauseAudio(true); hiddenAt = Date.now(); analytics.registrar('session_end', { praia: g.beach + 1 }) }
 function aoVoltar() {
   if (!pausado) return; pausado = false; pauseAudio(false);
-  if (g.state !== 'inicio') analytics.registrar('session_start', { praia: g.beach });
+  if (g.state !== 'inicio') analytics.registrar('session_start', { praia: g.beach + 1 });
   const off = g.state === 'play' && !g.testMode && hiddenAt ? g.offlineGain(hiddenAt) : 0;
   if (off > 0) hud.showOffline(off, Date.now() - hiddenAt);
 }
@@ -88,7 +88,7 @@ if (previa) {
 }
 hud.syncTest(); hud.goal(); g.firstScene();
 hud.showStart(() => {
-  analytics.registrar('session_start', { praia: g.beach });
+  analytics.registrar('session_start', { praia: g.beach + 1 });
   if (offAmount > 0 && !g.testMode) hud.showOffline(offAmount, Date.now() - saved!.last);
 });
 requestAnimationFrame(frame);

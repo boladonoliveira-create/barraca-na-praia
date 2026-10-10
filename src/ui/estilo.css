@@ -40,6 +40,7 @@ body{height:100%;background:var(--sand);color:var(--ink);font-family:var(--f-ui)
 .btn{font:800 16px/1 var(--f-ui);padding:15px 16px;border-radius:16px;border:0;background:var(--acai);color:#fff;cursor:pointer;box-shadow:0 4px 0 #3c1449}
 .btn.ghost{background:transparent;color:var(--ink);border:2px solid var(--line);box-shadow:none}
 .note{font-size:12.5px}
+.tool .x2{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#fff;color:var(--acai);font-size:13px;flex:none}
 .tool-mini{flex:none;padding:12px 10px;font-size:14px;background:var(--panel);color:var(--ink);border:2px solid var(--line);box-shadow:0 4px 0 var(--line)}
 .litoral{max-height:100%;overflow:auto;gap:8px;padding:18px 14px}
 #litoralMapa{width:100%;max-height:62vh;display:block}
