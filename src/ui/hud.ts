@@ -1,5 +1,5 @@
 /* Placar, botões e telas (overlays) em DOM. */
-import { BEACHES } from '../dados/mapa.ts';
+import { PRAIAS } from '../dados/praias.ts';
 import { fmt } from '../core/economia.ts';
 import type { Jogo } from '../core/jogo.ts';
 import { gravarPrefs, type Prefs } from '../plataforma/salvar.ts';
@@ -44,10 +44,10 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
     if (ads) { pauseAudio(true); ads.intersticial().then(fim, fim) } else simulado('Intersticial simulado', fim);
   }
 
-  function prestige() {
-    const b = BEACHES[g.beach % BEACHES.length]; $('beachTitle').textContent = 'Bem-vindo à ' + b.n + '!';
-    const novidade = ' As áreas recomeçam fechadas, mas o multiplicador fica para sempre.';
-    $('beachText').textContent = 'Tudo aqui vende ' + Math.round((g.mult() - 1) * 100) + '% mais caro, e você já começa com dinheiro pras primeiras compras.' + novidade;
+  /** Chegou na praia nova (g.viajar): a fama ganha e a área nova. */
+  function viagem(fama: number) {
+    const P = PRAIAS[g.beach]; $('beachTitle').textContent = 'Bem-vindo à ' + P.nome + '!';
+    $('beachText').textContent = '+' + fama + ' de fama ⭐ Agora tudo vende x' + g.lucro().toFixed(1).replace('.', ',') + '. Novidade desta praia: ' + P.area + '.';
     $('ovBeach').hidden = false; praiaNova(); buzz([60, 40, 120]);
   }
 
@@ -86,5 +86,5 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
   $('beachOk').addEventListener('click', () => { $('ovBeach').hidden = true; g.state = 'play' });
   syncPrefs();
 
-  return { goal, prestige, showOffline, showStart, frame, syncTest, intersticial };
+  return { goal, viagem, showOffline, showStart, frame, syncTest, intersticial };
 }

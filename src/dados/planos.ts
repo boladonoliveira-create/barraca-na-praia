@@ -54,14 +54,20 @@ export const CAUDAS: PlanStep[][] = [
 export const NIVEL_ABRE = 5;
 /** Nestes níveis a área dobra a produção (o dinheiro que ela gera) e muda de visual. */
 export const MARCOS = [5, 10, 15, 20];
-/** Nova praia (prestígio): opcional, quando todas as áreas abertas chegam a este nível. */
-export const NIVEL_PRESTIGIO = 10;
+/** Nova praia: o quadro dourado aparece quando a área nova da praia (a área N na praia N) chega a este nível. */
+export const NIVEL_NOVA_PRAIA = 10;
+/** O 1º ajudante de cada área (começo rápido: vem de graça, com o cofre, a partir da Praia 3). */
+export const AJUDANTE = ['ajud', 'ajudS', 'salva', 'cozinheiro', ''];
 
 /** Números da economia (GDD seção 8). Ajustados com o simulador: npm run sim. */
 export const ECONOMIA = {
-  abrir: [0, 12000, 55000, 72000, 150000],  // preço de abrir cada área (o quadro na cerca), na Praia 1
-  base: [100, 1000, 3000, 6000, 20000],       // preço da primeira melhoria de cada área, na Praia 1
-  cresce: [1.6, 1.4, 1.3, 1.3, 1.35],        // cada nível custa isto vezes o anterior, dentro da área
-  praia: 1.5,      // cada praia multiplica preços de compra e de venda
-  novaPraia: 60000, // custo da nova praia (× praia^b)
+  abrir: [0, 8500, 100000, 300000, 900000],  // preço de abrir cada área (o quadro na cerca), na Praia 1
+  base: [100, 700, 8500, 26000, 120000],      // preço da primeira melhoria de cada área, na Praia 1
+  cresce: [1.55, 1.4, 1.3, 1.3, 1.35],        // cada nível custa isto vezes o anterior, dentro da área
+  praia: 1.45,     // cada praia multiplica os preços de compra (praia^b); as vendas sobem com a fama
+  antiga: 0.2,     // começo rápido (Praia 3 em diante): as áreas antigas custam esta fração do preço
+  famaK: 2000,     // fama ganha numa praia = floor(sqrt(ganho na praia / famaK))
+  taxaFama: 0.07,  // lucro de todas as áreas × (1 + taxaFama × fama total)
+  /** fama de quem viaja assim que o quadro libera, em cada praia (conversão do save v3; medida com o simulador) */
+  famaMinima: [3, 7, 27, 65, 178],
 };

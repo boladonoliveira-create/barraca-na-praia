@@ -71,10 +71,6 @@ export const PREPARO = {
 };
 export const CASH_MAGNET = 72, COUNTER_CAP = 20;
 
-export const BEACHES = [
-  { n: 'Praia do Sol', sea: ['#0f7f99', '#33c2c9'] }, { n: 'Praia Grande', sea: ['#155f9e', '#3aa0d8'] }, { n: 'Praia do Farol', sea: ['#0d7a6a', '#2fc4a4'] },
-  { n: 'Praia Dourada', sea: ['#1c5a8a', '#5fb7d6'] }, { n: 'Ilha do Coqueiro', sea: ['#0a6d84', '#26d0ce'] },
-];
 
 export const SLOTS: Record<string, { x: number; y: number }> = {
   maq2: { x: 290, y: 470 }, sombra: { x: 40, y: 446 }, voce: { x: 350, y: 696 }, equipe: { x: 200, y: 690 }, coco: { x: 110, y: 612 },

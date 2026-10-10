@@ -7,7 +7,7 @@ describe('trilhas por área', () => {
     expect(stepPrice(0, 0, 0)).toBe(ECONOMIA.base[0]);
     expect(stepPrice(1, 0, 0)).toBe(ECONOMIA.abrir[1]);
     expect(stepPrice(1, 1, 0)).toBe(ECONOMIA.base[1]);
-    expect(stepPrice(0, 0, 1)).toBe(Math.round(ECONOMIA.base[0] * 1.5 / 5) * 5);
+    expect(stepPrice(0, 0, 1)).toBe(Math.round(ECONOMIA.base[0] * ECONOMIA.praia / 5) * 5);
     for (const a of [0, 1, 2, 3]) for (const b of [0, 2]) makeTrilha(a, b).forEach((s, k) => { expect(s.price % 5).toBe(0); expect(s.price).toBe(stepPrice(a, k, b)) });
   });
 
@@ -31,5 +31,15 @@ describe('fmt', () => {
     expect(fmt(999.9)).toBe('999');
     expect(fmt(12345)).toBe('12,3 mil');
     expect(fmt(123456)).toBe('123 mil');
+  });
+});
+
+describe('começo rápido', () => {
+  it('o 1º ajudante e o cofre vêm logo depois da abertura, de graça; o resto custa ECONOMIA.antiga do preço', () => {
+    const t = makeTrilha(1, 2, true), n = makeTrilha(1, 2);
+    expect(t.slice(0, 3).map(s => [s.id, s.price])).toEqual([['sorv', Math.round(n[0].price * ECONOMIA.antiga / 5) * 5], ['ajudS', 0], ['cofre1', 0]]);
+    expect(t).toHaveLength(60);
+    expect(makeTrilha(0, 2, true).slice(0, 2).map(s => s.id)).toEqual(['ajud', 'cofre0']);
+    expect(makeTrilha(4, 4, true).every(s => s.price > 0)).toBe(true); // a quadra não tem ajudante nem cofre
   });
 });

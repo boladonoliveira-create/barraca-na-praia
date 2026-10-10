@@ -2,28 +2,41 @@
    Estratégia (GDD seção 11): vai à máquina mais cheia, entrega e compra a próxima melhoria.
    O bot humano (padrão, usado nas metas de ritmo) reage com 200 a 400 ms de atraso, anda com desvio leve
    e para 3 a 5 s a cada 30 s. O perfeito (humano: false) decide a cada quadro e anda reto.
-   Relatório no terminal: npm run sim [praias] (scripts/sim.ts) */
+   Relatório no terminal: npm run sim (scripts/sim.ts) */
 import { SHOPS, SLOTS, COUNTER_CAP, PRODUCTS, type Item, type Rect } from '../dados/mapa.ts';
 import { Jogo, zoneOf, padOf, inZone, NUM_AREAS, type Pt } from './jogo.ts';
-import { AREAS } from '../dados/planos.ts';
 
 /** Gerador determinístico (mulberry32) para o resultado não variar entre execuções. */
 export function rng(seed: number) {
   return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296 };
 }
 
-/** fase: quantas áreas já tinham sido abertas antes desta compra menos 1 (fase 0 = só a Barraca do Sol). */
+/** fase: a praia da compra (0 = Praia 1). */
 export interface Compra { fase: number; area: number; nivel: number; nome: string; preco: number; segundos: number }
-/** fases[n]: minutos de jogo da abertura da área n até a abertura da área n+1. */
-export interface Resultado { compras: Compra[]; fases: number[]; total: number; travou: boolean }
+export interface Resultado { praias: PraiaSim[]; total: number; travou: boolean }
 
 const DT = 1000 / 60;
 
 /** Contorna a máquina que estiver entre o jogador e o alvo (ela bloqueia o caminho direto).
     Juntando dinheiro, contorna também os quadros de compra que estiverem no caminho. */
 function waypoint(g: Jogo, p: Pt, t: Pt, desviar: Pt[] = []): Pt {
+  // quadro no caminho (o trajeto reto passa por cima dele): vai para a quina alcançável mais perto do alvo
+  const cruza = (a: Pt, b: Pt, z: Rect) => { for (let i = 1; i <= 16; i++) if (inZone({ x: a.x + (b.x - a.x) * i / 16, y: a.y + (b.y - a.y) * i / 16 }, z)) return true; return false };
+  let z: Rect | null = null, qd = Infinity;
+  for (const m of desviar) {
+    const r = { x: m.x, y: m.y, w: 96, h: 84 }, d = Math.hypot(m.x - p.x, m.y - p.y);
+    if (d < qd && !inZone(t, r) && !inZone(p, r) && cruza(p, t, r)) { z = r; qd = d }
+  }
+  if (z) {
+    let c: Pt | null = null, cd = Infinity;
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
+      const k = { x: z.x + sx * 52, y: z.y + sy * 46 }, d = Math.hypot(t.x - k.x, t.y - k.y);
+      if (d < cd && Math.hypot(k.x - p.x, k.y - p.y) > 3 && !cruza(p, k, z)) { c = k; cd = d }
+    }
+    if (c) return c;
+  }
   let best: Pt | null = null, bd = Infinity;
-  for (const m of [...g.machines, ...desviar]) {
+  for (const m of g.machines) {
     // obstáculo entre o jogador e o alvo na mesma altura: passa por cima ou por baixo dele
     if (Math.abs(p.y - m.y) < 40 && Math.abs(t.y - m.y) < 40 && Math.sign(p.x - m.x) !== Math.sign(t.x - m.x) && Math.abs(p.x - m.x) < 60) {
       const d = Math.abs(p.x - m.x); if (d >= bd) continue;
@@ -64,7 +77,7 @@ function alvoNovo(g: Jogo): Rect | Pt | null {
     const sujas = sv.cadeiras.filter(c => c.suja);
     if (!salva && sujas.length >= 2) return sujas.reduce((a, b) => Math.hypot(b.x - p.x, b.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? b : a);
     // dinheiro parado nas lojas que os ajudantes já tocam: busca a maior pilha quando ela completa a compra ou pesa nela
-    const v = g.melhorCompra(false), falta = v ? g.falta(v) : Infinity;
+    const falta = meta(g)?.falta ?? Infinity;
     const pilhas = g.S.map((st, i) => st.open ? st.cashValue : 0), total = pilhas.reduce((x, y) => x + y, 0), maior = pilhas.indexOf(Math.max(...pilhas));
     if (g.money < falta && pilhas[maior] > 0 && (g.money + total >= falta || pilhas[maior] >= 0.3 * falta)) return SHOPS[maior].cash;
   }
@@ -74,12 +87,19 @@ function alvoNovo(g: Jogo): Rect | Pt | null {
   return null;
 }
 
+/** O que o bot está juntando dinheiro para comprar: a viagem, assim que libera, ou a melhor compra. */
+function meta(g: Jogo): { pad: Rect; slot: string; falta: number } | null {
+  if (g.novaPraiaAberta() && g.proximaExiste()) return { pad: padOf('praia'), slot: 'praia', falta: g.custoNovaPraia() - (g.paid.praia || 0) };
+  const v = g.melhorCompra(false);
+  return v ? { pad: padOf(v.s.slot), slot: v.s.slot, falta: g.falta(v) } : null;
+}
+
 /** Decide o próximo alvo do bot. */
 function alvo(g: Jogo): Rect | Pt {
   const p = g.player;
-  // a melhor compra entre todas as áreas (custo-benefício); se ainda não dá, junta dinheiro trabalhando
-  const v = g.melhorCompra(false);
-  if (v && g.money >= g.falta(v)) return padOf(v.s.slot);
+  // a viagem ou a melhor compra entre todas as áreas (custo-benefício); se ainda não dá, junta dinheiro trabalhando
+  const m = meta(g);
+  if (m && g.money >= m.falta) return m.pad;
   const novo = alvoNovo(g); if (novo) return novo;
   const full = p.stack.length >= g.playerCap();
   const ms = g.machines.filter(m => m.pile > 0 && g.canCarry(p, m.type) && canDeliver(g, m.type));
@@ -101,20 +121,29 @@ function alvo(g: Jogo): Rect | Pt {
   return zoneOf(g.machines.reduce((a, b) => b.pile > a.pile ? b : a));
 }
 
-/** As metas de ritmo (seção 8) valem até a 4ª área; a quadra (área 5) vem depois. */
-export const AREAS_RITMO = 4;
-/** Joga até abrir as 4 primeiras áreas (ou travar). */
-export function simular({ seed = 1, limiteMin = 120, humano = true } = {}): Resultado {
+/** Uma praia jogada pelo bot: minutos até a viagem, quando as áreas antigas voltaram (% do tempo da praia),
+    a maior espera entre compras (s) e a fama ganha. */
+export interface PraiaSim { praia: number; minutos: number; antigas: number; maiorEspera: number; fama: number; compras: Compra[] }
+
+/** Joga da Praia 1 até a área nova da última praia chegar ao nível da viagem (ou travar).
+    O bot compra a nova praia assim que ela libera. */
+export function simular({ seed = 1, limiteMin = 300, humano = true, praias = NUM_AREAS } = {}): Resultado {
   const g = new Jogo({}, rng(seed)), R = rng(seed + 7);
   const entre = (a: number, b: number) => a + R() * (b - a);
   let a: Rect | Pt = g.player, pensa = 0, pausaAte = 0, proxPausa = 30000, fase = 0, desvio = 0;
   g.load(null); g.firstScene(); g.tutorial = 4;
-  const compras: Compra[] = [], fases: number[] = [];
-  let tFase = 0, tCompra = 0, feitas = 0;
-  const limite = limiteMin * 60000, abertas = () => g.S.slice(0, AREAS_RITMO).filter(s => s.open).length;
+  const lista: PraiaSim[] = [];
+  let tPraia = 0, tCompra = 0, antigas = -1, maior = 0, compras: Compra[] = [];
+  const limite = limiteMin * 60000;
+  const fim = (travou: boolean): Resultado => ({ praias: lista, total: lista.reduce((x, y) => x + y.minutos, 0), travou });
+  const fecha = (b: number, fama: number) => {
+    maior = Math.max(maior, tCompra / 1000);
+    lista.push({ praia: b + 1, minutos: tPraia / 60000, antigas: b ? Math.max(0, antigas) / tPraia * 100 : 0, maiorEspera: maior, fama, compras });
+    tPraia = 0; tCompra = 0; antigas = -1; maior = 0; compras = [];
+  };
   for (let t = 0; t < limite; t += DT) {
     if (g.state === 'beach') g.state = 'play';
-    g.now += DT; tFase += DT; tCompra += DT;
+    g.now += DT; tPraia += DT; tCompra += DT;
     const p = g.player;
     let input = { x: 0, y: 0 };
     if (!humano) a = alvo(g);
@@ -123,37 +152,40 @@ export function simular({ seed = 1, limiteMin = 120, humano = true } = {}): Resu
     // dentro da zona-alvo: fica parado (inZone exige estar dentro do retângulo)
     if (t >= pausaAte && (!('w' in a) || !inZone(p, { ...a, w: a.w - 16, h: a.h - 16 }))) {
       // juntando para uma compra: não pisa nos outros quadros (pisar neles gastaria o dinheiro)
-      const v = g.melhorCompra(false), evitar = v && g.money < g.falta(v) ? g.visibleSteps().filter(x => x.s.slot !== v.s.slot).map(x => SLOTS[x.s.slot]) : [];
+      const m = meta(g), evitar = m && g.money < m.falta ? g.visibleSteps().filter(x => x.s.slot !== m.slot).map(x => SLOTS[x.s.slot]) : [];
       const w = waypoint(g, p, a, evitar), dx = w.x - p.x, dy = w.y - p.y, d = Math.hypot(dx, dy);
       // desvio leve: a direção balança devagar, e some perto do alvo para não ficar rodando em volta
       const ang = humano ? desvio * Math.sin(t / 600 + fase) * Math.min(1, d / 60) : 0, c = Math.cos(ang), sn = Math.sin(ang);
       if (d > 2) input = { x: (dx * c - dy * sn) / d, y: (dx * sn + dy * c) / d };
     }
-    const antes = [...g.nivel], faseAtual = abertas() - 1;
+    const antes = [...g.nivel], praia = g.beach;
     g.update(DT, input); g.updateFx(DT);
-    for (let ar = 0; ar < NUM_AREAS; ar++) while (antes[ar] < g.nivel[ar]) {
-      const s = g.trilhas[ar][antes[ar]++]; compras.push({ fase: faseAtual, area: ar, nivel: antes[ar], nome: s.name, preco: s.price, segundos: tCompra / 1000 }); tCompra = 0; feitas++;
+    if (g.beach !== praia) { // viajou: a praia anterior acabou
+      fecha(praia, g.famas[g.famas.length - 1]); continue;
     }
-    if (abertas() - 1 > faseAtual) { fases.push(tFase / 60000); tFase = 0; if (abertas() === AREAS_RITMO) return { compras, fases, total: fases.reduce((x, y) => x + y, 0), travou: false } }
+    for (let ar = 0; ar < NUM_AREAS; ar++) while (antes[ar] < g.nivel[ar]) {
+      const s = g.trilhas[ar][antes[ar]++]; if (!s.price) continue; // começo rápido: de graça, não é compra
+      compras.push({ fase: praia, area: ar, nivel: antes[ar], nome: s.name, preco: s.price, segundos: tCompra / 1000 }); maior = Math.max(maior, tCompra / 1000); tCompra = 0;
+    }
+    if (antigas < 0 && g.S.slice(0, Math.max(1, g.beach)).every(st => st.open)) antigas = tPraia;
+    if (g.novaPraiaAberta() && (!g.proximaExiste() || g.beach + 1 >= praias)) { fecha(praia, g.famaGanha()); return fim(false) }
     if (tCompra > 10 * 60000) break; // 10 min sem comprar: travado
   }
-  return { compras, fases, total: fases.reduce((x, y) => x + y, 0), travou: true };
+  return fim(true);
 }
 
-/** Faixa do GDD (seção 8, estrutura por áreas): em cada fase (de uma área aberta até a próxima), as compras vão de
-    ~15 s a ~90 s (aceita metade a dobro); cada área nova abre de 8 a 15 min depois da anterior; as 4 abertas em 35 a 60 min. */
-export const FAIXA = { inicio: 15, fim: 90, faseMin: 8, faseMax: 15, totalMin: 35, totalMax: 60 };
+/** Metas da rodada 5, por praia: minutos [mín, máx] até a viagem. Nenhuma espera passa de ESPERA_MAX s, e as áreas
+    antigas voltam a funcionar nos primeiros ANTIGAS_MAX % do tempo da praia. */
+export const METAS: [number, number][] = [[8, 10], [15, 20], [20, 25], [25, 35], [35, 45]];
+export const ESPERA_MAX = 150, ANTIGAS_MAX = 25;
 export function foraDaFaixa(r: Resultado) {
-  const erros: string[] = [], F = FAIXA;
-  r.fases.forEach((min, n) => {
-    const cs = r.compras.filter(c => c.fase === n);
-    cs.forEach((c, k) => {
-      const alvo = F.inicio + (F.fim - F.inicio) * k / Math.max(1, cs.length - 1);
-      if (c.segundos < alvo / 2 || c.segundos > alvo * 2) erros.push(`Fase ${n + 1} #${k + 1} ${AREAS[c.area]} nv ${c.nivel} (${c.nome}): ${c.segundos.toFixed(1)} s (alvo ~${alvo.toFixed(0)} s)`);
-    });
-    if (min < F.faseMin || min > F.faseMax) erros.push(`${AREAS[n + 1]} abriu ${min.toFixed(1)} min depois da anterior (alvo ${F.faseMin} a ${F.faseMax})`);
-  });
-  if (r.total < F.totalMin || r.total > F.totalMax) erros.push(`4 áreas abertas em ${r.total.toFixed(1)} min (alvo ${F.totalMin} a ${F.totalMax})`);
+  const erros: string[] = [];
+  for (const p of r.praias) {
+    const [mn, mx] = METAS[p.praia - 1];
+    if (p.minutos < mn || p.minutos > mx) erros.push(`Praia ${p.praia}: ${p.minutos.toFixed(1)} min (alvo ${mn} a ${mx})`);
+    if (p.maiorEspera > ESPERA_MAX) erros.push(`Praia ${p.praia}: espera de ${p.maiorEspera.toFixed(0)} s (máximo ${ESPERA_MAX})`);
+    if (p.antigas > ANTIGAS_MAX) erros.push(`Praia ${p.praia}: áreas antigas abertas a ${p.antigas.toFixed(0)}% do tempo (máximo ${ANTIGAS_MAX}%)`);
+  }
   if (r.travou) erros.push('o bot travou');
   return erros;
 }

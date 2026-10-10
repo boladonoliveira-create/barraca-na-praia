@@ -5,10 +5,12 @@
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import type { Save } from '../core/jogo.ts';
+import { ECONOMIA } from '../dados/planos.ts';
 
-// v3: progresso por área (niveis) no lugar da lista única de compras. Saves antigos recomeçam do zero
-// (ainda não há jogadores; decisão do roteiro da rodada 4).
-export const SAVE_KEY = 'barraca-na-praia:save', SAVE_VERSION = 3;
+// v4: { versao, mundo, jogo }, com praia e fama. O v3 é convertido (deV3); v2 e antes recomeçam do zero.
+export const SAVE_KEY = 'barraca-na-praia:save', SAVE_VERSION = 4;
+/** Identificador criado uma vez por jogador (para salvar na nuvem e para o co-op no futuro). */
+export interface Mundo { id: string; criadoEm: number }
 const PREFS_KEY = 'barraca-na-praia:prefs';
 
 type Get = (k: string) => string | null;
@@ -29,18 +31,33 @@ export async function iniciarArmazenamento() {
   for (const key of [SAVE_KEY, PREFS_KEY]) { try { const { value } = await Preferences.get({ key }); if (value != null) cache.set(key, value) } catch { /* sem save */ } }
 }
 
-/** Lê o progresso da versão atual; qualquer outra versão (ou save quebrado) devolve null e o jogo recomeça. */
+/** v3 (uma praia com as áreas abertas): vai para a praia igual ao número de áreas abertas (no máximo 5),
+    com a fama mínima das praias anteriores, e começa essa praia do zero (dinheiro e níveis). */
+export function deV3(j: { niveis: number[]; last?: number; tutorial?: number; pendente?: number }): Save {
+  const praia = Math.min(5, 1 + j.niveis.slice(1).filter(n => n > 0).length), famas = ECONOMIA.famaMinima.slice(0, praia - 1);
+  return { money: 0, niveis: [], paid: {}, praia, famaTotal: famas.reduce((a, b) => a + b, 0), famas, ganho: 0, tempo: 0, last: j.last || 0, tutorial: j.tutorial || 0, pendente: j.pendente || 0 };
+}
+
+/** Lê o progresso da versão atual (ou converte o v3); qualquer outra versão (ou save quebrado) devolve null e o jogo recomeça. */
 export function lerSave(get: Get = ls.get): Save | null {
   try {
     const s = JSON.parse(get(SAVE_KEY) || 'null');
-    return s && s.versao === SAVE_VERSION && Array.isArray(s.jogo?.niveis) ? s.jogo : null;
+    if (!s || !Array.isArray(s.jogo?.niveis)) return null;
+    return s.versao === SAVE_VERSION ? s.jogo : s.versao === 3 ? deV3(s.jogo) : null;
   } catch { return null }
+}
+
+const novoId = () => globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36) + Math.random().toString(36).slice(2);
+/** O mundo deste jogador: o que já está salvo ou um novo (gravado na próxima vez que o jogo salvar). */
+export function lerMundo(get: Get = ls.get): Mundo {
+  try { const m = JSON.parse(get(SAVE_KEY) || 'null')?.mundo; if (m?.id) return m } catch { /* sem save */ }
+  return { id: novoId(), criadoEm: Date.now() };
 }
 
 /** Grava o progresso. Não sobrescreve um save de versão mais nova (ex.: jogou numa versão do app e voltou para outra). */
 export function gravarSave(jogo: Save, get: Get = ls.get, set = ls.set) {
   try { const atual = JSON.parse(get(SAVE_KEY) || 'null'); if (atual && atual.versao > SAVE_VERSION) return false } catch { /* save corrompido: sobrescreve */ }
-  return set(SAVE_KEY, JSON.stringify({ versao: SAVE_VERSION, jogo }));
+  return set(SAVE_KEY, JSON.stringify({ versao: SAVE_VERSION, mundo: lerMundo(get), jogo }));
 }
 
 /** Preferências do jogador (fora do progresso). */

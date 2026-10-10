@@ -1,11 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import { Jogo, padOf, NUM_AREAS } from './jogo.ts';
 import { rng } from './simulador.ts';
-import { NIVEL_ABRE, NIVEL_PRESTIGIO } from '../dados/planos.ts';
+import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, ECONOMIA } from '../dados/planos.ts';
 import { SHOPS, LOTS, SLOTS } from '../dados/mapa.ts';
+import type { Save } from './jogo.ts';
 
 const DT = 1000 / 60, PARADO = { x: 0, y: 0 };
-function novo(seed = 1) { const g = new Jogo({}, rng(seed)); g.load(null); g.tutorial = 4; return g }
+/** As 5 áreas disponíveis, mas com a trilha e os preços da Praia 1 (sem começo rápido): para testar as mecânicas. */
+function novo(seed = 1) { const g = new Jogo({}, rng(seed)); g.load(null); g.beach = NUM_AREAS - 1; g.tutorial = 4; return g }
+/** Começa na praia n (1 a 10) do jeito que a viagem deixa: níveis zerados e o começo rápido aplicado. */
+function naPraia(n: number, famaTotal = 0) {
+  const s: Save = { money: 0, niveis: [], paid: {}, praia: n, famaTotal, famas: [], ganho: 0, tempo: 0, last: 0, tutorial: 4 };
+  const g = new Jogo({}, rng(1)); g.load(s); return g;
+}
+/** Sobe a área a até o nível n, como o jogador (com o começo rápido depois de cada compra). */
+function subir(g: Jogo, a: number, n: number) { while (g.nivel[a] < n && g.liberada(a)) { g.applyStep(a, true); g.gratis(a) } }
 function rodar(g: Jogo, ms: number, each?: () => void) { for (let t = 0; t < ms; t += DT) { g.now += DT; each?.(); g.update(DT, PARADO); g.updateFx(DT) } }
 /** Leva cada área ao nível pedido (compras de graça, na ordem da trilha). */
 function mundo(niveis: number[], seed = 5) {
@@ -121,7 +130,7 @@ describe('áreas independentes', () => {
     expect(g.melhorCompra(true)).toBeNull();
     g.money = 1e9; const v = g.melhorCompra(true)!;
     expect(v.k).toBe(g.nivel[v.a]);
-    expect(v.a).toBe(0); // no nível 5, a melhoria da Barraca (R$ 1.050) rende mais por real que abrir o Sorvete
+    expect(v.a).toBe(0); // no nível 5, a melhoria da Barraca (R$ 895) rende mais por real que abrir o Sorvete
     const h = mundo([12]); h.money = 1e9;
     expect(h.melhorCompra(true)!.a).toBe(1); // no nível 12 a Barraca ficou cara: abrir o Sorvete passa a valer mais
   });
@@ -180,30 +189,69 @@ describe('compras', () => {
   });
 });
 
-describe('prestígio', () => {
-  it(`só com todas as áreas abertas e no nível ${NIVEL_PRESTIGIO}; recomeça com multiplicador e dinheiro das 2 primeiras compras`, () => {
-    const g = mundo([NIVEL_PRESTIGIO, NIVEL_PRESTIGIO, NIVEL_PRESTIGIO, NIVEL_PRESTIGIO, NIVEL_PRESTIGIO - 1]);
-    expect(g.prestigeOpen()).toBe(false);
-    g.applyStep(4, true); expect(g.prestigeOpen()).toBe(true);
-    Object.assign(g.player, padOf('praia')); g.money = g.prestigeCost(); g.S[0].spawnT = 1e9;
+describe('praias', () => {
+  it('a praia N só tem as áreas 1 a N; a área N é a última que abre', () => {
+    for (let n = 1; n <= NUM_AREAS; n++) {
+      const g = naPraia(n);
+      for (let a = 0; a < NUM_AREAS; a++) subir(g, a, 12);
+      expect(g.S.map(s => s.open)).toEqual(Array.from({ length: NUM_AREAS }, (_, a) => a < n));
+      expect(g.visibleSteps().every(v => v.a < n)).toBe(true);
+    }
+  });
+
+  it(`a nova praia só libera com a área N no nível ${NIVEL_NOVA_PRAIA}; comprar zera dinheiro e níveis e guarda a fama`, () => {
+    const g = naPraia(2); subir(g, 0, 12); subir(g, 1, NIVEL_NOVA_PRAIA - 1);
+    expect(g.novaPraiaAberta()).toBe(false);
+    g.applyStep(1, true); expect(g.novaPraiaAberta()).toBe(true); expect(g.proximaExiste()).toBe(true);
+    g.ganho = 50 * ECONOMIA.famaK; expect(g.famaGanha()).toBe(7); // floor(sqrt(50))
+    Object.assign(g.player, padOf('praia')); g.money = g.custoNovaPraia() + 123; g.S[0].spawnT = 1e9;
     rodar(g, 3000);
-    expect(g.beach).toBe(1); expect(g.state).toBe('beach');
-    expect(g.money).toBe(g.trilhas[0][0].price + g.trilhas[0][1].price);
-    expect(g.nivel).toEqual([0, 0, 0, 0, 0]); expect(g.machines).toHaveLength(1); expect(g.kioskOpen()).toBe(false);
-    expect(g.price('acai')).toBe(9);
+    expect(g.beach).toBe(2); expect(g.state).toBe('beach');
+    expect(g.money).toBe(0); expect(g.famas).toEqual([7]); expect(g.famaTotal).toBe(7); expect(g.ganho).toBe(0);
+    expect(g.S.map(s => s.open)).toEqual([true, false, false, false, false]);
+  });
+
+  it('depois da Praia 5 o quadro aparece, mas a Praia 6 ainda não pode ser comprada', () => {
+    const g = naPraia(5); for (let a = 0; a < NUM_AREAS; a++) subir(g, a, a < 4 ? NIVEL_ABRE : NIVEL_NOVA_PRAIA);
+    expect(g.novaPraiaAberta()).toBe(true); expect(g.proximaExiste()).toBe(false);
+    Object.assign(g.player, padOf('praia')); g.money = 1e12; rodar(g, 3000);
+    expect(g.beach).toBe(4); expect(g.paid.praia).toBeUndefined();
+  });
+
+  it('a fama aumenta o lucro de todas as áreas e os ganhos com o app fechado', () => {
+    const sem = naPraia(5), com = naPraia(5, 10);
+    for (const g of [sem, com]) { subir(g, 0, 5); subir(g, 1, 5); subir(g, 2, 5); subir(g, 3, 2) }
+    const k = 1 + ECONOMIA.taxaFama * 10;
+    expect(com.lucro()).toBeCloseTo(k);
+    for (const p of ['acai', 'sorvete', 'milho'] as const) expect(com.price(p)).toBeCloseTo(sem.price(p) * k, -1); // arredondado ao real
+    expect(com.precoBanho()).toBeGreaterThan(sem.precoBanho());
+    expect(com.offlineGain(1000, 1000 + 10 * 60000)).toBe(Math.round(10 * 24 * com.helpers.length * k));
+  });
+
+  it('o começo rápido (1º ajudante e cofre de graça) vale a partir da Praia 3, nas áreas antigas', () => {
+    const p2 = naPraia(2);
+    expect(p2.helpers).toHaveLength(0); expect(p2.L('cofre0')).toBe(0); expect(p2.nivel[0]).toBe(0);
+    const p3 = naPraia(3);
+    expect(p3.helpers.map(h => h.shop)).toEqual([0]); expect(p3.L('cofre0')).toBe(1); expect(p3.nivel[0]).toBe(2);
+    subir(p3, 0, NIVEL_ABRE); subir(p3, 1, 1); // abre o Sorvete (área antiga): sorveteiro e cofre vêm junto
+    expect(p3.helpers.map(h => h.shop)).toEqual([0, 1]); expect(p3.L('cofre1')).toBe(1); expect(p3.nivel[1]).toBe(3);
+    subir(p3, 1, NIVEL_ABRE); subir(p3, 2, 1); // a área nova (Chuveirão) começa manual
+    expect(p3.helpers.some(h => h.shop === 2)).toBe(false); expect(p3.L('cofre2')).toBe(0);
+    expect(p3.trilhas[2][1].price).toBeGreaterThan(0);
   });
 });
 
 describe('salvar', () => {
-  it('salva e carrega o progresso por área; ganhos com o app fechado = 24 × ajudantes × multiplicador por minuto, até 2 h', () => {
-    const g = mundo([12, 3]); g.beach = 1; g.money = 321;
+  it('salva e carrega praia, fama e o progresso por área; ganhos com o app fechado = 24 × ajudantes × fama por minuto, até 2 h', () => {
+    const g = mundo([12, 3]); g.beach = 1; g.money = 321; g.famaTotal = 5; g.famas = [5]; g.ganho = 777; g.tempo = 60000;
     const s = JSON.parse(JSON.stringify(g.snapshot(1000)));
-    expect(s.niveis).toEqual([12, 3, 0, 0, 0]);
+    expect(s).toMatchObject({ praia: 2, famaTotal: 5, famas: [5], ganho: 777, tempo: 60000, niveis: [12, 3, 0, 0, 0] });
     const h = new Jogo(); const off = h.load(s, 1000 + 30 * 60000);
-    expect(h.beach).toBe(1); expect(h.money).toBe(321); expect(h.nivel).toEqual([12, 3, 0, 0, 0]);
+    expect(h.beach).toBe(1); expect(h.money).toBe(321); expect(h.nivel).toEqual([12, 3, 0, 0, 0]); expect(h.famaTotal).toBe(5);
     expect(h.helpers.length).toBe(g.helpers.length); expect(h.aberta(1)).toBe(true);
-    expect(off).toBe(Math.round(30 * 24 * h.helpers.length * 1.5));
-    expect(new Jogo().load(s, 10 * 3600000)).toBe(Math.round(120 * 24 * h.helpers.length * 1.5));
+    const k = 1 + ECONOMIA.taxaFama * 5;
+    expect(off).toBe(Math.round(30 * 24 * h.helpers.length * k));
+    expect(new Jogo().load(s, 10 * 3600000)).toBe(Math.round(120 * 24 * h.helpers.length * k));
   });
 });
 

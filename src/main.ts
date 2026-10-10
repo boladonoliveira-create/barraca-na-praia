@@ -9,6 +9,7 @@ import { StatusBar } from '@capacitor/status-bar';
 import { lerSave, gravarSave, lerPrefs, iniciarArmazenamento } from './plataforma/salvar.ts';
 import { iniciarAnuncios, podeIntersticial } from './plataforma/anuncios.ts';
 import { analytics, iniciarAnalytics } from './plataforma/analytics.ts';
+import { ECONOMIA, NIVEL_ABRE } from './dados/planos.ts';
 import { ensureAudio, pauseAudio, tone, fanfare, buzz } from './plataforma/som.ts';
 
 const testEnabled = import.meta.env.DEV, nativo = Capacitor.isNativePlatform();
@@ -18,11 +19,13 @@ await iniciarArmazenamento();
 const [ads] = await Promise.all([iniciarAnuncios(), iniciarAnalytics()]);
 const canvas = document.getElementById('game') as HTMLCanvasElement, ctx = canvas.getContext('2d')!, stage = document.getElementById('stage')!;
 
-const save = () => gravarSave(g.snapshot()), prefs = lerPrefs();
+// prévia de cenário (só em dev): ?praia=N abre na praia N com as áreas abertas, sem mexer no save
+const previa = testEnabled ? Math.min(10, Number(new URLSearchParams(location.search).get('praia')) || 0) : 0;
+const save = () => { if (!previa) gravarSave(g.snapshot()) }, prefs = lerPrefs();
 let ultimoInter = Date.now(); // o primeiro intersticial vem só depois de 4 min de sessão, não logo ao chegar na Praia 2
 const g = new Jogo({
   tone, fanfare, buzz, save, goal: () => hud.goal(),
-  prestige: () => { hud.prestige(); analytics.registrar('prestige', { praia: g.beach }) },
+  viagem: (fama, minutos) => { hud.viagem(fama); analytics.registrar('praia_nova', { praia: g.beach + 1, fama_ganha: fama, minutos: Math.round(minutos), anuncio: false }) },
   compra: (praia, area, nivel, segundos) => {
     analytics.registrar('step_buy', { praia, area, nivel, segundos: Math.round(segundos) });
     // intersticial (GDD seção 9): logo depois de uma compra, a partir da Praia 2, no máximo a cada 4 min
@@ -80,7 +83,15 @@ else document.addEventListener('visibilitychange', () => document.hidden ? aoSai
 
 if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
 resize();
-const saved = lerSave(), offAmount = g.load(saved); hud.syncTest(); hud.goal(); g.firstScene();
+const saved = previa ? null : lerSave(), offAmount = g.load(saved);
+if (previa) {
+  const famas = ECONOMIA.famaMinima.slice(0, previa - 1);
+  g.load({ money: 0, niveis: [], paid: {}, praia: previa, famaTotal: famas.reduce((a, b) => a + b, 0), famas, ganho: 0, tempo: 0, last: 0, tutorial: 4 });
+  const nova = g.areasPraia() - 1;
+  for (let a = 0; a <= nova; a++) while (g.liberada(a) && (!g.aberta(a) || (a < nova && g.nivel[a] < NIVEL_ABRE))) { g.applyStep(a, true); g.gratis(a) }
+  g.money = g.shown = 3 * g.trilhas[nova][g.nivel[nova]].price;
+}
+hud.syncTest(); hud.goal(); g.firstScene();
 hud.showStart(() => {
   analytics.registrar('session_start', { praia: g.beach });
   if (offAmount > 0 && !g.testMode) hud.showOffline(offAmount, Date.now() - saved!.last);
@@ -93,7 +104,7 @@ requestAnimationFrame(frame);
   buyAll(n: number) { for (let i = 0; i < n; i++) { const v = g.melhorCompra(false); if (v) g.applyStep(v.a, true) } },
   /** Sobe a área a até o nível n (compras de graça, com efeito de comemoração nos marcos). */
   subir(a: number, n: number) { while (g.nivel[a] < n && g.liberada(a)) g.applyStep(a) },
-  prestige() { g.prestige() }, tp(x: number, y: number) { g.player.x = x; g.player.y = y },
+  viajar() { g.viajar() }, tp(x: number, y: number) { g.player.x = x; g.player.y = y },
   /** Roda o jogo ms milissegundos de uma vez e redesenha (para conferir com a aba em segundo plano). */
   avancar(ms: number) { for (let t = 0; t < ms; t += 16.67) { g.now += 16.67; g.update(16.67, { x: 0, y: 0 }); g.updateFx(16.67) } desenhar(ctx, g, k, joy) },
 };

@@ -1,85 +1,176 @@
 # Roteiro: Barraca na Praia
 
-Status: AGUARDANDO REVISÃO
-Rodada: 4 (refeita)
-Porta do servidor: 5175
+Status: PRONTO PARA EXECUTAR
+Rodada: 5
+Porta: 5175
+Quem faz: partes A e B = Claude Code. Parte C = OpenCode.
 
 ## Contexto
 
-**A rodada 4 anterior foi interrompida no meio.** Há mudanças sem commit desde as 16h43 (mecânicas do chuveirão, das cadeiras, do milho e do pastel em `src/core/jogo.ts`, `src/dados/mapa.ts`, `src/dados/planos.ts`, `src/core/simulador.ts`, `src/render/desenho.ts` e `src/main.ts`), e o consentimento (UMP) não foi feito.
+O usuário testou a rodada 4. O problema é que dá para sair comprando área por área numa praia só, e a "nova praia" é opcional e reabre o mesmo mapa.
 
-Além disso, o usuário jogou e trouxe um problema de estrutura. Hoje existe uma lista única de compras que mistura todas as áreas. Por isso:
-- a próxima compra pode estar em qualquer canto do mapa, e o jogador atravessa tudo toda hora;
-- uma área trava a outra (comprar caixa d'água para liberar o sorveteiro);
-- o jogador não escolhe nada.
+A estrutura certa segue o Cash Inc:
+- **Começo devagar:** a primeira praia começa devagar.
+- **A cada praia nova:** o jogador recomeça mais forte (fama) e libera a próxima área da lista.
 
-**Decisão de design** (baseada no Idle Miner Tycoon, em que cada parte da mina tem trilha de níveis independente e o jogador escolhe onde investir, e no My Perfect Hotel, que libera áreas por marcos): **cada área tem a sua trilha, e a próxima área abre pelo nível mínimo da anterior.** Isto substitui as seções 6 a 8 do GDD; atualize o GDD no fim.
+| Praia | Área nova |
+|---|---|
+| 1 Praia do Sol | Barraca do Sol (açaí e coco) |
+| 2 Praia Grande | Sorveteria |
+| 3 Praia do Farol | Chuveirão e cadeiras |
+| 4 Praia dos Coqueiros | Milho e pastel |
+| 5 Praia do Forte | Quadra de futevôlei |
+| 6 Praia Dourada | Ambulantes |
+| 7 Praia Brava | Escolinha de surf |
+| 8 Baía Azul | Sucos e vitaminas |
+| 9 Praia do Pôr do Sol | Palco de pagode |
+| 10 Praia do Campeonato | Torneio de futevôlei |
 
-Esta rodada é grande e está dividida em partes. **Faça commit ao fim de cada parte e registre no `RELATORIO.md` quais partes terminaram.** Se a sessão for interrompida, a próxima confere o `git log` e o relatório e continua da parte seguinte.
+Hoje existem as áreas 1 a 5. Esta rodada troca a progressão e deixa as praias 1 a 5 jogáveis. As áreas 6 a 10 entram na próxima rodada.
 
-## Parte 0: salvar o que ficou da rodada interrompida
-- Rode `git status`, `npm test` e `npm run build` e registre o resultado no relatório.
-- Revise as mudanças pela metade. As mecânicas (chuveirão, cadeiras, milho, pastel, salva-vidas, cozinheiro) serão reaproveitadas na parte B; a ordem de compras intercalada (`SERV_AT`, `PREP_AT`) será descartada.
-- Faça commit do que existe, mesmo incompleto, com a mensagem "Rodada 4 interrompida: mecânicas das Praias 3 e 4 (incompleto)". Não perca esse trabalho.
+## Fluxo desta rodada
 
-## Parte A: consentimento de anúncios (UMP)
-- Igual ao do Metrô Lotado (`..\Metro lotado\src\plataforma\anuncios.ts`, função `iniciarAnuncios`): `requestConsentInfo` e, se for exigido, `showConsentForm`. Se `canRequestAds` vier falso, o app segue sem anúncios.
-- Copie e adapte, sem código compartilhado entre os jogos.
+1. **Claude Code** faz as partes A e B, com um commit por parte. Depois:
+   - escreve `RELATORIO.md` no formato de `../RODADA.md`;
+   - troca o status para `Status: PRONTO PARA OPENCODE`;
+   - faz um commit.
+2. **OpenCode** faz a parte C, seguindo as regras de `AGENTS.md`. Depois:
+   - acrescenta a seção dele no `RELATORIO.md`;
+   - troca o status para `Status: AGUARDANDO REVISÃO`;
+   - faz um commit.
 
-## Parte B: progressão por áreas independentes
+Se uma sessão cair, a próxima continua da primeira parte sem commit.
 
-### Estrutura
-- **Uma praia, várias áreas, da esquerda para a direita:**
-  1. Barraca do Sol (açaí e coco);
-  2. Sorvete;
-  3. Chuveirão e cadeiras;
-  4. Milho e pastel.
-  
-  Depois delas, só a placa da área 5 ("Quadra de futevôlei").
-- **Cada área tem a sua trilha de níveis:** máquinas, ajudante, cardápio, capacidade e o que for próprio dela. As melhorias aparecem no chão **só dentro da área, ao lado do que melhoram**, 1 ou 2 por vez por área. Melhorar uma área nunca depende de outra.
-- **Liberação:** a cerca da área N+1 abre quando a área N chega ao **nível 5** (ajuste com o simulador). Enquanto não abre, a placa mostra o progresso: "Sorvete · abre com a Barraca do Sol no nível 5 (3/5)". Ao chegar no mínimo, o quadro de compra da área nova aparece na cerca.
-- **Marcos em cada área:** nos níveis 5, 10, 15 e 20, a produção daquela área dobra e ela muda de visual (balcão novo, letreiro, mais enfeites), com um efeito de comemoração.
-- **Cofre automático:** melhoria de cada área. Com ele, o dinheiro daquela área entra sozinho no caixa e não precisa ser buscado.
-- **Dinheiro:** um caixa só, compartilhado. As melhorias são independentes, mas o lucro de uma área ajuda a abrir a próxima.
-- **Seta:** sugere a compra de melhor custo-benefício que cabe no bolso, sem obrigar. O jogador vai onde quiser.
-- **Nova praia (prestígio):** opcional, liberada quando todas as áreas abertas chegarem ao nível 10. Recomeça com multiplicador permanente e mar de outra cor.
+## Parte A [CLAUDE]: praias e fama
 
-### Mecânicas das áreas 3 e 4 (reaproveite o que ficou da rodada interrompida)
-- **Chuveirão:** clientes saindo do mar fazem fila, tomam banho e pagam. A caixa d'água esvazia a cada alguns banhos, e o jogador enche ficando parado no registro. Com a caixa vazia, a fila para.
-- **Cadeiras de aluguel:** o cliente senta, fica um tempo e paga ao sair. A cadeira fica bagunçada até o jogador passar por cima, e cadeira bagunçada não é alugada.
-- **Salva-vidas:** ajudante da área 3. Enche a caixa e arruma as cadeiras.
-- **Milho e pastel:** pegar cru, levar à panela ou fritadeira, esperar o preparo (barra de tempo visível) e levar ao balcão.
-- **Cozinheiro:** ajudante da área 4. Faz o ciclo todo.
+**A1. Regras da praia.**
+- **Áreas disponíveis:** na praia N estão as áreas 1 a N.
+  - A área N é a novidade e só existe a partir da praia N.
+  - Dentro da praia, as áreas abrem em ordem, como hoje: a próxima abre quando a anterior chega ao nível `NIVEL_ABRE`.
+- **Quadro de nova praia:** aparece quando a área N chega ao nível 10 (`NIVEL_NOVA_PRAIA`).
+  - É um quadro dourado no chão, no lugar do quadro de prestígio de hoje: "Viajar para a Praia Grande · +X de fama".
+  - É obrigatório para avançar, mas o jogador pode continuar crescendo antes de comprar para ganhar mais fama.
+- **Ao comprar:**
+  - zeram o dinheiro e os níveis;
+  - ficam a fama total, as preferências e o recorde.
+- **Fama:**
+  - a fama ganha cresce com o total ganho na praia, numa curva que desacelera (algo como `floor(sqrt(ganho / K))`);
+  - o lucro de todas as áreas é multiplicado por `1 + taxa × famaTotal`;
+  - ajuste `K`, `taxa` e o fator de preço por praia com o simulador (A5).
+  - O HUD mostra "⭐ Fama x1,8".
+- **Começo rápido:** a partir da praia 3, as áreas que já foram a área nova de uma praia anterior recomeçam com o cofre automático e o 1º ajudante já comprados. Esses passos da trilha contam como feitos, sem custo.
+- **O que sai:** o prestígio opcional antigo (`NIVEL_PRESTIGIO`).
 
-### Salvamento
-Suba a versão do save. Ainda não há jogadores, então um save antigo pode recomeçar do zero (com aviso no relatório), sem conversão.
+**A2. O que aparece no mapa.**
+- **Câmera:** vai até o lote N+1.
+- **Lote N+1:** aparece cercado, com a silhueta e a placa "Na próxima praia: Sorveteria".
+- **Lotes depois disso:** não aparecem (nada de cerca, placa ou silhueta).
+- **Depois da praia 5:** o quadro da praia 6 mostra "Praia Dourada · em breve" e não pode ser comprado.
+- **Documentação:** atualize o pilar 6 no `CLAUDE.md` e no GDD: "o futuro próximo fica à vista: a área da próxima praia aparece cercada; o resto fica escondido".
 
-### Simulador e ritmo
-- O bot escolhe a melhor compra entre todas as áreas abertas (custo-benefício) e sabe operar as mecânicas novas.
-- Metas para o bot humano:
-  - compras de ~15 s no começo de cada área, subindo até ~90 s;
-  - uma área nova liberada a cada 8 a 15 min;
-  - as 4 áreas abertas em 35 a 60 min.
-- Teste de ritmo cobrindo as 4 áreas, com a tabela no relatório.
+**A3. Cenário de cada praia (molde).** Crie `src/dados/praias.ts` com `PRAIAS[10]`. Cada praia tem:
+- `nome` (da tabela);
+- `mar`, `areia` e `ceu: [topo, base]`;
+- `hora`: `manha`, `tarde` ou `porDoSol`;
+- `enfeites: string[]`, os ids de desenhos de fundo, como farol, coqueiros ou barcos.
 
-### GDD
-Reescreva as seções 6 (mapa), 7 (áreas) e 8 (progressão e economia) do `GDD-BARRACA-NA-PRAIA.md` com a estrutura nova.
+Faça também:
+- **Função de desenho:** `src/render/cenarios.ts`, com as funções dos enfeites, aplicadas no desenho do cenário (em cache, se o desenho atual for em cache).
+- **Praias 1 e 2:** preencha completas, com o capricho final. Elas são o molde.
+- **Praias 3 a 10:** deixe só o nome e as cores provisórias. O OpenCode faz o resto.
+- **Prévia (só em dev):** `?praia=N` abre direto na praia N, com as áreas abertas e um pouco de dinheiro.
+- **Molde:** escreva `docs/MOLDE-CENARIOS.md` com:
+  - as regras (cores, onde os enfeites podem ficar sem atrapalhar o jogo, sem `Math.random`);
+  - um enfeite comentado;
+  - a lista do que cada praia de 3 a 10 deve ter:
 
-## Parte C (se der tempo): área 5, quadra de futevôlei (atração)
-- Não vende nada. Um jogo rola na quadra e junta público; a área aumenta a chegada de clientes em todas as outras áreas.
-- Trilha própria: arquibancada, rede nova, torneio da tarde. Liberação pela área 4 no nível 5.
-- Placa da área 6 ("Ambulantes") depois dela.
+| Praia | Hora | O que deve ter |
+|---|---|---|
+| 3 | manhã | Farol na ponta e pedras |
+| 4 | manhã | Muitos coqueiros |
+| 5 | tarde | Muralha de forte antigo ao fundo |
+| 6 | tarde | Areia dourada, barquinhos |
+| 7 | tarde | Ondas maiores, pranchas na areia |
+| 8 | tarde | Mar bem azul, veleiros |
+| 9 | pôr do sol | Céu alaranjado, sol baixo |
+| 10 | tarde | Bandeirinhas e faixas de campeonato |
+
+**A4. Save v4.** O formato passa a ser `{ versao: 4, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal` e o resto de hoje.
+- **O `mundo`:** um identificador aleatório criado uma vez. Serve para salvar na nuvem e para o co-op no futuro.
+- **Conversão do v3:** vai para a praia igual ao número de áreas abertas (no máximo 5), com a fama mínima de quem passou pelas praias anteriores.
+
+**A5. Simulador.** O bot compra a nova praia assim que ela libera. Rode com 3 sementes.
+
+Metas por praia:
+- Praia 1: 8 a 10 min.
+- Praia 2: 15 a 20 min.
+- Praia 3: 20 a 25 min.
+- Praia 4: 25 a 35 min.
+- Praia 5: 35 a 45 min.
+
+Outras metas:
+- as áreas antigas voltam a funcionar nos primeiros 20 a 25% do tempo da praia;
+- nenhuma espera passa de 150 s;
+- os ganhos com o app fechado são multiplicados pela fama.
+
+Coloque a tabela no relatório.
+
+**A6. Analytics.** Evento `praia_nova` com `{ praia, fama_ganha, minutos, anuncio }`.
+
+**Testes:**
+- a praia N só tem as áreas 1 a N;
+- a nova praia só libera com a área N no nível 10;
+- a fama aumenta o lucro;
+- o começo rápido vale a partir da praia 3;
+- a conversão de v3 para v4 funciona;
+- as áreas continuam independentes entre si.
+
+## Parte B [CLAUDE]: litoral e viagem
+
+**B1. O jogo continua abrindo direto na praia atual** (pilar "sem menus"). Um botão pequeno "Litoral" no HUD abre o mapa do litoral:
+- **Desenho:** uma costa com as 10 praias em sequência.
+- **Concluídas:** mostram a fama ganha.
+- **Atual:** aparece em destaque.
+- **Próxima:** mostra o nome e a área nova ("Praia Grande · Sorveteria").
+- **Seguintes:** mostram o nome e um cadeado, sem dizer a área (é surpresa).
+- **No fim:** "Praia 11 em diante · em breve".
+
+**B2. Viagem.** Ao comprar a nova praia:
+1. O litoral abre com um barquinho indo até a próxima praia.
+2. A tela mostra a fama ganha e o botão opcional "Ver anúncio: +20% de fama".
+3. A praia nova começa com o nome grande na tela.
+
+**B3. Anúncios.**
+- **Intersticial:**
+  - nunca nas praias 1 a 3;
+  - depois disso, só na viagem (depois da animação), e no máximo 1 a cada 4 min;
+  - nunca durante o jogo.
+- **Banner:** nenhum.
+- Confira as regras que já existem e retire as que contrariam isso.
+
+**B4. Documentação.** Atualize as seções 6 a 8 do GDD e o `CLAUDE.md`.
+
+## Parte C [OPENCODE]: cenários das praias 3 a 10
+
+- **O que fazer:** siga `docs/MOLDE-CENARIOS.md` e preencha as praias 3 a 10 em `src/dados/praias.ts`, com os enfeites em `src/render/cenarios.ts`.
+- **Arquivos:** mexa só nesses dois.
+- **Commits:** um a cada 2 praias.
+- **Conferir:** veja cada praia em `?praia=N`. Os enfeites não podem cobrir balcões, quadros de compra nem o caminho do jogador.
+- **Antes de cada commit:** `npm test` e `npm run build` passando.
+- **No fim:** escreva no `RELATORIO.md` a seção "## Parte C (OpenCode)". Depois troque o status para `Status: AGUARDANDO REVISÃO` e faça um commit.
 
 ## Critérios de pronto
-- `npm test` e `npm run build` passam ao fim de cada parte. Testes novos:
-  - a área N+1 só abre com a área N no nível mínimo;
-  - melhorias de uma área não alteram outra;
-  - salva-vidas e cozinheiro nunca ficam travados em 10 minutos sem o jogador;
-  - a fila do chuveirão para com a caixa vazia e volta ao encher;
-  - cadeira bagunçada não é alugada.
-- Conferido no navegador (porta 5175, modo teste ∞) em 390x844 e 360x640: cada área, a placa com progresso, um marco de nível, o cofre automático e a seta.
-- Um commit por parte.
+
+- [ ] A praia 1 começa só com a Barraca do Sol. A praia N tem as áreas 1 a N.
+- [ ] O quadro de nova praia libera com a área N no nível 10. A viagem mostra a fama e o anúncio opcional.
+- [ ] A fama aparece no HUD e aumenta o lucro. O começo rápido vale a partir da praia 3.
+- [ ] Só o lote da próxima praia aparece cercado. Os outros ficam escondidos.
+- [ ] O litoral mostra as 10 praias, cada uma no estado certo.
+- [ ] O simulador está dentro das metas da A5, e a tabela está no relatório.
+- [ ] O save v4 tem `mundo` e converte o v3.
+- [ ] As praias 1 a 10 têm cenário próprio.
+- [ ] `npm test` e `npm run build` passam.
 
 ## Fora do escopo
-- Áreas 6 a 10 (próximas rodadas).
-- Gerar o APK (depende do usuário instalar o Android Studio).
+
+Mecânicas das áreas 6 a 10, a faixa grande de areia da praia 7, Arena, Acampamento de inverno, co-op, recompensa diária e APK.

@@ -15,7 +15,7 @@ Jogo mobile "idle arcade" (no estilo do Pizza Ready): o jogador anda com um dedo
 3. **Sem menus.** Comprar é pisar num quadrado no chão. A próxima compra aparece ao lado da coisa que ela melhora.
 4. **Progresso sempre visível.** Toda compra muda algo na tela.
 5. **Trabalho manual vira automação, área por área.** Cada área nova começa manual e o ajudante dela automatiza depois. Sempre existe uma área onde o jogador ainda trabalha com as mãos.
-6. **O futuro fica à vista.** Lotes fechados ficam atrás de uma cerca com placa ("abre na Praia N").
+6. **O futuro próximo fica à vista.** A área da próxima praia aparece cercada, com a silhueta e a placa ("Na próxima praia: Sorveteria"); o resto fica escondido.
 
 ## Estrutura (GDD seção 11)
 

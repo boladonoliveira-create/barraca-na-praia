@@ -1,7 +1,9 @@
 /* Câmera, cenário, personagens, máquinas e efeitos. Só lê o estado do núcleo. */
-import { W, H, WORLD_W, SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SLOTS, BEACHES, COUNTER_CAP, CASH_MAGNET, SERVICO, type Item, type Lot, type Rect } from '../dados/mapa.ts';
+import { W, H, WORLD_W, SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SLOTS, COUNTER_CAP, CASH_MAGNET, SERVICO, type Item, type Lot, type Rect } from '../dados/mapa.ts';
 import { fmt } from '../core/economia.ts';
 import { NIVEL_ABRE, AREAS } from '../dados/planos.ts';
+import { PRAIAS } from '../dados/praias.ts';
+import { desenharCenario, luz } from './cenarios.ts';
 import { zoneOf, padOf, inZone, NUM_AREAS, type Jogo, type Kind, type Machine, type Umbrella, type Carrier } from '../core/jogo.ts';
 
 export interface Joy { on: boolean; ox: number; oy: number; x: number; y: number }
@@ -160,6 +162,24 @@ function drawPad(x: number, y: number, name: string, remain: number, progress: n
   ctx.globalAlpha = 1;
 }
 
+/** Quadro dourado de nova praia (maior que os outros, para caber o nome). Depois da última praia pronta: "em breve", sem preço. */
+function drawPadPraia() {
+  const s = SLOTS.praia, w = 92, h = 78, x = s.x + 8, y = s.y - 6, prox = PRAIAS[g.beach + 1], pode = g.proximaExiste();
+  const pr = g.custoNovaPraia(), got = g.paid.praia || 0, prog = pode ? got / pr : 0;
+  rr(x - w / 2, y - h / 2, w, h, 12); ctx.fillStyle = 'rgba(255,243,196,0.95)'; ctx.fill();
+  ctx.save(); rr(x - w / 2, y - h / 2, w, h, 12); ctx.clip(); ctx.fillStyle = 'rgba(245,159,0,0.35)'; ctx.fillRect(x - w / 2, y + h / 2 - h * prog, w, h * prog); ctx.restore();
+  ctx.setLineDash(pode ? [6, 5] : [2, 4]); ctx.lineWidth = 3; ctx.strokeStyle = '#e0a800'; rr(x - w / 2, y - h / 2, w, h, 12); ctx.stroke(); ctx.setLineDash([]);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#3a2316';
+  if (!pode) {
+    ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText(prox ? prox.nome : 'Próxima praia', x, y - 8);
+    ctx.font = '800 11px "Nunito",sans-serif'; ctx.fillStyle = '#8a6a52'; ctx.fillText('em breve', x, y + 12); return;
+  }
+  ctx.font = '800 10px "Nunito",sans-serif'; ctx.fillText('Viajar para a', x, y - 27);
+  ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText(prox.nome, x, y - 13);
+  ctx.font = '800 11px "Nunito",sans-serif'; ctx.fillStyle = '#e8590c'; ctx.fillText('+' + g.famaGanha() + ' de fama ⭐', x, y + 2);
+  ctx.font = '800 15px "Baloo 2",sans-serif'; ctx.fillStyle = '#2f9e44'; ctx.fillText(g.testMode ? 'Grátis' : 'R$ ' + fmt(pr - got), x, y + 22);
+}
+
 function drawUmbrella(u: Umbrella) {
   for (let s = 0; s < 2; s++) { const x = u.x + (s ? 22 : -22); ctx.fillStyle = '#fff'; rr(x - 9, u.y + 8, 18, 24, 4); ctx.fill(); ctx.fillStyle = '#ffd8a8'; rr(x - 7, u.y + 10, 14, 20, 3); ctx.fill() }
   shadow(u.x, u.y + 14, 30);
@@ -308,14 +328,15 @@ function drawLockedLot(lot: Lot, i: number) {
   ctx.fillStyle = '#3a2316'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 11px "Nunito",sans-serif';
   if (ctx.measureText(lot.title!).width > 132) ctx.font = '800 9px "Nunito",sans-serif'; // título longo: cabe na placa
   ctx.fillText(lot.title!, 0, -20);
-  // "abre com a área anterior no nível 5 (3/5)"; quando já pode abrir, manda comprar na cerca
-  const ant = i - 1, n = Math.min(g.nivel[ant] || 0, NIVEL_ABRE), pronta = i < NUM_AREAS && g.liberada(i);
+  // "abre com a área anterior no nível 5 (3/5)"; quando já pode abrir, manda comprar na cerca.
+  // O lote da próxima praia só diz o que vai ter (pilar 6: o futuro próximo fica à vista)
+  const ant = i - 1, n = Math.min(g.nivel[ant] || 0, NIVEL_ABRE), pronta = g.liberada(i), proxima = i >= g.areasPraia();
   ctx.font = '800 10px "Nunito",sans-serif'; ctx.fillStyle = '#8a6a52';
-  if (i >= NUM_AREAS) ctx.fillText('em breve', 0, 0);
+  if (proxima) ctx.fillText('Na próxima praia:', 0, -2);
   else if (pronta) { ctx.fillStyle = '#2f9e44'; ctx.fillText('Pronta para abrir:', 0, -2) }
   else ctx.fillText('abre com ' + AREAS[ant] + ' nv ' + NIVEL_ABRE, 0, -2);
   ctx.fillStyle = pronta ? '#2f9e44' : '#e0a800'; ctx.font = '800 15px "Baloo 2",sans-serif';
-  if (i < NUM_AREAS) ctx.fillText(pronta ? 'compre na cerca' : '(' + n + '/' + NIVEL_ABRE + ')', 0, 18);
+  ctx.fillText(proxima ? PRAIAS[i].area : pronta ? 'compre na cerca' : '(' + n + '/' + NIVEL_ABRE + ')', 0, 18);
   ctx.fillStyle = '#8a6a52'; ctx.beginPath(); ctx.arc(0, -40, 7, Math.PI, 0); ctx.lineWidth = 3; ctx.strokeStyle = '#8a6a52'; ctx.stroke(); ctx.fillRect(-8, -40, 16, 12); ctx.restore();
 }
 function arrowAt(x: number, y: number, col?: string) { const b = reduceMotion ? 0 : Math.sin(g.now / 180) * 5; ctx.fillStyle = col || '#ff4d6d'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y + b); ctx.lineTo(x - 11, y - 16 + b); ctx.lineTo(x - 4, y - 16 + b); ctx.lineTo(x - 4, y - 30 + b); ctx.lineTo(x + 4, y - 30 + b); ctx.lineTo(x + 4, y - 16 + b); ctx.lineTo(x + 11, y - 16 + b); ctx.closePath(); ctx.stroke(); ctx.fill() }
@@ -334,7 +355,7 @@ function tutorialTarget(): { t: Rect | { x: number; y: number; h: number } | nul
     if (!t) {
       const v = g.melhorCompra(true);
       if (v) { const pad = padOf(v.s.slot); if (!inZone(p, pad)) t = pad }
-      else if (g.prestigeOpen() && g.money >= g.prestigeCost() - (g.paid.praia || 0)) { const pad = padOf('praia'); if (!inZone(p, pad)) t = pad }
+      else if (g.novaPraiaAberta() && g.proximaExiste() && g.money >= g.custoNovaPraia() - (g.paid.praia || 0)) { const pad = padOf('praia'); if (!inZone(p, pad)) t = pad }
     }
   }
   return { t, up };
@@ -343,21 +364,18 @@ function tutorialTarget(): { t: Rect | { x: number; y: number; h: number } | nul
 export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy: Joy) {
   ctx = c; g = jogo; const camX = g.camX, p = g.player;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.setTransform(k, 0, 0, k, -camX * k, 0);
-  const B = BEACHES[g.beach % BEACHES.length], x0 = camX - 20, x1 = camX + W + 20;
-  const sg = ctx.createLinearGradient(0, 0, 0, SHORE); sg.addColorStop(0, B.sea[0]); sg.addColorStop(1, B.sea[1]); ctx.fillStyle = sg; ctx.fillRect(x0, 0, x1 - x0, SHORE + 10);
-  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2;
-  for (let r = 0; r < 4; r++) { ctx.beginPath(); for (let x = Math.floor(x0 / 10) * 10; x <= x1; x += 10) { const y = 24 + r * 24 + Math.sin(x / 30 + g.now / 700 + r) * 3; x === Math.floor(x0 / 10) * 10 ? ctx.moveTo(x, y) : ctx.lineTo(x, y) } ctx.stroke() }
-  ctx.fillStyle = '#f6e3b4'; ctx.beginPath(); ctx.moveTo(x0, H); for (let x = Math.floor(x0 / 8) * 8; x <= x1; x += 8) ctx.lineTo(x, SHORE + Math.sin(x / 38 + g.now / 900) * 5); ctx.lineTo(x1, H); ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4; ctx.beginPath(); for (let x = Math.floor(x0 / 8) * 8; x <= x1; x += 8) { const y = SHORE + Math.sin(x / 38 + g.now / 900) * 5; x === Math.floor(x0 / 8) * 8 ? ctx.moveTo(x, y) : ctx.lineTo(x, y) } ctx.stroke();
+  const P = PRAIAS[Math.min(g.beach, PRAIAS.length - 1)], x0 = camX - 20, x1 = camX + W + 20;
+  desenharCenario(ctx, P, { x0, x1, t: reduceMotion ? 0 : g.now, cam: camX }, H);
   for (const s of specks) { if (s.x < x0 || s.x > x1) continue; ctx.fillStyle = s.c; circ(s.x, s.y, s.r); ctx.fill() }
   ctx.fillStyle = 'rgba(255,255,255,0.22)'; rr(10, WALL_Y + 4, 380, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill();
   LOTS.forEach((l, i) => { if (i && g.S[i]?.open) { rr(l.x0 + 10, WALL_Y + 4, l.x1 - l.x0 - 20, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill() } });
   g.umbrellas.forEach(drawUmbrella);
   drawBarraca(); drawKiosk(); drawServico(); drawBarraca(3); drawQuadra();
   for (let a = 0; a < NUM_AREAS; a++) drawEnfeites(a);
-  LOTS.forEach((lot, i) => { if (!lot.praia || g.S[i]?.open || lot.x1 < x0 || lot.x0 > x1) return; drawLockedLot(lot, i) });
+  // lotes fechados: os desta praia e o da próxima; os depois disso não aparecem
+  LOTS.forEach((lot, i) => { if (!lot.praia || i > g.areasPraia() || g.S[i]?.open || lot.x1 < x0 || lot.x0 > x1) return; drawLockedLot(lot, i) });
   for (const v of g.visibleSteps()) { const s = SLOTS[v.s.slot], got = g.paid[v.a + ':' + v.k] || 0; drawPad(s.x, s.y, v.s.name, v.s.price - got, got / v.s.price, v.s.k === 'up', false, v.k !== g.nivel[v.a]) }
-  if (g.prestigeOpen()) { const s = SLOTS.praia, pr = g.prestigeCost(), got = g.paid.praia || 0; drawPad(s.x, s.y, 'Nova praia', pr - got, got / pr, false, true) }
+  if (g.novaPraiaAberta()) drawPadPraia();
 
   // ordem de profundidade pelo y
   const ds: { y: number; d: () => void }[] = [];
@@ -383,6 +401,7 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
     if (t) { const sx = t.x - camX; if (sx < 10) { side = -1; sideY = t.y } else if (sx > W - 10) { side = 1; sideY = t.y } else if (up) arrowUp(t.x, t.y + t.h / 2 + 6); else arrowAt(t.x, t.y - (t.h || 60) / 2 - 6) }
   }
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  luz(ctx, P, x0, x1, H);
   for (const pp of g.popups) { ctx.globalAlpha = Math.min(1, pp.life * 1.5); ctx.font = '800 ' + pp.size + 'px "Baloo 2",sans-serif'; ctx.lineWidth = 4; ctx.strokeStyle = '#fff'; ctx.strokeText(pp.txt, pp.x, pp.y); ctx.fillStyle = pp.col; ctx.fillText(pp.txt, pp.x, pp.y) } ctx.globalAlpha = 1;
 
   // camada da tela (sem câmera)
@@ -390,6 +409,6 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   if (side) sideArrow(side, Math.min(H - 60, Math.max(WALL_Y, sideY)));
   if (g.state === 'play' && g.moved < 40 && g.tutorial === 0) { ctx.fillStyle = 'rgba(58,35,22,0.75)'; rr(W / 2 - 120, H - 70, 240, 36, 18); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '800 14px "Nunito",sans-serif'; ctx.fillText('Arraste o dedo para andar', W / 2, H - 52) }
   if (g.boostOn()) { ctx.fillStyle = 'rgba(47,158,68,0.9)'; rr(W - 86, 8, 76, 28, 14); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '800 14px "Baloo 2",sans-serif'; ctx.fillText('2x R$', W - 48, 23) }
-  if (g.beach > 0) { const m = g.mult(); ctx.fillStyle = 'rgba(255,194,61,0.95)'; rr(10, 8, 84, 28, 14); ctx.fill(); ctx.fillStyle = '#3a2316'; ctx.font = '800 14px "Baloo 2",sans-serif'; ctx.fillText('R$ x' + (m % 1 ? m.toFixed(1).replace('.', ',') : m), 52, 23) }
+  if (g.famaTotal > 0) { const txt = '⭐ Fama x' + g.lucro().toFixed(1).replace('.', ','); ctx.font = '800 14px "Baloo 2",sans-serif'; const w = ctx.measureText(txt).width + 20; ctx.fillStyle = 'rgba(255,194,61,0.95)'; rr(10, 8, w, 28, 14); ctx.fill(); ctx.fillStyle = '#3a2316'; ctx.fillText(txt, 10 + w / 2, 23) }
   if (joy.on) { ctx.globalAlpha = 0.5; ctx.strokeStyle = '#3a2316'; ctx.lineWidth = 3; circ(joy.ox, joy.oy, 48); ctx.stroke(); const dx = joy.x - joy.ox, dy = joy.y - joy.oy, d = Math.hypot(dx, dy), m = Math.min(48, d); ctx.fillStyle = '#3a2316'; circ(joy.ox + (d ? dx / d * m : 0), joy.oy + (d ? dy / d * m : 0), 18); ctx.fill(); ctx.globalAlpha = 1 }
 }
