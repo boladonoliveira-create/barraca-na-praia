@@ -34,7 +34,16 @@ export function makeTrilha(a: number, b: number, rapido = false): Step[] {
   return resto;
 }
 
+/** Números curtos: uma casa decimal até 100 (12,5 mil; 3,2 mi), sem casa a partir de 100 (123 mil; 320 mi),
+    sem ",0" (12 mil, não 12,0 mil). */
 export function fmt(n: number) {
   n = Math.floor(n);
-  return n >= 10000 ? (n / 1000).toFixed(n >= 100000 ? 0 : 1).replace('.', ',') + ' mil' : String(n);
+  const com = (div: number, suf: string) => {
+    const v = n / div, s = v < 100 ? v.toFixed(1).replace('.', ',').replace(',0', '') : String(Math.round(v));
+    return s + ' ' + suf;
+  };
+  if (n >= 1000000000) return com(1000000000, 'bi');
+  if (n >= 1000000) return com(1000000, 'mi');
+  if (n >= 10000) return com(1000, 'mil');
+  return String(n);
 }

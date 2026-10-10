@@ -29,8 +29,14 @@ describe('trilhas por área', () => {
 describe('fmt', () => {
   it('formata dinheiro', () => {
     expect(fmt(999.9)).toBe('999');
+    expect(fmt(950)).toBe('950');
     expect(fmt(12345)).toBe('12,3 mil');
+    expect(fmt(12500)).toBe('12,5 mil');
     expect(fmt(123456)).toBe('123 mil');
+    expect(fmt(3200000)).toBe('3,2 mi');
+    expect(fmt(320000000)).toBe('320 mi');
+    expect(fmt(1100000000)).toBe('1,1 bi');
+    expect(fmt(12000)).toBe('12 mil');
   });
 });
 
