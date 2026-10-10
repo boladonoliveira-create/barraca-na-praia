@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Jogo, padOf, NUM_AREAS } from './jogo.ts';
 import { rng } from './simulador.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, ECONOMIA } from '../dados/planos.ts';
-import { SHOPS, LOTS, SLOTS, ESCOLA, FAIXA, PALCO, TORNEIO, PRODUCTS, FAIXAS, WORLD_H, H, livre } from '../dados/mapa.ts';
+import { SHOPS, LUGARES, SLOTS, ESCOLA, PALCO, TORNEIO, PRODUCTS, FAIXAS, WORLD_H, WORLD_W, H, livre, type Rect } from '../dados/mapa.ts';
 import type { Save } from './jogo.ts';
 
 const DT = 1000 / 60, PARADO = { x: 0, y: 0 };
@@ -168,14 +168,14 @@ describe('compras', () => {
     expect(g.money).toBe(0); expect(g.paid['0:0']).toBe(20); expect(g.nivel[0]).toBe(0);
   });
 
-  it('1 ou 2 por área, em quadrados diferentes e dentro da própria área (o de abrir fica na cerca)', () => {
+  it('1 ou 2 por área, em quadrados diferentes e dentro do lugar da área', () => {
     const g = mundo([8, 6, 6, 6, 2]);
     for (let n = 0; n < 30; n++) {
       const vs = g.visibleSteps();
       for (let a = 0; a < 5; a++) {
         const da = vs.filter(v => v.a === a); expect(da.length).toBeGreaterThan(0); expect(da.length).toBeLessThanOrEqual(2);
         if (da.length === 2) expect(da[0].s.slot).not.toBe(da[1].s.slot);
-        for (const v of da) { const x = SLOTS_X(v.s.slot); expect(x).toBeGreaterThan(LOTS[a].x0); expect(x).toBeLessThan(LOTS[a].x1) }
+        for (const v of da) expect(dentroDe(SLOTS[v.s.slot], LUGARES[a].zona)).toBe(true);
       }
       g.applyStep(n % 5, true);
     }
@@ -379,12 +379,17 @@ describe('área 7: escolinha de surf', () => {
     expect(aulas).toBeGreaterThan(60);
   });
 
-  it('na Praia 7 a faixa grande abre com a Escolinha, e os lotes 8 e 9 não existem para o jogo', () => {
+  it('a área trancada não muda nada no jogo: dá para passar por cima', () => {
     const g = naPraia(7); for (let a = 0; a < NUM_AREAS; a++) subir(g, a, 12);
-    expect(g.aberta(6)).toBe(true); expect(g.openEdge()).toBe(FAIXA.fim);
-    for (const a of [7, 8]) { expect(g.liberada(a)).toBe(false); expect(g.aberta(a)).toBe(false); expect(LOTS[a].faixa).toBe(true) }
+    g.money = 5000; const antes = JSON.stringify([g.money, g.nivel, g.paid, g.S.map(s => s.open)]);
+    for (const a of [7, 8]) {
+      expect(g.liberada(a)).toBe(false); expect(g.aberta(a)).toBe(false);
+      expect(g.machines.some(m => dentroDe(m, LUGARES[a].zona))).toBe(false);
+      Object.assign(g.player, { x: LUGARES[a].rect.x, y: LUGARES[a].rect.y }); rodar(g, 2000, () => { g.money = 5000 });
+      expect(g.player.x).toBeCloseTo(LUGARES[a].rect.x); // ninguém empurra o jogador para fora
+    }
+    expect(JSON.stringify([g.money, g.nivel, g.paid, g.S.map(s => s.open)])).toBe(antes);
     expect(g.visibleSteps().every(v => v.a <= 6)).toBe(true);
-    expect(g.machines.every(m => m.x < LOTS[7].x0)).toBe(true);
   });
 
   it('melhorias das áreas 6 e 7 não alteram as outras', () => {
@@ -446,6 +451,39 @@ describe('área 10: torneio', () => {
   });
 });
 
+describe('áreas no mapa', () => {
+  it('nenhuma área fica fora da faixa dela; o balcão fica dentro do lugar da área', () => {
+    LUGARES.forEach((L, a) => {
+      const F = FAIXAS[L.faixa], r = L.rect;
+      expect(r.y - r.h / 2).toBeGreaterThanOrEqual(F.y0); expect(r.y + r.h / 2).toBeLessThanOrEqual(F.y1);
+      expect(r.x - r.w / 2).toBeGreaterThanOrEqual(0); expect(r.x + r.w / 2).toBeLessThanOrEqual(WORLD_W);
+      if (SHOPS[a].kind !== 'atracao') expect(dentroDe(SHOPS[a].counter, L.rect)).toBe(true);
+      expect(dentroDe(SHOPS[a].drop, L.zona)).toBe(true);
+    });
+    // os quiosques ficam na grama; a escolinha, na beira da água; os ambulantes, no calçadão
+    expect([1, 3, 7].map(a => LUGARES[a].faixa)).toEqual(['grama', 'grama', 'grama']);
+    expect(LUGARES[6].rect.y - LUGARES[6].rect.h / 2).toBeLessThan(FAIXAS.areia.y0 + 60); expect(LUGARES[5].faixa).toBe('calcadao');
+  });
+
+  it('as zonas das áreas não se sobrepõem (o torneio usa a da quadra)', () => {
+    const z = LUGARES.map(L => L.zona);
+    for (let a = 0; a < z.length; a++) for (let b = a + 1; b < z.length; b++) {
+      if (a === 4 && b === 9) { expect(z[b]).toEqual(z[a]); continue }
+      const sep = Math.abs(z[a].x - z[b].x) >= (z[a].w + z[b].w) / 2 || Math.abs(z[a].y - z[b].y) >= (z[a].h + z[b].h) / 2;
+      expect(sep, a + ' e ' + b).toBe(true);
+    }
+  });
+
+  it('todas as máquinas ficam no lugar da área delas, onde o jogador alcança', () => {
+    const g = mundo([20, 15, 15, 15, 10, 15, 15, 15, 10, 9]);
+    for (const m of g.machines) {
+      const a = PRODUCTS[m.type].shop >= 0 ? PRODUCTS[m.type].shop : g.machines.find(x => x.needs === m.type)!.type && PRODUCTS[g.machines.find(x => x.needs === m.type)!.type].shop;
+      expect(dentroDe(m, LUGARES[a].zona), m.type).toBe(true);
+      const z = { x: m.x, y: m.y + 50 }; expect(z.y).toBeLessThan(FAIXAS.calcadao.y1); // a bandeja (onde se pega) fica antes da rua
+    }
+  });
+});
+
 describe('orla em faixas', () => {
   it('o jogador anda até o fim da calçada e não entra na rua; a câmera desce junto', () => {
     const g = novo(); g.player.x = 200; g.player.y = 600;
@@ -463,3 +501,4 @@ describe('orla em faixas', () => {
 });
 
 function SLOTS_X(slot: string) { return SLOTS[slot].x }
+function dentroDe(p: { x: number; y: number }, r: Rect) { return Math.abs(p.x - r.x) <= r.w / 2 && Math.abs(p.y - r.y) <= r.h / 2 }

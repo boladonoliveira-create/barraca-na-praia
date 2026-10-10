@@ -1,6 +1,6 @@
 /* Cenário de cada praia: céu, mar, ondas e os enfeites de fundo (PRAIAS[b].enfeites). Só desenha; regras em docs/MOLDE-CENARIOS.md.
    Tudo em coordenadas do mundo, entre x0 e x1 (a parte visível). Sem Math.random: a posição vem de hash(i). */
-import { SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SERVICO, ESCOLA, FAIXAS } from '../dados/mapa.ts';
+import { SHORE, WALL_Y, PLAY_BOTTOM, LUGARES, DIVISAS, SHOPS, SERVICO, ESCOLA, FAIXAS, WORLD_H } from '../dados/mapa.ts';
 import type { Praia } from '../dados/praias.ts';
 
 /** O céu vai de 0 a HORIZONTE; o mar, de HORIZONTE até a areia (SHORE). Enfeite fica sempre acima de SHORE - 6. */
@@ -251,7 +251,7 @@ export function livreNaBeira(x: number) {
 }
 /** Repete fn em cada divisa entre lotes que está visível (x da divisa e o índice do lote à direita). */
 export function divisas(e: Vista, fn: (x: number, i: number) => void) {
-  LOTS.forEach((l, i) => { if (i && l.x0 > e.x0 - 20 && l.x0 < e.x1 + 20) fn(l.x0, i) });
+  DIVISAS.forEach((x, i) => { if (x > e.x0 - 20 && x < e.x1 + 20) fn(x, i + 1) });
 }
 
 /** Conchas: pequenas, espalhadas pela beira (uma a cada 70 unidades, quando o lugar está livre). */
@@ -583,7 +583,12 @@ export function desenharCenario(c: CanvasRenderingContext2D, P: Praia, e: Vista,
   c.fillStyle = P.areia; c.beginPath(); c.moveTo(x0, H); for (let x = Math.floor(x0 / 8) * 8; x <= x1; x += 8) c.lineTo(x, beira(x)); c.lineTo(x1, H); c.closePath(); c.fill();
   c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineWidth = 4; c.beginPath(); for (let x = Math.floor(x0 / 8) * 8; x <= x1; x += 8) x === Math.floor(x0 / 8) * 8 ? c.moveTo(x, beira(x)) : c.lineTo(x, beira(x)); c.stroke();
   orla(c, e);
-  for (const id of P.enfeitesAreia) ENFEITES_AREIA[id]?.(c, e, P); // decoração da areia: por baixo de tudo o que é do jogo
+  // decoração da areia: por baixo de tudo o que é do jogo e recortada para fora das zonas das áreas (que não se sobrepõem)
+  c.save(); c.beginPath(); c.rect(e.x0, 0, e.x1 - e.x0, WORLD_H);
+  LUGARES.forEach((L, i) => { if (i !== 9) c.rect(L.zona.x - L.zona.w / 2, L.zona.y - L.zona.h / 2, L.zona.w, L.zona.h) });
+  c.clip('evenodd');
+  for (const id of P.enfeitesAreia) ENFEITES_AREIA[id]?.(c, e, P);
+  c.restore();
 }
 
 /** Grama, calçadão (ciclovia e calçada) e rua, por baixo da areia. Desenho simples: o acabamento é da parte B (MOLDE-ORLA). */

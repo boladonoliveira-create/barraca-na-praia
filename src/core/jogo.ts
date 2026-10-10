@@ -1,7 +1,7 @@
 /* Núcleo do jogo: estado, economia, clientes, ajudantes e compras. Sem canvas e sem DOM. */
 import {
-  SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, LOTS, SERVICO, PREPARO, RECEITAS, ATRACAO, PALCO, TORNEIO,
-  AMBULANTE, ESCOLA, FAIXA, PHRASES, SHIRTS, SKINS, W, H, WORLD_H, ANDA, type Item, type Rect,
+  SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, SERVICO, PREPARO, RECEITAS, ATRACAO, PALCO, TORNEIO,
+  AMBULANTE, ESCOLA, PHRASES, SHIRTS, SKINS, W, H, WORLD_W, WORLD_H, ANDA, type Item, type Rect,
 } from '../dados/mapa.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, MARCOS, ECONOMIA, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
@@ -125,7 +125,6 @@ export class Jogo {
   freezerCap() { return 18 + 12 * this.L('freezer') }
   kioskOpen() { return !!this.S[1] && this.S[1].open }
   /** Borda direita do último lote aberto (lote i abre com a loja i). */
-  openEdge() { let e = 400; LOTS.forEach((l, i) => { if (this.S[i]?.open) e = l.x1 }); return this.S[FAIXA.lote]?.open ? Math.max(e, FAIXA.fim) : e }
   /* Área 6 */
   isoporCap() { return AMBULANTE.isoporBase + AMBULANTE.isoporPorNivel * this.L('isopor') }
   /** O carrinho que está sendo abastecido: o primeiro parado na doca (ou nenhum, se todos estão na rua). */
@@ -196,7 +195,7 @@ export class Jogo {
   }
   addHelper(shop: number) {
     const sh = ['#4dabf7', '#38d9a9', '#f783ac', '#74c0fc'];
-    this.helpers.push({ shop, x: SHOPS[shop].cx, y: 620, stack: [], cap: shop === 1 || shop === 6 ? 2 : 4, mode: 'pick', type: null, target: null, tT: 0, walk: 0, face: 1, wait: 0, shirt: ['', '#ff8fab', '#e03131', '#f8f9fa'][shop] || sh[this.helpers.length % 4] });
+    this.helpers.push({ shop, x: SHOPS[shop].cx, y: SHOPS[shop].drop.y + 44, stack: [], cap: shop === 1 || shop === 6 ? 2 : 4, mode: 'pick', type: null, target: null, tT: 0, walk: 0, face: 1, wait: 0, shirt: ['', '#ff8fab', '#e03131', '#f8f9fa'][shop] || sh[this.helpers.length % 4] });
   }
   syncUmbrellas() {
     const n = this.L('sombras');
@@ -216,18 +215,18 @@ export class Jogo {
       if (s.id === 'maq2') this.addMachine('acai', 290, 470);
       if (s.id === 'coco') this.addMachine('coco', 110, 612);
       if (s.id === 'coco2') this.addMachine('coco', 290, 612);
-      if (s.id === 'sorv') { this.S[1].open = true; this.S[1].stock = 6; this.addMachine('caixa', 500, 556) }
+      if (s.id === 'sorv') { this.S[1].open = true; this.S[1].stock = 6; this.addMachine('caixa', 630, 852) }
       if (s.id === 'servico') { this.S[2].open = true; this.sv.agua = this.aguaCap(); this.sv.chuveiros.push({ ...SERVICO.chuveiros[0], user: null, t: 0 }); this.syncCadeiras() }
       if (s.id === 'chuveiro2') this.sv.chuveiros.push({ ...SERVICO.chuveiros[1], user: null, t: 0 });
-      if (s.id === 'milho') { this.S[3].open = true; this.addMachine('milhoCru', 950, 470); this.addCooker('milho', 1050, 470) }
-      if (s.id === 'pastel') { this.addMachine('pastelCru', 950, 612); this.addCooker('pastel', 1150, 470) }
-      if (s.id === 'panela2') this.addCooker('milho', 1050, 612);
+      if (s.id === 'milho') { this.S[3].open = true; this.addMachine('milhoCru', 1030, 852); this.addCooker('milho', 1370, 852) }
+      if (s.id === 'pastel') { this.addMachine('pastelCru', 945, 852); this.addCooker('pastel', 1455, 852) }
+      if (s.id === 'panela2') this.addCooker('milho', 1540, 852);
       if (s.id === 'quadra') this.S[4].open = true;
-      if (s.id === 'ambulantes') { this.S[5].open = true; this.addMachine('mate', 1475, 495); this.syncVendedores() }
-      if (s.id === 'biscoito') this.addMachine('biscoito', 1615, 495);
+      if (s.id === 'ambulantes') { this.S[5].open = true; this.addMachine('mate', 2265, 925); this.syncVendedores() }
+      if (s.id === 'biscoito') this.addMachine('biscoito', 2560, 925);
       if (s.id === 'escola') { this.S[6].open = true; this.syncPranchas() }
-      if (s.id === 'sucos') { this.S[7].open = true; this.addMachine('laranja', 2050, 470); this.addCooker('sucoLaranja', 2150, 470) }
-      if (s.id === 'liqui2') { this.addMachine('acaiBanana', 2050, 612); this.addCooker('sucoAcai', 2250, 470) }
+      if (s.id === 'sucos') { this.S[7].open = true; this.addMachine('laranja', 1660, 852); this.addCooker('sucoLaranja', 2000, 852) }
+      if (s.id === 'liqui2') { this.addMachine('acaiBanana', 2170, 852); this.addCooker('sucoAcai', 2085, 852) }
       if (s.id === 'palco') { this.S[8].open = true; this.palco = { t: this.intervaloShow(), show: 0 } }
       if (s.id === 'arena') this.S[9].open = true;
     } else {
@@ -250,20 +249,20 @@ export class Jogo {
     if (silent) return;
     const p = SLOTS[s.slot]; this.burst(p.x, p.y, '#ffc23d', 26); this.popups.push({ x: p.x, y: p.y - 42, txt: s.name + '!', life: 1.4, col: '#5b2370', size: 20 });
     if (s.id === 'sombras') this.popups.push({ x: p.x + 40, y: p.y - 70, txt: 'Mais clientes!', life: 1.6, col: '#2f9e44', size: 16 });
-    if (s.id === 'cardapio') this.popups.push({ x: SHOPS[0].cx, y: 250, txt: 'Açaí agora R$ ' + this.price('acai'), life: 1.8, col: '#2f9e44', size: 18 });
-    if (s.id === 'cardapioS') this.popups.push({ x: SHOPS[1].cx, y: 250, txt: 'Sorvete agora R$ ' + this.price('sorvete'), life: 1.8, col: '#2f9e44', size: 18 });
-    if (s.id === 'sorv') this.popups.push({ x: 500, y: 250, txt: 'Leve caixas do depósito ao freezer!', life: 2.4, col: '#1c7ed6', size: 15 });
-    if (s.id === 'servico') this.popups.push({ x: 750, y: 250, txt: "Encha a caixa d'água no registro!", life: 2.4, col: '#1c7ed6', size: 15 });
-    if (s.id === 'milho') this.popups.push({ x: 1050, y: 250, txt: 'Leve o milho cru à panela!', life: 2.4, col: '#e8590c', size: 15 });
-    if (s.id === 'quadra' || s.id === 'arquibancada' || s.id === 'rede' || s.id === 'torneio') this.popups.push({ x: 1300, y: 160, txt: 'Mais público: clientes x' + this.publico().toFixed(2).replace('.', ','), life: 2, col: '#2f9e44', size: 15 });
-    if (s.id === 'cardapioJ') this.popups.push({ x: SHOPS[7].cx, y: 250, txt: 'Suco agora R$ ' + this.price('sucoLaranja'), life: 1.8, col: '#2f9e44', size: 18 });
-    if (s.id === 'sucos') this.popups.push({ x: SHOPS[7].cx, y: 250, txt: 'Leve a laranja à liquidificadora!', life: 2.4, col: '#e8590c', size: 15 });
-    if (s.id === 'palco') this.popups.push({ x: SHOPS[8].cx, y: 160, txt: 'Show a cada ' + Math.round(this.intervaloShow() / 60000) + ' min!', life: 2.4, col: '#9c36b5', size: 15 });
-    if (s.id.startsWith('etapa')) this.popups.push({ x: SHOPS[9].cx, y: 160, txt: TORNEIO.etapas[Number(s.id[5]) - 1] + ': começou!', life: 2.2, col: '#e03131', size: 16 });
-    if (s.id === 'cardapioA') this.popups.push({ x: SHOPS[5].cx, y: 250, txt: 'Mate agora R$ ' + this.price('mate'), life: 1.8, col: '#2f9e44', size: 18 });
-    if (s.id === 'ambulantes') this.popups.push({ x: SHOPS[5].cx, y: 250, txt: 'Abasteça o carrinho com mate!', life: 2.4, col: '#e8590c', size: 15 });
-    if (s.id === 'escola') this.popups.push({ x: SHOPS[6].cx, y: 250, txt: 'Leve as pranchas molhadas à arara!', life: 2.4, col: '#1c7ed6', size: 15 });
-    if (s.id === 'cardapioM') this.popups.push({ x: SHOPS[3].cx, y: 250, txt: 'Milho agora R$ ' + this.price('milho'), life: 1.8, col: '#2f9e44', size: 18 });
+    if (s.id === 'cardapio') this.popups.push({ x: SHOPS[0].cx, y: SHOPS[0].counter.y - 50, txt: 'Açaí agora R$ ' + this.price('acai'), life: 1.8, col: '#2f9e44', size: 18 });
+    if (s.id === 'cardapioS') this.popups.push({ x: SHOPS[1].cx, y: SHOPS[1].counter.y - 50, txt: 'Sorvete agora R$ ' + this.price('sorvete'), life: 1.8, col: '#2f9e44', size: 18 });
+    if (s.id === 'sorv') this.popups.push({ x: SHOPS[1].cx, y: SHOPS[1].counter.y - 50, txt: 'Leve caixas do depósito ao freezer!', life: 2.4, col: '#1c7ed6', size: 15 });
+    if (s.id === 'servico') this.popups.push({ x: SHOPS[2].cx, y: SHOPS[2].counter.y - 50, txt: "Encha a caixa d'água no registro!", life: 2.4, col: '#1c7ed6', size: 15 });
+    if (s.id === 'milho') this.popups.push({ x: SHOPS[3].cx, y: SHOPS[3].counter.y - 50, txt: 'Leve o milho cru à panela!', life: 2.4, col: '#e8590c', size: 15 });
+    if (s.id === 'quadra' || s.id === 'arquibancada' || s.id === 'rede' || s.id === 'torneio') this.popups.push({ x: SHOPS[4].cx, y: SHOPS[4].counter.y - 76, txt: 'Mais público: clientes x' + this.publico().toFixed(2).replace('.', ','), life: 2, col: '#2f9e44', size: 15 });
+    if (s.id === 'cardapioJ') this.popups.push({ x: SHOPS[7].cx, y: SHOPS[7].counter.y - 50, txt: 'Suco agora R$ ' + this.price('sucoLaranja'), life: 1.8, col: '#2f9e44', size: 18 });
+    if (s.id === 'sucos') this.popups.push({ x: SHOPS[7].cx, y: SHOPS[7].counter.y - 50, txt: 'Leve a laranja à liquidificadora!', life: 2.4, col: '#e8590c', size: 15 });
+    if (s.id === 'palco') this.popups.push({ x: SHOPS[8].cx, y: SHOPS[8].counter.y - 76, txt: 'Show a cada ' + Math.round(this.intervaloShow() / 60000) + ' min!', life: 2.4, col: '#9c36b5', size: 15 });
+    if (s.id.startsWith('etapa')) this.popups.push({ x: SHOPS[9].cx, y: SHOPS[9].counter.y - 76, txt: TORNEIO.etapas[Number(s.id[5]) - 1] + ': começou!', life: 2.2, col: '#e03131', size: 16 });
+    if (s.id === 'cardapioA') this.popups.push({ x: SHOPS[5].cx, y: SHOPS[5].counter.y - 50, txt: 'Mate agora R$ ' + this.price('mate'), life: 1.8, col: '#2f9e44', size: 18 });
+    if (s.id === 'ambulantes') this.popups.push({ x: SHOPS[5].cx, y: SHOPS[5].counter.y - 50, txt: 'Abasteça o carrinho com mate!', life: 2.4, col: '#e8590c', size: 15 });
+    if (s.id === 'escola') this.popups.push({ x: SHOPS[6].cx, y: SHOPS[6].counter.y - 50, txt: 'Leve as pranchas molhadas à arara!', life: 2.4, col: '#1c7ed6', size: 15 });
+    if (s.id === 'cardapioM') this.popups.push({ x: SHOPS[3].cx, y: SHOPS[3].counter.y - 50, txt: 'Milho agora R$ ' + this.price('milho'), life: 1.8, col: '#2f9e44', size: 18 });
     if (MARCOS.includes(i)) this.comemorar(a, i);
     this.io.compra(this.beach + 1, a, i, (this.now - this.lastBuyAt) / 1000); this.lastBuyAt = this.now;
     this.io.fanfare(); this.io.buzz(40); this.io.goal(); this.io.save();
@@ -439,7 +438,7 @@ export class Jogo {
     let ix = input.x, iy = input.y; const il = Math.hypot(ix, iy); if (il > 1) { ix /= il; iy /= il }
     const sp = 3.6 * (1 + 0.12 * this.L('chinelo')); p.x += ix * sp * f; p.y += iy * sp * f;
     if (il > 0.05) { p.walk += 0.3 * f; if (Math.abs(ix) > 0.1) p.face = ix > 0 ? 1 : -1; this.moved += sp * f * Math.min(1, il) }
-    p.x = Math.max(16, Math.min(this.openEdge() - 12, p.x)); p.y = Math.max(ANDA.y0, Math.min(ANDA.y1, p.y));
+    p.x = Math.max(16, Math.min(WORLD_W - 16, p.x)); p.y = Math.max(ANDA.y0, Math.min(ANDA.y1, p.y));
     for (const m of this.machines) { const hw = 34, hh = 26, dx = p.x - m.x, dy = p.y - m.y; if (Math.abs(dx) < hw && Math.abs(dy) < hh) { const px = hw - Math.abs(dx), py = hh - Math.abs(dy); if (px < py) p.x += px * Math.sign(dx || 1); else p.y += py * Math.sign(dy || 1) } }
     this.stepTransfer(p, dt); this.pegarPranchas(p);
 
@@ -535,9 +534,10 @@ export class Jogo {
     }
     this.customers = this.customers.filter(c => !c.gone);
 
-    const camMax = Math.max(0, this.openEdge() - W + 140); const target = Math.max(0, Math.min(camMax, p.x - W / 2)); this.camX += (target - this.camX) * Math.min(1, 0.12 * f);
-    // na vertical, a câmera só desce quando o jogador chega perto do pé da tela (a areia de cima fica como sempre foi)
-    const alvoY = Math.max(0, Math.min(WORLD_H - H, p.y - (H - CAM_FOLGA))); this.camY += (alvoY - this.camY) * Math.min(1, 0.12 * f);
+    const camMax = WORLD_W - W; const target = Math.max(0, Math.min(camMax, p.x - W / 2)); this.camX += (target - this.camX) * Math.min(1, 0.12 * f);
+    // na vertical, a câmera só desce quando o jogador chega perto do pé da tela (a areia de cima fica como sempre foi),
+    // e desce mais depressa que ele, para a grama e o calçadão aparecerem inteiros
+    const alvoY = Math.max(0, Math.min(WORLD_H - H, (p.y - (H - CAM_FOLGA)) * 1.6)); this.camY += (alvoY - this.camY) * Math.min(1, 0.12 * f);
   }
 
   /* ---------- Praia 3: chuveirão e cadeiras ---------- */
@@ -577,7 +577,7 @@ export class Jogo {
     // chuveirão: quem sai do mar entra na fila; sem água, a fila para
     sv.spawnT -= dt;
     if (sv.spawnT <= 0) { sv.spawnT = SHOPS[2].base / this.publico() * (0.75 + R() * 0.5); if (sv.fila.length < SERVICO.filaMax) sv.fila.push(this.novoCliente(SERVICO.filaX + (R() - 0.5) * 120, 110, 'fila')) }
-    sv.fila.forEach((c, i) => { c.arr = moveTo(c, SERVICO.filaX, 250 - i * 26, 2.5, f) });
+    sv.fila.forEach((c, i) => { c.arr = moveTo(c, SERVICO.filaX, SERVICO.filaY - i * 26, 2.5, f) });
     for (const ch of sv.chuveiros) {
       if (!ch.user && sv.agua > 0 && sv.fila[0]?.arr) { const c = sv.fila.shift()!; ch.user = c; ch.t = SERVICO.banhoMs; sv.agua--; c.state = 'banho' }
       const c = ch.user; if (!c) continue;
@@ -611,7 +611,7 @@ export class Jogo {
         continue;
       }
       // rota: vai até a ponta esquerda e volta até a última área aberta, vendendo para quem passa
-      if (moveTo(v, v.dir < 0 ? A.rotaX0 : this.openEdge() - 40, A.rotaY, sp, f)) v.dir = -v.dir;
+      if (moveTo(v, v.dir < 0 ? A.rotaX0 : WORLD_W - 40, A.rotaY, sp, f)) v.dir = -v.dir;
       v.vendaT -= dt;
       if (v.vendaT <= 0 && v.carga.length) {
         v.vendaT = A.vendaMs / this.publico() * (0.75 + this.rand() * 0.5);
@@ -661,10 +661,10 @@ export class Jogo {
     // alunos chegam do mar e fazem fila
     es.spawnT -= dt;
     if (es.spawnT <= 0) { es.spawnT = SHOPS[6].base / this.publico() * (0.75 + R() * 0.5); if (es.fila.length < E.filaMax) es.fila.push(this.novoCliente(E.filaX + (R() - 0.5) * 100, 110, 'fila', 6)) }
-    es.fila.forEach((c, i) => { c.arr = moveTo(c, E.filaX, 250 - i * 26, 2.5, f) });
+    es.fila.forEach((c, i) => { c.arr = moveTo(c, E.filaX, E.filaY - i * 26, 2.5, f) });
     // aluga: só prancha seca (a molhada não serve)
     const seca = es.pranchas.find(b => b.estado === 'seca');
-    if (seca && es.fila[0]?.arr) { const c = es.fila.shift()!; seca.estado = 'aluno'; seca.aluno = c; c.state = 'irMar'; c.tx = LOTS[6].x0 + 30 + R() * 240; c.ty = 70 }
+    if (seca && es.fila[0]?.arr) { const c = es.fila.shift()!; seca.estado = 'aluno'; seca.aluno = c; c.state = 'irMar'; c.tx = E.marX[0] + R() * (E.marX[1] - E.marX[0]); c.ty = 70 }
     for (const b of es.pranchas) {
       const c = b.aluno; if (b.estado !== 'aluno' || !c) continue;
       if (c.state === 'irMar') { if (moveTo(c, c.tx, c.ty, 2.4, f)) { c.state = 'surf'; c.sitT = E.aulaMs } }

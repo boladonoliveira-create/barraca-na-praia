@@ -1,5 +1,5 @@
-/* Mapa: uma orla em faixas, do mar até a rua. Coordenadas do mundo em unidades do canvas lógico (a tela é 400 x 760). */
-export const W = 400, H = 760, WORLD_W = 2900, WORLD_H = 1140;
+/* Mapa: uma orla em faixas, do mar até a rua; cada área tem o seu lugar numa faixa (LUGARES). Coordenadas do mundo em unidades do canvas lógico (a tela é 400 x 760). */
+export const W = 400, H = 760, WORLD_W = 2600, WORLD_H = 1140;
 export const SHORE = 118, WALL_Y = 326, PLAY_BOTTOM = 742;
 
 export interface Rect { x: number; y: number; w: number; h: number }
@@ -15,26 +15,30 @@ export const FAIXAS = {
 export type Faixa = keyof typeof FAIXAS;
 export const faixaDe = (y: number): Faixa => (Object.keys(FAIXAS) as Faixa[]).find(f => y < FAIXAS[f].y1) ?? 'rua';
 /** Até onde o jogador pode andar na vertical (o centro dele). */
-export const ANDA = { y0: WALL_Y + 12, y1: FAIXAS.calcadao.y1 - 12 };
-/** faixa: lote dentro da faixa grande de areia da Praia 7 (sem cerca e sem silhueta; só a placa, quando é da praia atual). */
-export interface Lot { x0: number; x1: number; title?: string; praia?: number; kind?: string; faixa?: boolean }
+export const ANDA = { y0: SHORE + 34, y1: FAIXAS.calcadao.y1 - 12 };
 export type Item = 'acai' | 'coco' | 'sorvete' | 'caixa' | 'milho' | 'pastel' | 'milhoCru' | 'pastelCru' | 'mate' | 'biscoito' | 'prancha' | 'laranja' | 'acaiBanana' | 'sucoLaranja' | 'sucoAcai';
 
-export const LOTS: Lot[] = [
-  { x0: 0, x1: 400 },
-  { x0: 400, x1: 600, title: 'SORVETERIA', praia: 2 },
-  { x0: 600, x1: 900, title: 'CHUVEIRÃO E CADEIRAS', praia: 3, kind: 'shower' },
-  { x0: 900, x1: 1200, title: 'MILHO E PASTEL', praia: 4, kind: 'corn' },
-  { x0: 1200, x1: 1400, title: 'QUADRA DE FUTEVÔLEI', praia: 5, kind: 'volei' },
-  { x0: 1400, x1: 1700, title: 'AMBULANTES', praia: 6, kind: 'ambulantes' },
-  // A faixa grande (Praia 7): abre inteira com a Escolinha, de 1700 a FAIXA_FIM; os lotes 8 e 9 ficam dentro dela
-  { x0: 1700, x1: 2000, title: 'ESCOLINHA DE SURF', praia: 7, kind: 'surf' },
-  { x0: 2000, x1: 2300, title: 'SUCOS E VITAMINAS', praia: 8, faixa: true },
-  { x0: 2300, x1: 2600, title: 'PALCO DE PAGODE', praia: 9, faixa: true },
-  { x0: 2600, x1: 2900, title: 'TORNEIO DE FUTEVÔLEI', praia: 10, kind: 'volei' },
+/** Onde fica cada área (a área i é LUGARES[i]). rect: o lugar dela na faixa (é o quadrado trancado antes de abrir);
+    zona: onde ficam as coisas dela (balcão, máquinas, quadros), para nenhum enfeite cobrir; as zonas não se sobrepõem
+    (o torneio usa a mesma da quadra). A fila dos quiosques sobe para a areia, por cima de qualquer enfeite. Retângulos pelo centro. */
+export interface Lugar { faixa: Faixa; rect: Rect; zona: Rect; titulo: string }
+const R = (x0: number, y0: number, x1: number, y1: number): Rect => ({ x: (x0 + x1) / 2, y: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0 });
+export const LUGARES: Lugar[] = [
+  { faixa: 'areia', rect: R(0, 140, 400, 760), zona: R(0, 140, 400, 760), titulo: 'BARRACA DO SOL' },
+  { faixa: 'grama', rect: R(470, 828, 690, 912), zona: R(410, 828, 750, 1040), titulo: 'SORVETERIA' },
+  { faixa: 'areia', rect: R(660, 455, 1050, 815), zona: R(660, 440, 1050, 815), titulo: 'CHUVEIRÃO E CADEIRAS' },
+  { faixa: 'grama', rect: R(905, 828, 1580, 912), zona: R(905, 828, 1580, 1040), titulo: 'MILHO E PASTEL' },
+  { faixa: 'areia', rect: R(2130, 485, 2500, 815), zona: R(2130, 489, 2500, 815), titulo: 'QUADRA DE FUTEVÔLEI' },
+  { faixa: 'calcadao', rect: R(2180, 925, 2595, 1055), zona: R(2215, 828, 2600, 1060), titulo: 'AMBULANTES' },
+  { faixa: 'areia', rect: R(1460, 150, 1840, 495), zona: R(1460, 150, 1840, 488), titulo: 'ESCOLINHA DE SURF' },
+  { faixa: 'grama', rect: R(1620, 828, 2210, 912), zona: R(1620, 828, 2210, 1040), titulo: 'SUCOS E VITAMINAS' },
+  { faixa: 'areia', rect: R(1120, 290, 1400, 625), zona: R(1110, 280, 1410, 630), titulo: 'PALCO DE PAGODE' },
+  // o torneio usa a quadra (que ganha arquibancada): o lugar dele é o mesmo da área 5
+  { faixa: 'areia', rect: R(2130, 485, 2500, 815), zona: R(2130, 489, 2500, 815), titulo: 'TORNEIO DE FUTEVÔLEI' },
 ];
-/** A faixa grande vai da Escolinha (lote 7) até o fim do lote 9. */
-export const FAIXA = { lote: 6, fim: 2600 };
+
+/** Na areia, x de trechos livres entre as áreas (para enfeites de "divisa"), do mar até a grama. */
+export const DIVISAS = [430, 1085, 1440, 1980, 2560];
 
 // price 0 = não é vendido; rate 0 = não sai de máquina; shop -1 = cru (vai para a panela, não para o balcão)
 export const PRODUCTS: Record<Item, { price: number; rate: number; shop: number }> = {
@@ -63,32 +67,33 @@ export interface Shop {
 export const SHOPS: Shop[] = [
   { kind: 'counter', name: 'BARRACA DO SOL', cx: 200, products: ['acai', 'coco'], side: -1, base: 1500, spawnX: -24,
     counter: { x: 200, y: 300, w: 200, h: 40 }, drop: { x: 200, y: 360, w: 104, h: 44 }, cash: { x: 296, y: 362 } },
-  { kind: 'kiosk', name: 'SORVETERIA', cx: 500, products: ['sorvete'], side: 1, base: 1600, spawnX: 780,
-    counter: { x: 500, y: 298, w: 92, h: 44 }, drop: { x: 500, y: 362, w: 92, h: 40 }, cash: { x: 574, y: 364 } },
+  // quiosques na grama: os clientes fazem fila do lado da areia; o jogador trabalha do lado do calçadão
+  { kind: 'kiosk', name: 'SORVETERIA', cx: 540, products: ['sorvete'], side: 1, base: 1600, spawnX: 780,
+    counter: { x: 540, y: 862, w: 96, h: 44 }, drop: { x: 540, y: 936, w: 92, h: 40 }, cash: { x: 612, y: 950 } },
   // Praia 3: serviço. O "drop" é o registro da caixa d'água; as regras ficam em SERVICO
-  { kind: 'servico', name: 'CHUVEIRÃO', cx: 740, products: [], side: 1, base: 1800, spawnX: 0,
-    counter: { x: 740, y: 296, w: 240, h: 30 }, drop: { x: 840, y: 372, w: 84, h: 44 }, cash: { x: 676, y: 392 } },
-  // Praia 4: venda com preparo. Balcão comum; o milho e o pastel saem das panelas (PREPARO)
-  { kind: 'counter', name: 'MILHO E PASTEL', cx: 1050, products: ['milho', 'pastel'], side: 1, base: 1500, spawnX: 1460,
-    counter: { x: 1050, y: 300, w: 200, h: 40 }, drop: { x: 1050, y: 360, w: 104, h: 44 }, cash: { x: 1146, y: 362 } },
+  { kind: 'servico', name: 'CHUVEIRÃO', cx: 820, products: [], side: 1, base: 1800, spawnX: 0,
+    counter: { x: 820, y: 600, w: 220, h: 30 }, drop: { x: 990, y: 650, w: 84, h: 44 }, cash: { x: 700, y: 650 } },
+  // Praia 4: venda com preparo. Quiosque na grama; o milho e o pastel saem das panelas (RECEITAS)
+  { kind: 'counter', name: 'MILHO E PASTEL', cx: 1200, products: ['milho', 'pastel'], side: 1, base: 1500, spawnX: 1460,
+    counter: { x: 1200, y: 862, w: 200, h: 40 }, drop: { x: 1200, y: 936, w: 104, h: 44 }, cash: { x: 1296, y: 950 } },
   // Área 5: atração. Não vende: "counter" é a quadra (enfeites e comemoração); drop e caixa não são usados
-  { kind: 'atracao', name: 'QUADRA', cx: 1300, products: [], side: 1, base: 0, spawnX: 0,
-    counter: { x: 1300, y: 236, w: 160, h: 104 }, drop: { x: 1300, y: 372, w: 0, h: 0 }, cash: { x: 1300, y: 372 } },
-  // Área 6: venda automática. "counter" é o depósito; "drop" é a vaga do carrinho que está sendo abastecido (AMBULANTE)
-  { kind: 'ambulante', name: 'AMBULANTES', cx: 1550, products: ['mate', 'biscoito'], side: 1, base: 0, spawnX: 0,
-    counter: { x: 1550, y: 296, w: 160, h: 40 }, drop: { x: 1550, y: 372, w: 100, h: 44 }, cash: { x: 1640, y: 372 } },
-  // Área 7: serviço com fila. "counter" é a arara das pranchas; "drop" é onde se pendura a prancha molhada (ESCOLA)
-  { kind: 'escola', name: 'ESCOLINHA DE SURF', cx: 1850, products: [], side: 1, base: 1900, spawnX: 0,
-    counter: { x: 1860, y: 298, w: 170, h: 30 }, drop: { x: 1860, y: 366, w: 120, h: 44 }, cash: { x: 1960, y: 390 } },
-  // Área 8: preparo e venda (como o milho): a fruta vai da caixa para a liquidificadora, o copo vai para o balcão
-  { kind: 'counter', name: 'SUCOS E VITAMINAS', cx: 2150, products: ['sucoLaranja', 'sucoAcai'], side: 1, base: 1500, spawnX: 2340,
-    counter: { x: 2150, y: 300, w: 200, h: 40 }, drop: { x: 2150, y: 360, w: 104, h: 44 }, cash: { x: 2246, y: 362 } },
-  // Área 9: atração em evento. Não vende: "counter" é o palco
-  { kind: 'atracao', name: 'PALCO DE PAGODE', cx: 2450, products: [], side: 1, base: 0, spawnX: 0,
-    counter: { x: 2450, y: 236, w: 180, h: 100 }, drop: { x: 2450, y: 372, w: 0, h: 0 }, cash: { x: 2450, y: 372 } },
-  // Área 10: o torneio (meta do lançamento). "counter" é a quadra do torneio
-  { kind: 'atracao', name: 'TORNEIO', cx: 2750, products: [], side: 1, base: 0, spawnX: 0,
-    counter: { x: 2750, y: 236, w: 170, h: 104 }, drop: { x: 2750, y: 372, w: 0, h: 0 }, cash: { x: 2750, y: 372 } },
+  { kind: 'atracao', name: 'QUADRA', cx: 2315, products: [], side: 1, base: 0, spawnX: 0,
+    counter: { x: 2315, y: 650, w: 160, h: 104 }, drop: { x: 2315, y: 650, w: 0, h: 0 }, cash: { x: 2315, y: 650 } },
+  // Área 6: venda automática. "counter" é a bancada no calçadão; "drop" é onde se abastece (AMBULANTE)
+  { kind: 'ambulante', name: 'AMBULANTES', cx: 2440, products: ['mate', 'biscoito'], side: 1, base: 0, spawnX: 0,
+    counter: { x: 2440, y: 962, w: 140, h: 36 }, drop: { x: 2440, y: 1012, w: 120, h: 40 }, cash: { x: 2345, y: 960 } },
+  // Área 7: serviço com fila, na beira da água. "counter" é a arara; "drop" é onde se pendura a prancha molhada (ESCOLA)
+  { kind: 'escola', name: 'ESCOLINHA DE SURF', cx: 1650, products: [], side: 1, base: 1900, spawnX: 0,
+    counter: { x: 1650, y: 215, w: 170, h: 30 }, drop: { x: 1650, y: 272, w: 120, h: 44 }, cash: { x: 1770, y: 280 } },
+  // Área 8: preparo e venda (como o milho), quiosque na grama
+  { kind: 'counter', name: 'SUCOS E VITAMINAS', cx: 1830, products: ['sucoLaranja', 'sucoAcai'], side: 1, base: 1500, spawnX: 2060,
+    counter: { x: 1830, y: 862, w: 200, h: 40 }, drop: { x: 1830, y: 936, w: 104, h: 44 }, cash: { x: 1926, y: 950 } },
+  // Área 9: atração em evento, no centro da areia. Não vende: "counter" é o palco
+  { kind: 'atracao', name: 'PALCO DE PAGODE', cx: 1260, products: [], side: 1, base: 0, spawnX: 0,
+    counter: { x: 1260, y: 400, w: 200, h: 110 }, drop: { x: 1260, y: 400, w: 0, h: 0 }, cash: { x: 1260, y: 400 } },
+  // Área 10: o torneio, na quadra (o "counter" é a mesma quadra da área 5)
+  { kind: 'atracao', name: 'TORNEIO', cx: 2315, products: [], side: 1, base: 0, spawnX: 0,
+    counter: { x: 2315, y: 650, w: 160, h: 104 }, drop: { x: 2315, y: 650, w: 0, h: 0 }, cash: { x: 2315, y: 650 } },
 ];
 
 /** Área 9: de tempos em tempos um show junta multidão e multiplica a chegada de clientes em todas as áreas, só durante o show.
@@ -103,7 +108,7 @@ export const TORNEIO = { etapas: ['Classificatória', 'Semifinal', 'Final'], par
 /** Área 6: os carrinhos de isopor. O jogador abastece o carrinho parado na vaga; cheio, ele sai com um vendedor pela
     faixa de cima da areia (a dos clientes, onde o jogador não anda), vende sozinho e volta vazio. */
 export const AMBULANTE = {
-  vagas: [{ x: 1550, y: 410 }, { x: 1495, y: 410 }, { x: 1440, y: 410 }, { x: 1605, y: 410 }, { x: 1440, y: 446 }, { x: 1500, y: 446 }],
+  vagas: [{ x: 2440, y: 1000 }, { x: 2385, y: 1035 }, { x: 2495, y: 1035 }, { x: 2330, y: 1035 }, { x: 2550, y: 1035 }, { x: 2275, y: 1035 }],
   rotaY: 196, rotaX0: 40, // anda até x = 40 e volta, vendendo
   isoporBase: 6, isoporPorNivel: 3, // itens por carrinho: isoporBase + isoporPorNivel × "isopor"
   velocidade: 1.7, rapidoPorNivel: 0.25, // carrinho mais rápido: velocidade × (1 + rapidoPorNivel × "carrinhoRapido")
@@ -113,10 +118,10 @@ export const AMBULANTE = {
 /** Área 7: pranchas e arara. A prancha seca vai com o aluno para o mar e volta molhada para a areia (em `molhadas`);
     molhada não é alugada. Pendurada na arara, seca em secarMs. A arara guarda araraBase + araraPorNivel × "arara" pranchas. */
 export const ESCOLA = {
-  filaX: 1760, filaMax: 5,
+  filaX: 1530, filaY: 290, filaMax: 5, marX: [1480, 1820], // fila (de filaY para cima) e onde os alunos surfam
   pranchasBase: 2, araraBase: 3, araraPorNivel: 2,
   aulaMs: 5000, secarMs: 3500, precoAula: 60,
-  molhadas: [{ x: 1760, y: 580 }, { x: 1830, y: 580 }, { x: 1900, y: 580 }, { x: 1970, y: 580 }, { x: 1760, y: 650 }, { x: 1830, y: 650 }, { x: 1900, y: 650 }, { x: 1970, y: 650 }],
+  molhadas: [{ x: 1540, y: 345 }, { x: 1610, y: 345 }, { x: 1680, y: 345 }, { x: 1750, y: 345 }, { x: 1540, y: 405 }, { x: 1610, y: 405 }, { x: 1680, y: 405 }, { x: 1750, y: 405 }],
   maxPranchas: 8,
 };
 
@@ -126,11 +131,11 @@ export const ATRACAO = { aberta: 0.15, arquibancada: 0.1, rede: 0.06, torneio: 0
 
 /** Praia 3: chuveirão (fila, banho, caixa d'água) e cadeiras de aluguel. */
 export const SERVICO = {
-  chuveiros: [{ x: 660, y: 296 }, { x: 760, y: 296 }], // o 2º entra com a melhoria "chuveiro2"
-  filaX: 710, filaMax: 5,
+  chuveiros: [{ x: 770, y: 620 }, { x: 870, y: 620 }], // o 2º entra com a melhoria "chuveiro2"
+  filaX: 820, filaY: 570, filaMax: 5, caixa: { x: 990, y: 535 }, // fila (de filaY para cima) e a caixa d'água (topo)
   banhoMs: 2400, precoBanho: 8, // banhos por caixa: aguaBase + aguaPorNivel × "caixaAgua"
   aguaBase: 5, aguaPorNivel: 4, encherMs: 110, // no registro, 1 banho de água a cada encherMs
-  cadeiras: [{ x: 650, y: 572 }, { x: 715, y: 572 }, { x: 780, y: 572 }, { x: 845, y: 572 }, { x: 650, y: 652 }, { x: 715, y: 652 }, { x: 780, y: 652 }, { x: 845, y: 652 }],
+  cadeiras: [{ x: 760, y: 730 }, { x: 825, y: 730 }, { x: 890, y: 730 }, { x: 955, y: 730 }, { x: 760, y: 790 }, { x: 825, y: 790 }, { x: 890, y: 790 }, { x: 955, y: 790 }],
   cadeirasBase: 3, cadeirasPorNivel: 2, precoCadeira: 14, aluguelMs: [6000, 9000], chegadaCadeiraMs: 2600,
 };
 
@@ -150,28 +155,31 @@ export const CASH_MAGNET = 72, COUNTER_CAP = 20;
 
 
 export const SLOTS: Record<string, { x: number; y: number }> = {
+  // Barraca do Sol (como sempre foi)
   maq2: { x: 290, y: 470 }, sombra: { x: 40, y: 446 }, voce: { x: 350, y: 696 }, equipe: { x: 200, y: 690 }, coco: { x: 110, y: 612 },
-  cardapio: { x: 92, y: 372 }, turbo: { x: 200, y: 470 }, coco2: { x: 290, y: 612 }, praia: { x: 52, y: 704 }, // nova praia: no canto, fora do caminho do trabalho
-  fence: { x: 360, y: 548 }, cardapioS: { x: 450, y: 440 }, frzUp: { x: 550, y: 440 }, equipeS: { x: 446, y: 690 }, extraS: { x: 554, y: 690 }, cofre0: { x: 344, y: 410 },
-  // Praia 3 (lote 600-900)
-  fence2: { x: 560, y: 548 }, cadeiras: { x: 740, y: 480 }, salva: { x: 760, y: 712 }, cofre2: { x: 640, y: 712 }, caixaAgua: { x: 850, y: 460 }, chuveiro2: { x: 766, y: 412 }, aluguel: { x: 650, y: 480 },
-  // Praia 4 (lote 900-1200)
-  fence3: { x: 860, y: 548 }, pastel: { x: 1150, y: 470 }, panela2: { x: 1050, y: 612 }, cozinheiro: { x: 1150, y: 700 }, panelaUp: { x: 1050, y: 712 }, fritaUp: { x: 1150, y: 612 }, cardapioM: { x: 960, y: 372 }, cofre3: { x: 1094, y: 410 },
-  // Área 5 (lote 1200-1400); o quadro de abrir fica na cerca, no fim do lote do milho
-  fence4: { x: 1166, y: 410 }, arquib: { x: 1250, y: 520 }, rede: { x: 1350, y: 520 }, torneio: { x: 1300, y: 660 },
-  // Área 6 (lote 1400-1700); o quadro de abrir fica na cerca, no fim do lote da quadra
-  fence5: { x: 1366, y: 620 }, cardapioA: { x: 1440, y: 630 }, carrinhos: { x: 1550, y: 630 }, isopor: { x: 1660, y: 630 },
-  equipeA: { x: 1450, y: 712 }, rapidoA: { x: 1550, y: 712 }, cofre5: { x: 1675, y: 425 },
-  // Área 7 (lote 1700-2000, começo da faixa grande)
-  fence6: { x: 1670, y: 712 }, pranchas: { x: 1750, y: 470 }, arara: { x: 1860, y: 470 }, cofre6: { x: 1965, y: 470 },
-  instrutor: { x: 1760, y: 720 }, aulaUp: { x: 1960, y: 720 },
-  // Área 8 (lote 2000-2300, na faixa: o quadro de abrir fica no meio do lote)
-  abreSucos: { x: 2150, y: 560 }, liqui2: { x: 2250, y: 470 }, barman: { x: 2250, y: 700 }, copoMaior: { x: 2150, y: 712 }, liquiRapida: { x: 2250, y: 612 },
-  cardapioJ: { x: 2060, y: 372 }, cofre7: { x: 2194, y: 410 },
-  // Área 9 (lote 2300-2600, na faixa)
-  abrePalco: { x: 2450, y: 560 }, showLongo: { x: 2370, y: 520 }, intervalo: { x: 2450, y: 640 }, bonusShow: { x: 2530, y: 520 }, somMelhor: { x: 2450, y: 720 },
-  // Área 10 (lote 2600-2900); o quadro de abrir fica na cerca, no fim da faixa
-  fence9: { x: 2566, y: 640 }, arquibT: { x: 2680, y: 520 }, etapa: { x: 2750, y: 640 }, patroc: { x: 2830, y: 520 },
+  cardapio: { x: 92, y: 372 }, turbo: { x: 200, y: 470 }, coco2: { x: 290, y: 612 }, praia: { x: 52, y: 704 }, cofre0: { x: 344, y: 410 }, // nova praia: no canto, fora do caminho do trabalho
+  // Sorveteria (quiosque na grama; os quadros ficam no calçadão)
+  fence: { x: 535, y: 1005 }, cardapioS: { x: 450, y: 1005 }, frzUp: { x: 620, y: 1005 }, equipeS: { x: 705, y: 1005 }, extraS: { x: 710, y: 935 },
+  // Chuveirão (areia, perto da grama)
+  fence2: { x: 870, y: 520 }, aluguel: { x: 700, y: 520 }, cadeiras: { x: 785, y: 520 }, caixaAgua: { x: 990, y: 470 }, chuveiro2: { x: 870, y: 620 },
+  cofre2: { x: 700, y: 730 }, salva: { x: 1010, y: 740 },
+  // Milho e pastel (quiosque na grama; panelas na grama, quadros no calçadão)
+  fence3: { x: 1200, y: 1005 }, cardapioM: { x: 1030, y: 1005 }, cozinheiro: { x: 1115, y: 1005 }, cofre3: { x: 1285, y: 1005 }, panelaUp: { x: 1370, y: 1005 },
+  fritaUp: { x: 1455, y: 1005 }, pastel: { x: 1455, y: 852 }, panela2: { x: 1540, y: 852 },
+  // Quadra (areia, perto da grama)
+  fence4: { x: 2315, y: 520 }, torneio: { x: 2315, y: 520 }, arquib: { x: 2235, y: 770 }, rede: { x: 2395, y: 770 },
+  // Ambulantes (bancada no calçadão; quadros na grama acima dela)
+  fence5: { x: 2440, y: 1015 }, cardapioA: { x: 2290, y: 860 }, carrinhos: { x: 2375, y: 860 }, isopor: { x: 2460, y: 860 }, equipeA: { x: 2545, y: 860 },
+  rapidoA: { x: 2550, y: 1015 }, cofre5: { x: 2540, y: 935 },
+  // Escolinha de surf (beira da água)
+  fence6: { x: 1650, y: 330 }, instrutor: { x: 1500, y: 462 }, pranchas: { x: 1585, y: 462 }, arara: { x: 1670, y: 462 }, aulaUp: { x: 1755, y: 462 }, cofre6: { x: 1800, y: 220 },
+  // Sucos e vitaminas (quiosque na grama)
+  abreSucos: { x: 1830, y: 1005 }, cardapioJ: { x: 1660, y: 1005 }, barman: { x: 1745, y: 1005 }, copoMaior: { x: 1915, y: 1005 }, liquiRapida: { x: 2000, y: 1005 },
+  cofre7: { x: 2085, y: 1005 }, liqui2: { x: 2085, y: 852 },
+  // Palco de pagode (centro da areia, com caminho livre em volta)
+  abrePalco: { x: 1260, y: 520 }, showLongo: { x: 1170, y: 520 }, intervalo: { x: 1260, y: 520 }, bonusShow: { x: 1350, y: 520 }, somMelhor: { x: 1260, y: 590 },
+  // Torneio (na quadra)
+  fence9: { x: 2175, y: 650 }, arquibT: { x: 2175, y: 545 }, etapa: { x: 2455, y: 650 }, patroc: { x: 2455, y: 545 },
 };
 
 export const UMBRELLA_POS = [{ x: 64, y: 226 }, { x: 336, y: 226 }, { x: 316, y: 158 }, { x: 40, y: 168 }];
@@ -189,5 +197,6 @@ export function livre(x: number, y: number, folga = 12) {
     if (d.kind === 'counter' || d.kind === 'kiosk') { const top = d.counter.y - d.counter.h / 2; if (dentro({ x: d.cx, y: top - 70, w: 60, h: 140 })) return false } // fila
   }
   for (const k in SLOTS) if (dentro({ ...SLOTS[k], w: 72, h: 60 })) return false;
+  for (const l of LUGARES) if (dentro(l.zona)) return false;
   return true;
 }

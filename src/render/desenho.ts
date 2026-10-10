@@ -1,5 +1,5 @@
 /* Câmera, cenário, personagens, máquinas e efeitos. Só lê o estado do núcleo. */
-import { W, H, WORLD_W, WORLD_H, SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SLOTS, COUNTER_CAP, CASH_MAGNET, SERVICO, ESCOLA, TORNEIO, type Item, type Lot, type Rect } from '../dados/mapa.ts';
+import { W, H, WORLD_W, WORLD_H, SHORE, WALL_Y, PLAY_BOTTOM, LUGARES, FAIXAS, SHOPS, SLOTS, COUNTER_CAP, CASH_MAGNET, SERVICO, ESCOLA, TORNEIO, type Item, type Rect } from '../dados/mapa.ts';
 import { fmt } from '../core/economia.ts';
 import { NIVEL_ABRE, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
@@ -10,7 +10,7 @@ export interface Joy { on: boolean; ox: number; oy: number; x: number; y: number
 interface PersonLook { shirt: string; skin: string; walk?: number; face?: number; cap?: string; hat?: boolean; apron?: boolean; hair?: string; hairStyle?: number; shorts?: string; flip?: string; shades?: boolean; carry?: boolean }
 
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const specks = Array.from({ length: 380 }, () => ({ x: Math.random() * WORLD_W, y: SHORE + Math.random() * (H - SHORE), r: Math.random() * 1.4 + 0.4, c: Math.random() < .5 ? 'rgba(190,150,90,0.25)' : 'rgba(255,255,255,0.35)' }));
+const specks = Array.from({ length: 600 }, () => ({ x: Math.random() * WORLD_W, y: SHORE + Math.random() * (FAIXAS.areia.y1 - SHORE), r: Math.random() * 1.4 + 0.4, c: Math.random() < .5 ? 'rgba(190,150,90,0.25)' : 'rgba(255,255,255,0.35)' }));
 let ctx: CanvasRenderingContext2D, g: Jogo;
 
 function rr(x: number, y: number, w: number, h: number, r: number) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath() }
@@ -251,7 +251,7 @@ function drawEnfeites(a: number) {
   // selo de nível (com uma estrela por marco; a partir do 2º marco vira letreiro dourado)
   const txt = 'Nv ' + g.nivel[a] + (t ? ' ' + '★'.repeat(t) : ''); ctx.font = '800 11px "Baloo 2",sans-serif'; const w = ctx.measureText(txt).width + 12;
   // à esquerda do balcão, na altura dele: ali não há plaquinha de preço nem fila
-  const bx = Math.max(LOTS[a].x0 + 6, x0 - w - 4); // sem passar para o lote vizinho
+  const L = LUGARES[a].zona, bx = Math.max(L.x - L.w / 2 + 6, x0 - w - 4); // sem sair do lugar da área
   ctx.fillStyle = t >= 2 ? '#f59f00' : '#5b2370'; rr(bx, c.y - 8, w, 16, 8); ctx.fill();
   ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, bx + w / 2, c.y);
 }
@@ -282,13 +282,13 @@ function drawCadeira(c: { x: number; y: number; suja: boolean }) {
 }
 function drawServico() {
   const d = SHOPS[2], sv = g.sv; if (!g.S[2].open) return;
-  const cap = g.aguaCap(), pct = sv.agua / cap, tx = 840, ty = 232;
+  const cap = g.aguaCap(), pct = sv.agua / cap, tx = SERVICO.caixa.x, ty = SERVICO.caixa.y;
   // cano da caixa até os chuveiros
-  ctx.fillStyle = '#868e96'; ctx.fillRect(SHOPS[2].counter.x - 100, 236, tx - (SHOPS[2].counter.x - 100), 5);
+  ctx.fillStyle = '#868e96'; ctx.fillRect(SHOPS[2].counter.x - 100, ty + 4, tx - (SHOPS[2].counter.x - 100), 5);
   for (const ch of sv.chuveiros) {
     ctx.fillStyle = '#bde0fe'; rr(ch.x - 22, ch.y - 12, 44, 18, 6); ctx.fill(); // piso molhado
-    ctx.fillStyle = '#868e96'; ctx.fillRect(ch.x - 3, 236, 6, ch.y - 236); ctx.beginPath(); ctx.arc(ch.x, 244, 9, Math.PI, 0); ctx.fill();
-    if (ch.user && !reduceMotion) { ctx.strokeStyle = 'rgba(77,171,247,0.8)'; ctx.lineWidth = 1.5; for (let i = 0; i < 6; i++) { const yy = 248 + ((g.now / 4 + i * 9) % 36); ctx.beginPath(); ctx.moveTo(ch.x - 7 + i * 3, yy); ctx.lineTo(ch.x - 7 + i * 3, yy + 5); ctx.stroke() } }
+    ctx.fillStyle = '#868e96'; ctx.fillRect(ch.x - 3, ty + 4, 6, ch.y - ty - 4); ctx.beginPath(); ctx.arc(ch.x, ty + 12, 9, Math.PI, 0); ctx.fill();
+    if (ch.user && !reduceMotion) { ctx.strokeStyle = 'rgba(77,171,247,0.8)'; ctx.lineWidth = 1.5; for (let i = 0; i < 6; i++) { const yy = ty + 16 + ((g.now / 4 + i * 9) % 36); ctx.beginPath(); ctx.moveTo(ch.x - 7 + i * 3, yy); ctx.lineTo(ch.x - 7 + i * 3, yy + 5); ctx.stroke() } }
   }
   // caixa d'água com o nível
   shadow(tx, ty + 70, 34); ctx.fillStyle = '#ced4da'; rr(tx - 30, ty, 60, 66, 8); ctx.fill();
@@ -296,14 +296,14 @@ function drawServico() {
   ctx.fillStyle = '#3a2316'; ctx.font = '800 11px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(sv.agua + '/' + cap, tx, ty + 33);
   if (sv.agua === 0) { ctx.fillStyle = '#e03131'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText('VAZIA!', tx, ty - 10) }
   drawDropZone(d.drop, 'ENCHER'); ctx.fillStyle = '#e03131'; circ(d.drop.x + 30, d.drop.y - 12, 5); ctx.fill(); // registro
-  tagTxt(SERVICO.filaX - 70, 250, 'Banho R$ ' + fmt(g.precoBanho()));
-  tagTxt(745, 530, 'Cadeira R$ ' + fmt(g.precoCadeira()));
+  tagTxt(SERVICO.filaX - 70, SERVICO.filaY, 'Banho R$ ' + fmt(g.precoBanho()));
+  tagTxt(SERVICO.cadeiras[0].x + 97, SERVICO.cadeiras[0].y - 26, 'Cadeira R$ ' + fmt(g.precoCadeira()));
   sv.cadeiras.forEach(drawCadeira);
   drawShopCash(2);
 }
 /* ---------- Área 5: quadra de futevôlei (atração) ---------- */
 function drawQuadra() {
-  if (!g.aberta(4)) return;
+  if (!g.aberta(4) || g.aberta(9)) return;
   const c = SHOPS[4].counter, x0 = c.x - c.w / 2, y0 = c.y - c.h / 2, arq = g.L('arquibancada'), rede = g.L('rede'), tor = g.L('torneio');
   ctx.fillStyle = '#f3d9a4'; rr(x0, y0, c.w, c.h, 6); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(x0 + 6, y0 + 6, c.w - 12, c.h - 12);
   // rede (a nova é listrada) e os postes
@@ -316,7 +316,7 @@ function drawQuadra() {
   ctx.fillStyle = '#fff'; circ(bx, by, 5); ctx.fill(); ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 1.5; ctx.stroke();
   // arquibancada com público: mais gente a cada nível
   if (arq) {
-    const ya = WALL_Y + 22; ctx.fillStyle = '#c08a4a'; for (let r = 0; r < 2; r++) rr(x0 + 4, ya + r * 16, c.w - 8, 8, 3), ctx.fill();
+    const ya = c.y + c.h / 2 + 8; ctx.fillStyle = '#c08a4a'; for (let r = 0; r < 2; r++) rr(x0 + 4, ya + r * 16, c.w - 8, 8, 3), ctx.fill();
     const n = Math.min(18, 6 * arq + 2 * tor);
     for (let i = 0; i < n; i++) { const px = x0 + 14 + (i % 9) * 17, py = ya - 6 + Math.floor(i / 9) * 16, pulo = reduceMotion ? 0 : Math.abs(Math.sin(g.now / 260 + i)) * 2;
       ctx.fillStyle = SHIRTS_Q[i % SHIRTS_Q.length]; rr(px - 5, py - pulo, 10, 9, 4); ctx.fill(); ctx.fillStyle = '#d9a37a'; circ(px, py - 6 - pulo, 4); ctx.fill() }
@@ -412,7 +412,7 @@ function drawEscola() {
   });
   ctx.fillStyle = '#fffdf7'; rr(c.x - 62, c.y + 18, 124, 16, 8); ctx.fill(); ctx.fillStyle = '#1c7ed6'; ctx.font = '800 11px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.name, c.x, c.y + 26);
   drawDropZone(d.drop, 'SECAR ' + g.naArara() + '/' + g.araraCap());
-  tagTxt(ESCOLA.filaX - 66, 250, 'Aula R$ ' + fmt(g.precoAula()));
+  tagTxt(ESCOLA.filaX, ESCOLA.filaY + 26, 'Aula R$ ' + fmt(g.precoAula()));
   ps.forEach((b, i) => { if (b.estado === 'molhada') { drawPrancha(b.x, b.y, CORES_PRANCHA[i % 8], 0.15, true); ctx.fillStyle = '#e03131'; ctx.font = '800 13px "Baloo 2",sans-serif'; ctx.fillText('!', b.x + 20, b.y - 10) } });
   drawShopCash(6);
 }
@@ -430,46 +430,34 @@ function drawKiosk() {
   if (st.stock === 0) { ctx.fillStyle = '#e03131'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText('VAZIO!', c.x, c.y - 2) }
   drawDropZone(d.drop, 'ABASTECER'); drawShopCash(1);
 }
-// placa a 66 do começo do lote: inteira dentro das 140 unidades que a câmera mostra além do último lote aberto
-function drawLockedLot(lot: Lot, i: number) {
-  const w = lot.x1 - lot.x0, cx = lot.x0 + w / 2;
-  // na faixa grande: sem cerca e sem silhueta; só a placa, e só quando o lote é desta praia
-  if (lot.faixa) { if (i < g.areasPraia()) placaLote(lot, i, cx - 66); return }
-  ctx.fillStyle = 'rgba(58,35,22,0.07)'; ctx.fillRect(lot.x0, WALL_Y - 10, w, PLAY_BOTTOM - WALL_Y + 30);
-  ctx.globalAlpha = 0.35;
-  if (lot.kind === 'shower') {
-    for (const sx of [cx - 60, cx + 40]) { ctx.fillStyle = '#868e96'; ctx.fillRect(sx - 3, WALL_Y + 60, 6, 90); ctx.fillRect(sx - 3, WALL_Y + 60, 24, 6); ctx.fillStyle = '#4dabf7'; for (let i = 0; i < 5; i++) ctx.fillRect(sx + 14 + i * 2 - 4, WALL_Y + 72 + i * 7, 2, 10) }
-    for (let i = 0; i < 4; i++) { ctx.fillStyle = '#ffd8a8'; rr(lot.x0 + 40 + i * 56, WALL_Y + 230, 26, 40, 4); ctx.fill() }
-  } else if (lot.kind === 'volei') {
-    ctx.fillStyle = '#868e96'; ctx.fillRect(cx - 70, WALL_Y + 90, 5, 120); ctx.fillRect(cx + 65, WALL_Y + 90, 5, 120);
-    ctx.strokeStyle = '#868e96'; ctx.lineWidth = 1.5; for (let y = WALL_Y + 92; y < WALL_Y + 140; y += 8) { ctx.beginPath(); ctx.moveTo(cx - 65, y); ctx.lineTo(cx + 65, y); ctx.stroke() }
-    ctx.fillStyle = '#ffd43b'; circ(cx + 20, WALL_Y + 70, 10); ctx.fill();
-  } else if (lot.kind === 'ambulantes') {
-    for (const [dx, dy] of [[-40, 120], [30, 220]]) { ctx.fillStyle = '#ff922b'; rr(cx + dx - 26, WALL_Y + dy, 52, 30, 6); ctx.fill(); ctx.fillStyle = '#495057'; circ(cx + dx - 14, WALL_Y + dy + 34, 7); ctx.fill(); circ(cx + dx + 14, WALL_Y + dy + 34, 7); ctx.fill() }
-  } else if (lot.kind === 'corn') { ctx.fillStyle = '#ffd43b'; rr(cx - 50, WALL_Y + 90, 100, 60, 10); ctx.fill(); ctx.fillStyle = '#868e96'; circ(cx - 30, WALL_Y + 160, 12); ctx.fill(); circ(cx + 30, WALL_Y + 160, 12); ctx.fill(); ctx.fillStyle = '#e9c46a'; rr(cx - 30, WALL_Y + 240, 60, 40, 8); ctx.fill() }
-  else if (lot.kind === 'surf') { for (let i = 0; i < 4; i++) { ctx.fillStyle = CORES_PRANCHA[i]; ctx.beginPath(); ctx.ellipse(cx - 45 + i * 30, WALL_Y + 120, 6, 22, 0, 0, Math.PI * 2); ctx.fill() } ctx.fillStyle = '#8d5a2b'; ctx.fillRect(cx - 60, WALL_Y + 92, 120, 5) }
-  else { ctx.fillStyle = '#4dabf7'; rr(cx - 46, WALL_Y - 30, 92, 40, 10); ctx.fill(); ctx.fillStyle = '#d9b382'; rr(cx - 30, WALL_Y + 210, 60, 42, 6); ctx.fill() }
-  ctx.globalAlpha = 1;
-  for (let y = WALL_Y - 14; y < PLAY_BOTTOM + 10; y += 22) { ctx.fillStyle = '#c08a4a'; rr(lot.x0 - 4, y, 8, 18, 3); ctx.fill() }
-  ctx.fillStyle = '#a26b2f'; ctx.fillRect(lot.x0 - 6, WALL_Y + 40, 12, 4); ctx.fillRect(lot.x0 - 6, PLAY_BOTTOM - 40, 12, 4);
-  placaLote(lot, i, lot.x0);
-}
-/** A placa com cadeado: o nome do lote e o que falta para abrir (ou "Na próxima praia"). */
-function placaLote(lot: Lot, i: number, x0: number) {
-  ctx.save(); ctx.translate(x0 + 66, WALL_Y + 150); ctx.rotate(-0.04); ctx.fillStyle = '#fff3c4'; rr(-72, -36, 144, 72, 10); ctx.fill(); ctx.strokeStyle = '#e0b84f'; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.fillStyle = '#3a2316'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 11px "Nunito",sans-serif';
-  if (ctx.measureText(lot.title!).width > 132) ctx.font = '800 9px "Nunito",sans-serif'; // título longo: cabe na placa
-  ctx.fillText(lot.title!, 0, -20);
-  // "abre com a área anterior no nível 5 (3/5)"; quando já pode abrir, manda comprar na cerca.
-  // O lote da próxima praia só diz o que vai ter (pilar 6: o futuro próximo fica à vista)
-  const ant = i - 1, n = Math.min(g.nivel[ant] || 0, NIVEL_ABRE), pronta = g.liberada(i), proxima = i >= g.areasPraia();
-  ctx.font = '800 10px "Nunito",sans-serif'; ctx.fillStyle = '#8a6a52';
-  if (proxima) ctx.fillText('Na próxima praia:', 0, -2);
-  else if (pronta) { ctx.fillStyle = '#2f9e44'; ctx.fillText('Pronta para abrir:', 0, -2) }
-  else ctx.fillText('abre com ' + AREAS[ant] + ' nv ' + NIVEL_ABRE, 0, -2);
-  ctx.fillStyle = pronta ? '#2f9e44' : '#e0a800'; ctx.font = '800 15px "Baloo 2",sans-serif';
-  ctx.fillText(proxima ? PRAIAS[i].area : pronta ? 'compre na cerca' : '(' + n + '/' + NIVEL_ABRE + ')', 0, 18);
-  ctx.fillStyle = '#8a6a52'; ctx.beginPath(); ctx.arc(0, -40, 7, Math.PI, 0); ctx.lineWidth = 3; ctx.strokeStyle = '#8a6a52'; ctx.stroke(); ctx.fillRect(-8, -40, 16, 12); ctx.restore();
+/** Área que ainda não abriu: o quadrado tracejado no lugar dela, com cadeado e placa. Da praia atual, a placa diz o
+    que falta para abrir; de uma praia futura, "Trancado · área · Praia N". Dá para passar por cima (não muda o jogo). */
+function drawTrancado(i: number) {
+  const L = LUGARES[i], r = L.rect, futura = i >= g.areasPraia();
+  if (i === 9 && !g.aberta(4)) return; // o torneio usa a quadra: enquanto ela não abre, a placa dela já diz o lugar
+  const so = i === 9; // com a quadra aberta, o torneio só mostra a placa, ao lado dela
+  if (!so) {
+    rr(r.x - r.w / 2, r.y - r.h / 2, r.w, r.h, 14); ctx.fillStyle = 'rgba(58,35,22,0.06)'; ctx.fill();
+    ctx.setLineDash([8, 6]); ctx.strokeStyle = 'rgba(138,106,82,0.6)'; ctx.lineWidth = 2.5; ctx.stroke(); ctx.setLineDash([]);
+  }
+  const px = so ? r.x + r.w / 2 - 80 : r.x, py = so ? r.y - r.h / 2 + 46 : r.y;
+  ctx.save(); ctx.translate(px, py); ctx.rotate(-0.03);
+  ctx.fillStyle = '#a26b2f'; ctx.fillRect(-3, 20, 6, 26); // estaca
+  ctx.fillStyle = '#fff3c4'; rr(-76, -30, 152, 56, 10); ctx.fill(); ctx.strokeStyle = '#e0b84f'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = '#8a6a52'; ctx.beginPath(); ctx.arc(0, -32, 6, Math.PI, 0); ctx.lineWidth = 3; ctx.strokeStyle = '#8a6a52'; ctx.stroke(); ctx.fillRect(-7, -32, 14, 10);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#3a2316'; ctx.font = '800 10px "Nunito",sans-serif';
+  if (futura) {
+    ctx.fillText('TRANCADO', 0, -15);
+    ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText(AREAS[i], 0, 1);
+    ctx.font = '800 10px "Nunito",sans-serif'; ctx.fillStyle = '#e0a800'; ctx.fillText('Praia ' + (i + 1), 0, 15);
+  } else {
+    const ant = i - 1, n = Math.min(g.nivel[ant] || 0, NIVEL_ABRE), pronta = g.liberada(i);
+    ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText(AREAS[i], 0, -14);
+    ctx.font = '800 10px "Nunito",sans-serif'; ctx.fillStyle = pronta ? '#2f9e44' : '#8a6a52';
+    ctx.fillText(pronta ? 'Pronta para abrir!' : 'abre com ' + AREAS[ant] + ' nv ' + NIVEL_ABRE, 0, 2);
+    ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillStyle = pronta ? '#2f9e44' : '#e0a800'; ctx.fillText(pronta ? 'compre no quadro' : '(' + n + '/' + NIVEL_ABRE + ')', 0, 16);
+  }
+  ctx.restore();
 }
 function arrowAt(x: number, y: number, col?: string) { const b = reduceMotion ? 0 : Math.sin(g.now / 180) * 5; ctx.fillStyle = col || '#ff4d6d'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y + b); ctx.lineTo(x - 11, y - 16 + b); ctx.lineTo(x - 4, y - 16 + b); ctx.lineTo(x - 4, y - 30 + b); ctx.lineTo(x + 4, y - 30 + b); ctx.lineTo(x + 4, y - 16 + b); ctx.lineTo(x + 11, y - 16 + b); ctx.closePath(); ctx.stroke(); ctx.fill() }
 function arrowUp(x: number, y: number) { ctx.save(); ctx.translate(x, y); ctx.scale(1, -1); arrowAt(0, 0); ctx.restore() }
@@ -504,13 +492,12 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   const P = PRAIAS[Math.min(g.beach, PRAIAS.length - 1)], x0 = camX - 20, x1 = camX + W + 20;
   desenharCenario(ctx, P, { x0, x1, t: reduceMotion ? 0 : g.now, cam: camX }, WORLD_H);
   for (const s of specks) { if (s.x < x0 || s.x > x1) continue; ctx.fillStyle = s.c; circ(s.x, s.y, s.r); ctx.fill() }
-  ctx.fillStyle = 'rgba(255,255,255,0.22)'; rr(10, WALL_Y + 4, 380, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill();
-  LOTS.forEach((l, i) => { if (i && g.S[i]?.open) { rr(l.x0 + 10, WALL_Y + 4, l.x1 - l.x0 - 20, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill() } });
+  ctx.fillStyle = 'rgba(255,255,255,0.22)'; rr(10, WALL_Y + 4, 380, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill(); // o chão da Barraca do Sol
   g.umbrellas.forEach(drawUmbrella);
   drawBarraca(); drawKiosk(); drawServico(); drawBarraca(3); drawQuadra(); drawAmbulantes(); drawEscola(); drawBarraca(7); drawPalco(); drawTorneio();
   for (let a = 0; a < NUM_AREAS; a++) drawEnfeites(a);
-  // lotes fechados: os desta praia e o da próxima; os depois disso não aparecem
-  LOTS.forEach((lot, i) => { if (!lot.praia || i > g.areasPraia() || g.S[i]?.open || lot.x1 < x0 || lot.x0 > x1) return; drawLockedLot(lot, i) });
+  // áreas fechadas: todas aparecem trancadas no lugar delas (pilar 6)
+  LUGARES.forEach((L, i) => { if (i === 0 || g.aberta(i) || L.zona.x + L.zona.w / 2 < x0 || L.zona.x - L.zona.w / 2 > x1) return; drawTrancado(i) });
   for (const v of g.visibleSteps()) { const s = SLOTS[v.s.slot], got = g.paid[v.a + ':' + v.k] || 0; drawPad(s.x, s.y, v.s.name, v.s.price - got, got / v.s.price, v.s.k === 'up', false, v.k !== g.nivel[v.a]) }
   if (g.novaPraiaAberta()) drawPadPraia();
 
