@@ -3,7 +3,7 @@ import { W, H, WORLD_W, WORLD_H, SHORE, WALL_Y, PLAY_BOTTOM, LUGARES, FAIXAS, SH
 import { fmt } from '../core/economia.ts';
 import { NIVEL_ABRE, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
-import { desenharCenario, luz } from './cenarios.ts';
+import { desenharCenario, luz, hash } from './cenarios.ts';
 import { zoneOf, padOf, inZone, NUM_AREAS, type Jogo, type Kind, type Machine, type Umbrella, type Carrier, type Vendedor, type Banhista } from '../core/jogo.ts';
 
 export interface Joy { on: boolean; ox: number; oy: number; x: number; y: number }
@@ -382,25 +382,83 @@ function drawTorneio() {
   else tagTxt(c.x, y0 + c.h + 12, 'Troféus ' + g.trofeus + '/3 · Clientes x' + g.publico().toFixed(2).replace('.', ','));
 }
 
-/* ---------- Banhistas (desenho simples; o acabamento é da parte B2, docs/MOLDE-ORLA.md) ---------- */
+/* ---------- Banhistas (docs/MOLDE-ORLA.md, item B2) ---------- */
 const CANGAS = ['#ff6b6b', '#4dabf7', '#ffd43b', '#69db7c', '#f783ac', '#9775fa'];
+const BAN_SKINS = ['#f1c6a0', '#d9a37a', '#a8714c', '#7a4b2e', '#e8b48e'];
+const BAN_HAIRS = ['#2b1d14', '#5a3825', '#8a5a2b', '#e0b04a', '#1a1a1a', '#b5651d'];
+const BAN_CAPS = ['#e8590c', '#1c7ed6', '#2f9e44', '#e64980', '#f59f00'];
+
+/** Guarda-sol pequeno com cadeira ao lado de uma canga (às vezes). */
+function guardaSolCanga(x: number, y: number, i: number) {
+  const cor = CANGAS[i % CANGAS.length];
+  shadow(x, y + 6, 14);
+  ctx.fillStyle = '#a26b2f'; ctx.fillRect(x + 8, y - 2, 12, 3); ctx.fillRect(x + 8, y - 9, 12, 3); // cadeira
+  ctx.strokeStyle = '#495057'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x + 8, y + 6); ctx.lineTo(x + 9, y - 9); ctx.moveTo(x + 20, y + 6); ctx.lineTo(x + 19, y - 9); ctx.stroke();
+  ctx.strokeStyle = '#9c8660'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - 6, y + 6); ctx.lineTo(x - 6, y - 24); ctx.stroke(); // haste
+  ctx.fillStyle = cor; ctx.beginPath(); ctx.ellipse(x - 6, y - 22, 15, 8, 0, Math.PI, 0); ctx.fill(); // cúpula
+  ctx.fillStyle = 'rgba(255,255,255,0.65)'; ctx.beginPath(); ctx.ellipse(x - 6, y - 22, 15, 8, 0, Math.PI, Math.PI * 1.5); ctx.fill();
+}
+
+/** Castelinho de areia na frente da criança. */
+function castelinhoBanhista(x: number, y: number) {
+  const yb = y + 12;
+  ctx.fillStyle = '#e9c98b'; ctx.fillRect(x - 9, yb - 6, 18, 6);
+  ctx.fillStyle = '#dcb877'; ctx.fillRect(x - 11, yb - 12, 6, 12); ctx.fillRect(x + 5, yb - 12, 6, 12);
+  ctx.fillStyle = '#c9a368'; ctx.fillRect(x - 2, yb - 4, 4, 4);
+  ctx.strokeStyle = '#8d5a2b'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x + 7, yb - 12); ctx.lineTo(x + 7, yb - 18); ctx.stroke();
+  ctx.fillStyle = '#ff6b6b'; ctx.beginPath(); ctx.moveTo(x + 7, yb - 18); ctx.lineTo(x + 12, yb - 16); ctx.lineTo(x + 7, yb - 14); ctx.closePath(); ctx.fill(); // bandeirinha
+}
+
 function drawBanhista(b: Banhista, q: { x: number; y: number; acao: string; face: number; walk: number }) {
-  const shirt = SHIRTS_Q[b.cor % SHIRTS_Q.length], skin = ['#f1c6a0', '#d9a37a', '#a8714c', '#7a4b2e', '#e8b48e'][b.cor % 5];
-  if (q.acao === 'nada') { // cabeça e braços na água, com uma marola em volta
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(q.x, q.y + 4, 12, 4, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = skin; circ(q.x, q.y - 2, 5); ctx.fill(); return;
+  const shirt = SHIRTS_Q[b.cor % SHIRTS_Q.length], skin = BAN_SKINS[b.cor % BAN_SKINS.length], hair = BAN_HAIRS[b.cor % BAN_HAIRS.length];
+  if (q.acao === 'nada') { // no mar: cabeça, braços batendo e marola em volta
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(q.x, q.y + 4, 14, 4.5, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(q.x, q.y + 4, 9, 2.6, 0, 0, Math.PI * 2); ctx.stroke();
+    const s = reduceMotion ? 0 : Math.sin(g.now / 160 + b.cor) * 3;
+    ctx.strokeStyle = skin; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(q.x - 5, q.y + 3); ctx.lineTo(q.x - 9, q.y - 1 + s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(q.x + 5, q.y + 3); ctx.lineTo(q.x + 9, q.y - 1 - s); ctx.stroke();
+    ctx.fillStyle = shirt; rr(q.x - 6, q.y - 3, 12, 7, 3); ctx.fill();
+    ctx.fillStyle = skin; circ(q.x, q.y - 6, 4.6); ctx.fill(); ctx.fillStyle = hair; ctx.beginPath(); ctx.arc(q.x, q.y - 6, 4.6, Math.PI, Math.PI * 2); ctx.fill();
+    return;
   }
-  if (q.acao === 'canga') { // deitado na canga
-    ctx.fillStyle = CANGAS[b.cor % CANGAS.length]; rr(q.x - 16, q.y - 8, 32, 14, 2); ctx.fill();
-    ctx.fillStyle = shirt; rr(q.x - 8, q.y - 5, 14, 8, 3); ctx.fill(); ctx.fillStyle = skin; circ(q.x - 11, q.y - 1, 4); ctx.fill(); ctx.fillRect(q.x + 6, q.y - 3, 8, 4); return;
+  if (q.acao === 'canga') { // deitado na canga (de bruços ou de barriga para cima, pelo b.cor)
+    const cor = CANGAS[b.cor % CANGAS.length], brucos = b.cor % 2 === 0, f = q.face || 1;
+    ctx.save(); ctx.translate(q.x, q.y); ctx.rotate((hash(b.cor) - 0.5) * 0.12);
+    ctx.fillStyle = cor; rr(-19, -9, 38, 17, 3); ctx.fill(); // canga
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.fillRect(-19, -9, 38, 3); ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(-19, 5, 38, 3);
+    ctx.fillStyle = skin; ctx.fillRect(2, -5, 13, 4); ctx.fillRect(2, 1, 13, 4); // pernas
+    ctx.fillStyle = shirt; rr(-7, -7, 16, 13, 4); ctx.fill(); // tronco
+    ctx.fillStyle = skin; circ(-13, -1, 5); ctx.fill(); // cabeça
+    ctx.fillStyle = hair; ctx.beginPath(); ctx.arc(-13, -1, 5, brucos ? Math.PI : 0.4, brucos ? Math.PI * 2 : Math.PI - 0.4); ctx.fill();
+    if (brucos) { ctx.fillStyle = hair; ctx.beginPath(); ctx.arc(-13, -1, 5, Math.PI, Math.PI * 2); ctx.fill() }
+    ctx.restore();
+    if (b.cor % 4 === 0) guardaSolCanga(q.x + 28, q.y, b.cor);
+    return;
   }
   ctx.save(); ctx.translate(q.x, q.y); if (b.crianca) ctx.scale(0.7, 0.7);
-  drawPerson(0, 0, { shirt, skin, walk: q.walk, face: q.face, hat: b.cor % 3 === 0, hairStyle: b.cor % 5, hair: ['#2b1d14', '#5a3825', '#e0b04a'][b.cor % 3] });
-  if (q.acao === 'frescobol') { ctx.fillStyle = '#8d5a2b'; ctx.beginPath(); ctx.ellipse(q.face * 12, -26, 4, 5, 0, 0, Math.PI * 2); ctx.fill() }
-  if (q.acao === 'brinca') { ctx.fillStyle = '#ff922b'; rr(10, -6, 9, 8, 2); ctx.fill() } // baldinho
+  const hat = !b.crianca && b.cor % 3 === 0, cap = !hat && !b.crianca && b.cor % 5 === 1 ? BAN_CAPS[b.cor % BAN_CAPS.length] : undefined;
+  drawPerson(0, 0, { shirt, skin, walk: q.walk, face: q.face, hat, cap, shades: b.cor % 7 === 2, hairStyle: b.cor % 5, hair, shorts: SHORTS[(b.cor * 3 + 1) % SHORTS.length] });
+  if (q.acao === 'anda' && b.cor % 4 === 1) { // bolsa de praia
+    ctx.fillStyle = CANGAS[(b.cor + 2) % CANGAS.length]; rr(q.face > 0 ? 9 : -17, -20, 8, 9, 2); ctx.fill();
+    ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(q.face > 0 ? 13 : -9, -20, 3, Math.PI, 0); ctx.stroke();
+  }
+  if (q.acao === 'frescobol') { // raquete na mão
+    ctx.save(); ctx.translate(q.face * 13, -24); ctx.rotate(q.face * 0.3);
+    ctx.fillStyle = '#f08c00'; ctx.beginPath(); ctx.ellipse(0, -4, 4, 5.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#8d5a2b'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(0, 1); ctx.lineTo(0, 6); ctx.stroke(); ctx.restore();
+  }
+  if (q.acao === 'brinca') { // baldinho e pá
+    ctx.fillStyle = '#ff922b'; ctx.beginPath(); ctx.moveTo(-2, -2); ctx.lineTo(8, -2); ctx.lineTo(6, 6); ctx.lineTo(0, 6); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#e8590c'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(3, -2, 5, Math.PI, 0); ctx.stroke();
+    ctx.strokeStyle = '#8d5a2b'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-6, 4); ctx.lineTo(-10, -6); ctx.stroke();
+    ctx.fillStyle = '#ced4da'; ctx.beginPath(); ctx.ellipse(-11, -8, 3, 4, -0.4, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
-  // a bola do frescobol vai e volta entre a dupla
-  if (q.acao === 'frescobol' && b.lado > 0 && !reduceMotion) { const k = (Math.sin(g.now / 300 + b.cor) + 1) / 2; ctx.fillStyle = '#fff'; circ(q.x + 10 + 24 * k, q.y - 30 - Math.sin(k * Math.PI) * 10, 2.5); ctx.fill() }
+  if (q.acao === 'brinca') castelinhoBanhista(q.x, q.y);
+  // a bola do frescobol vai e volta entre a dupla (só o lado > 0 a desenha)
+  if (q.acao === 'frescobol' && b.lado > 0) { const k = reduceMotion ? 0.5 : (Math.sin(g.now / 300 + b.cor) + 1) / 2; ctx.fillStyle = '#fff'; circ(q.x + 10 + 24 * k, q.y - 30 - Math.sin(k * Math.PI) * 10, 2.5); ctx.fill() }
 }
 
 /* ---------- Área 6: ambulantes ---------- */
