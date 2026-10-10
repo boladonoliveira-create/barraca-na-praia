@@ -188,8 +188,44 @@ const veleiros: Enfeite = (c, e) => {
   });
 };
 
+/** Reflexo do sol: faixa de brilho tremulando na água, embaixo do sol baixo (mesma coluna do enfeite 'sol'). */
+const reflexo: Enfeite = (c, e) => {
+  const x = e.cam + 320;
+  for (let k = 0; k < 9; k++) {
+    const y = HORIZONTE + 3 + k * 6, w = (14 - k) * 1.6 + hash(k) * 6, wob = Math.sin(e.t / 700 + k) * 5;
+    c.fillStyle = `rgba(255,190,110,${0.5 - k * 0.04})`; c.fillRect(x - w / 2 + wob, y, w, 2);
+  }
+};
+
+/** Bandeirinhas: cordão de bandeirinhas coloridas entre dois postes no céu. */
+const bandeirinhas: Enfeite = (c, e) => {
+  cada(e, 340, (x, i) => {
+    const y0 = HORIZONTE - 22, meio = 5 + hash(i) * 3, sag = (u: number) => y0 + Math.sin(u * Math.PI) * meio;
+    c.strokeStyle = 'rgba(90,60,30,0.7)'; c.lineWidth = 1.5; c.beginPath();
+    for (let u = 0; u <= 1.001; u += 0.1) { const xx = x + u * 340, yy = sag(u); u === 0 ? c.moveTo(xx, yy) : c.lineTo(xx, yy) } c.stroke();
+    c.fillStyle = '#a0713c'; c.fillRect(x - 2, y0, 4, HORIZONTE - y0); c.fillRect(x + 338, y0, 4, HORIZONTE - y0);
+    const cores = ['#e03131', '#f08c00', '#fcc419', '#37b24d', '#1971c2', '#f783ac'];
+    for (let k = 0; k < 10; k++) {
+      const u = (k + 0.5) / 10, xx = x + u * 340, yy = sag(u);
+      c.fillStyle = cores[((i * 10 + k) % 6 + 6) % 6];
+      c.beginPath(); c.moveTo(xx - 4, yy); c.lineTo(xx + 4, yy); c.lineTo(xx, yy + 9); c.closePath(); c.fill();
+    }
+  });
+};
+
+/** Faixas: faixas de campeonato esticadas no horizonte, com painéis coloridos em sequência. */
+const faixas: Enfeite = (c, e) => {
+  cada(e, 300, (x, i) => {
+    const y = HORIZONTE - 26, w = 300;
+    c.fillStyle = '#f8f9fa'; c.fillRect(x, y, w, 10);
+    const cores = ['#e03131', '#1971c2', '#f08c00'];
+    for (let k = 0; k < 6; k++) { c.fillStyle = cores[((i + k) % 3 + 3) % 3]; c.fillRect(x + k * 50, y, 25, 10) }
+    c.fillStyle = '#343a40'; c.fillRect(x - 2, y - 3, 4, 16); c.fillRect(x + w - 2, y - 3, 4, 16);
+  });
+};
+
 /** Todos os enfeites, pelo id usado em PRAIAS[b].enfeites. Enfeite novo: uma função aqui e o id na praia. */
-export const ENFEITES: Record<string, Enfeite> = { sol, nuvens, gaivotas, boias, ilha, navio, jangadas, farol, pedras, coqueiros, muralha, barquinhos, ondasGrandes, pranchas, veleiros };
+export const ENFEITES: Record<string, Enfeite> = { sol, nuvens, gaivotas, boias, ilha, navio, jangadas, farol, pedras, coqueiros, muralha, barquinhos, ondasGrandes, pranchas, veleiros, reflexo, bandeirinhas, faixas };
 
 /* ---------- Cenário ---------- */
 

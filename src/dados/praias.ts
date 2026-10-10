@@ -33,6 +33,8 @@ export const PRAIAS: Praia[] = [
     enfeites: ['sol', 'nuvens', 'ondasGrandes', 'gaivotas', 'pranchas'] },
   { nome: 'Baía Azul', area: 'Sucos e vitaminas', mar: ['#0a58b8', '#2fa8f0'], areia: '#f5e2b2', ceu: ['#6cc0f7', '#dff3ff'], hora: 'tarde',
     enfeites: ['sol', 'nuvens', 'veleiros', 'gaivotas', 'boias'] },
-  { nome: 'Praia do Pôr do Sol', area: 'Palco de pagode', mar: ['#3a4f8f', '#d9886a'], areia: '#efcf9e', ceu: ['#f08a4b', '#ffd59a'], hora: 'porDoSol', enfeites: ['sol'] },
-  { nome: 'Praia do Campeonato', area: 'Torneio de futevôlei', mar: ['#12679a', '#3cb2d8'], areia: '#f4dfae', ceu: ['#7cc8f2', '#e2f4ff'], hora: 'tarde', enfeites: ['sol'] },
+  { nome: 'Praia do Pôr do Sol', area: 'Palco de pagode', mar: ['#3a4f8f', '#d9886a'], areia: '#efcf9e', ceu: ['#f08a4b', '#ffd59a'], hora: 'porDoSol',
+    enfeites: ['sol', 'nuvens', 'reflexo', 'gaivotas'] },
+  { nome: 'Praia do Campeonato', area: 'Torneio de futevôlei', mar: ['#12679a', '#3cb2d8'], areia: '#f4dfae', ceu: ['#7cc8f2', '#e2f4ff'], hora: 'tarde',
+    enfeites: ['sol', 'nuvens', 'faixas', 'bandeirinhas', 'gaivotas'] },
 ];
