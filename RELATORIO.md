@@ -4,93 +4,93 @@ Resultado: EM ANDAMENTO
 Commit: (preenchido no fim)
 
 ## Partes
-- [x] Parte 0: trabalho interrompido salvo.
-- [x] Parte A: consentimento de anúncios (UMP).
-- [x] Parte B: progressão por áreas independentes.
+- [x] Parte 0: trabalho interrompido salvo (commit `0ee98cb`).
+- [x] Parte A: consentimento de anúncios (UMP) (commit `c631874`).
+- [x] Parte B: progressão por áreas independentes (commit `5447287`).
 - [ ] Parte C: área 5, quadra de futevôlei.
 
 ## Parte 0: estado encontrado
-- `git status`: 9 arquivos de código modificados sem commit (`src/core/economia.ts`, `jogo.ts`, `jogo.test.ts`, `simulador.ts`, `simulador.test.ts`, `src/dados/mapa.ts`, `planos.ts`, `src/main.ts`, `src/render/desenho.ts`), 405 linhas a mais e 34 a menos, e o `ROTEIRO.md` atualizado pelo revisor.
-- `npm test`: 6 arquivos, 35 testes passando.
-- `npm run build`: ok.
-- O que existia: as mecânicas do chuveirão, das cadeiras, do milho e do pastel, o salva-vidas e o cozinheiro no núcleo; o desenho dessas áreas; o bot do simulador operando tudo isso; e a lista de compras intercalada (`SERV_AT`, `PREP_AT`), que esta rodada descarta.
+- **`git status`:** 9 arquivos de código modificados sem commit, com 405 linhas a mais e 34 a menos, e o `ROTEIRO.md` atualizado pelo revisor. Os arquivos: `src/core/economia.ts`, `jogo.ts`, `jogo.test.ts`, `simulador.ts`, `simulador.test.ts`, `src/dados/mapa.ts`, `planos.ts`, `src/main.ts` e `src/render/desenho.ts`.
+- **`npm test`:** 6 arquivos, 35 testes passando.
+- **`npm run build`:** ok.
+- **O que existia:**
+  - no núcleo, as mecânicas do chuveirão, das cadeiras, do milho e do pastel, mais o salva-vidas e o cozinheiro;
+  - o desenho dessas áreas;
+  - o bot do simulador operando tudo isso;
+  - a lista de compras intercalada (`SERV_AT`, `PREP_AT`), que esta rodada descarta.
 
 ## Parte A: consentimento (UMP)
-- `src/plataforma/anuncios.ts`, em `iniciarAnuncios`: depois do `AdMob.initialize`, chama `requestConsentInfo`; se o status for `REQUIRED` e houver formulário, chama `showConsentForm`. Se `canRequestAds` vier falso, devolve `null` e o app segue sem anúncios (a UI usa o anúncio simulado nos botões "Dinheiro em dobro" e "Dobrar").
-- Copiado e adaptado do Metrô Lotado, sem código compartilhado entre os jogos.
-- No navegador nada muda: `iniciarAnuncios` sai antes, como já fazia.
-- `npm test` (35 testes) e `npm run build` passam. Não testado num aparelho (o APK depende do Android Studio).
+- **Onde:** `src/plataforma/anuncios.ts`, em `iniciarAnuncios`.
+- **Como funciona:** depois do `AdMob.initialize`, chama `requestConsentInfo`. Se o status for `REQUIRED` e houver formulário, chama `showConsentForm`. Se `canRequestAds` vier falso, devolve `null` e o app segue sem anúncios; a UI usa o anúncio simulado.
+- **Origem:** copiado e adaptado do Metrô Lotado, sem código compartilhado entre os jogos.
+- **No navegador:** nada muda, porque `iniciarAnuncios` sai antes, como já fazia.
 
 ## Parte B: progressão por áreas independentes
 
 ### Estrutura
-- **Trilhas por área** ():
-  -  e  (uma trilha por área), mais  (melhorias repetidas depois da lista fixa).
-  - ,  e .
-  -  com ,  e  por área.
-  - A lista única e a ordem intercalada (, , ) foram removidas.
-- **Núcleo** (): no lugar de  e , entram  e .
-  - : em cada área aberta, a próxima compra e uma prévia da seguinte; de uma área fechada, só o quadro de abrir, e só quando .
-  - : compra o próximo nível da área.
-  - : ×2 por marco no preço de venda da área (incluindo banho e cadeira).
-  - : com o cofre, a venda vai direto ao caixa.
-  - : custo-benefício; abrir área vale ×3, chegar a um marco ou ao nível que abre a próxima vale ×2.
-  - : efeito dos marcos (confete, "Barraca do Sol nível 5!", "Produção x2", vibração).
-  - O turbo agora é por área ( na Barraca,  no depósito do sorvete). Antes, o turbo da Barraca acelerava o depósito do sorvete.
-- **Melhorias novas:** cofre automático em cada área,  e  no Sorvete,  no Chuveirão,  no Milho e pastel.
-- **Lugares no chão:** dentro de cada área (). O quadro de abrir uma área fica na cerca dela.
-- **Desenho** ():
-  - placas com progresso: "abre com Barraca do Sol nv 5 (3/5)" e, depois, "Pronta para abrir: compre na cerca";
+- **Trilhas por área** (`src/dados/planos.ts`):
+  - `AREAS` e `TRILHAS` (uma trilha por área), mais `CAUDAS` (melhorias repetidas depois da lista fixa);
+  - `NIVEL_ABRE = 5`, `MARCOS = [5, 10, 15, 20]` e `NIVEL_PRESTIGIO = 10`;
+  - `ECONOMIA` com `abrir`, `base` e `cresce` por área;
+  - a lista única e a ordem intercalada (`SERV_AT`, `PREP_AT`, `PRESTIGE_AFTER`) foram removidas.
+- **Núcleo** (`src/core/jogo.ts`): no lugar de `plan`/`done`, entram `trilhas` e `nivel[]`.
+  - `visibleSteps()`: em cada área aberta, a próxima compra e uma prévia da seguinte. De uma área fechada, só o quadro de abrir, e só quando `liberada(a)`.
+  - `applyStep(a)`: compra o próximo nível da área.
+  - `marco(a)`: ×2 por marco no preço de venda da área, incluindo banho e cadeira.
+  - `receber()`: com o cofre, a venda entra direto no caixa.
+  - `melhorCompra()`: custo-benefício. Abrir uma área vale ×3; chegar a um marco ou ao nível que abre a próxima vale ×2.
+  - `comemorar()`: efeito dos marcos (confete, "Barraca do Sol nível 5!", "Produção x2", vibração).
+  - **Turbo por área:** agora há `turbo` na Barraca e `turboS` no depósito do sorvete. Antes, o turbo da Barraca acelerava também o depósito do sorvete.
+- **Melhorias novas:**
+  - cofre automático em cada área;
+  - "Depósito rápido" e "Mais um sorveteiro" no Sorvete;
+  - "Banho caprichado" no Chuveirão;
+  - "Mais um cozinheiro" no Milho e pastel.
+- **Lugares no chão:** dentro de cada área (`src/dados/mapa.ts`). O quadro de abrir uma área fica na cerca dela.
+- **Desenho** (`src/render/desenho.ts`):
+  - placa com progresso: "abre com Barraca do Sol nv 5 (3/5)" e, depois, "Pronta para abrir: compre na cerca";
   - prévia apagada ("depois");
   - selo "Nv N ★" ao lado do balcão;
-  - visual dos marcos: bandeirinhas, selo dourado, luzinhas, moldura dourada;
-  - um cofre no lugar da pilha de dinheiro;
-  - a seta aponta a melhor compra que cabe no bolso.
-- **HUD:** "próximo" mostra a sugestão ("Barraca do Sol: Mais um guarda-sol"), e o texto da nova praia foi atualizado.
+  - visual dos marcos: bandeirinhas, selo dourado, luzinhas e moldura dourada;
+  - cofre no lugar da pilha de dinheiro;
+  - seta para a melhor compra que cabe no bolso.
+- **HUD:** "próximo" mostra a sugestão ("Barraca do Sol: Mais um guarda-sol"), e o texto da tela de nova praia foi atualizado.
 - **Mecânicas das áreas 3 e 4:** reaproveitadas da rodada interrompida (chuveirão, cadeiras, salva-vidas, milho, pastel, cozinheiro).
-- **Salvamento:** , com  por área.
-  - **Aviso:** saves antigos (v1, v2 e o do protótipo) **recomeçam do zero**, sem conversão, como o roteiro permite.
-- **Simulador** (, ): o bot escolhe a melhor compra entre as áreas abertas e mede o ritmo por fase (de uma área aberta até a próxima).
+- **Salvamento:** `SAVE_VERSION = 3`, com `niveis` por área. **Aviso:** saves antigos (v1, v2 e o do protótipo) **recomeçam do zero**, sem conversão, como o roteiro permite.
+- **Simulador** (`src/core/simulador.ts` e `scripts/sim.ts`): o bot escolhe a melhor compra entre as áreas abertas e mede o ritmo por fase (de uma área aberta até a próxima).
 - **GDD:** seções 6, 7 e 8 reescritas com a estrutura nova.
 
 ### Testes novos
-- .
--  (preços, velocidade, capacidades e cozimento das outras áreas, nos dois sentidos).
-- .
-- .
-- .
--  e .
-- Prestígio só com as 4 áreas no nível 10.
-- Salvar e carregar por área.
-- Salva-vidas e cozinheiro sem travar por 10 min.
-- A fila do chuveirão para com a caixa vazia.
-- Cadeira bagunçada não é alugada.
-- Ritmo das 4 áreas.
+- a área N+1 só abre com a área N no nível mínimo;
+- melhorias de uma área não alteram outra (preços, velocidade, capacidades e cozimento das outras áreas, nos dois sentidos);
+- marcos nos níveis 5, 10, 15 e 20 dobram o que a área gera;
+- com o cofre automático, a venda entra direto no caixa;
+- a seta sugere a melhor compra que cabe no bolso;
+- 1 ou 2 por área, em quadrados diferentes e dentro da própria área; a 2ª compra só é paga depois da 1ª;
+- prestígio só com as 4 áreas no nível 10;
+- salvar e carregar por área;
+- salva-vidas e cozinheiro sem travar por 10 minutos;
+- a fila do chuveirão para com a caixa vazia e volta ao encher;
+- cadeira bagunçada não é alugada;
+- ritmo das 4 áreas.
 
-Resultado: Unknown command: "test"
+`npm test`: 6 arquivos, 40 testes passando. `npm run build`: ok.
 
-
-Did you mean this?
-  npm test # Test a package
-To see a list of supported npm commands, run:
-  npm help com 6 arquivos e 40 testes passando;  ok.
-
-### Conferido no navegador (porta 5175, modo ∞)
-Em 390×844 e 360×640:
+### Conferido no navegador (porta 5175, modo ∞, em 390×844 e 360×640)
 - Barraca com a placa do Sorvete "(3/5)".
-- Nível 5: comemoração, bandeirinhas, quadro de abrir o Sorvete na cerca e placa "Pronta para abrir".
-- Cofre no lugar da pilha (vendas entrando direto).
+- Nível 5: comemoração, bandeirinhas, o quadro de abrir o Sorvete na cerca e a placa "Pronta para abrir".
+- Cofre no lugar da pilha, com as vendas entrando direto no caixa.
 - Seta apontando "Mais um guarda-sol".
 - Barraca no nível 20, com moldura dourada e luzinhas.
-- Sorvete, Chuveirão (salva-vidas no registro, cadeiras ocupadas) e Milho e pastel (panela cozinhando, cozinheiro levando pastéis), cada um com o seu selo de nível.
+- Sorvete; Chuveirão com o salva-vidas no registro e cadeiras ocupadas; Milho e pastel com a panela cozinhando e o cozinheiro levando pastéis. Cada área com o seu selo de nível.
 - Placa "Quadra de futevôlei · em breve".
 
-Corrigi o que apareceu nessa conferência:
+O que apareceu nessa conferência e foi corrigido:
 - o selo de nível cobria a plaquinha de preço e invadia o lote vizinho;
 - o título longo da placa saía cortado;
 - com o cofre, o tutorial ficava parado esperando o jogador recolher uma pilha que não existe mais.
 
-### Tabela do simulador (npm run sim, bot humano, semente 1)
+### Tabela do simulador (`npm run sim`, bot humano, semente 1)
 ```
 Bot humano, semente 1
 Fase 1    19.3 s  Barraca do Sol  nv  1  Máquina de açaí 2 (R$ 100)
