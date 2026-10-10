@@ -639,14 +639,21 @@ function drawTrancado(i: number) {
   if (i === 9 && !g.aberta(4)) return; // o torneio usa a quadra: enquanto ela não abre, a placa dela já diz o lugar
   const so = i === 9; // com a quadra aberta, o torneio só mostra a placa, ao lado dela
   if (!so) {
-    rr(r.x - r.w / 2, r.y - r.h / 2, r.w, r.h, 14); ctx.fillStyle = 'rgba(58,35,22,0.06)'; ctx.fill();
-    ctx.setLineDash([8, 6]); ctx.strokeStyle = 'rgba(138,106,82,0.6)'; ctx.lineWidth = 2.5; ctx.stroke(); ctx.setLineDash([]);
+    // chão levemente mais escuro, com o tracejado na cor da faixa (areia, grama ou calçadão)
+    const f = r.y < FAIXAS.areia.y1 ? ['rgba(120,80,30,0.10)', 'rgba(138,106,82,0.6)']
+      : r.y < FAIXAS.grama.y1 ? ['rgba(40,110,40,0.10)', 'rgba(74,124,68,0.65)']
+        : r.y < FAIXAS.calcadao.y1 ? ['rgba(60,70,90,0.10)', 'rgba(110,120,135,0.7)']
+          : ['rgba(20,20,30,0.14)', 'rgba(90,90,100,0.7)'];
+    rr(r.x - r.w / 2, r.y - r.h / 2, r.w, r.h, 14); ctx.fillStyle = f[0]; ctx.fill();
+    ctx.setLineDash([8, 6]); ctx.strokeStyle = f[1]; ctx.lineWidth = 2.5; ctx.stroke(); ctx.setLineDash([]);
   }
   const px = so ? r.x + r.w / 2 - 80 : r.x, py = so ? r.y - r.h / 2 + 46 : r.y;
   ctx.save(); ctx.translate(px, py); ctx.rotate(-0.03);
-  ctx.fillStyle = '#a26b2f'; ctx.fillRect(-3, 20, 6, 26); // estaca
-  ctx.fillStyle = '#fff3c4'; rr(-76, -30, 152, 56, 10); ctx.fill(); ctx.strokeStyle = '#e0b84f'; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.fillStyle = '#8a6a52'; ctx.beginPath(); ctx.arc(0, -32, 6, Math.PI, 0); ctx.lineWidth = 3; ctx.strokeStyle = '#8a6a52'; ctx.stroke(); ctx.fillRect(-7, -32, 14, 10);
+  ctx.fillStyle = '#8d5a2b'; ctx.fillRect(-3, 20, 6, 26); ctx.fillStyle = '#6b4a2a'; ctx.fillRect(-1, 22, 1.6, 22); // estaca
+  ctx.fillStyle = '#e0b87a'; rr(-76, -30, 152, 56, 10); ctx.fill(); ctx.strokeStyle = '#a26b2f'; ctx.lineWidth = 3; ctx.stroke(); // tábua
+  ctx.strokeStyle = 'rgba(138,106,82,0.35)'; ctx.lineWidth = 1; for (const gy of [-12, 0, 12]) { ctx.beginPath(); ctx.moveTo(-66, gy); ctx.lineTo(66, gy); ctx.stroke() }
+  ctx.strokeStyle = '#8a6a52'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, -32, 6, Math.PI, 0); ctx.stroke(); // cadeado
+  ctx.fillStyle = '#f0c674'; rr(-8, -32, 16, 12, 3); ctx.fill(); ctx.strokeStyle = '#a26b2f'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = '#8a6a52'; circ(0, -26, 1.8); ctx.fill();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#3a2316'; ctx.font = '800 10px "Nunito",sans-serif';
   if (futura) {
     ctx.fillText('TRANCADO', 0, -15);
