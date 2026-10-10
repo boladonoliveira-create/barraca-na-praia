@@ -51,6 +51,7 @@ body{height:100%;background:var(--sand);color:var(--ink);font-family:var(--f-ui)
 #litoralMapa .feita .sub{fill:var(--money)}
 #litoralMapa .trancada .nome{fill:var(--muted)}
 #barco{transition:transform 1.6s ease-in-out}
+.arena svg{width:100%;max-width:220px;display:block;margin:0 auto}
 .praia-nome{position:absolute;left:0;right:0;top:34%;text-align:center;pointer-events:none;font:800 clamp(34px,10vw,48px)/1 var(--f-display);color:#fff;text-shadow:0 3px 0 var(--acai),0 6px 18px rgba(58,35,22,.4);animation:nome 2.6s ease forwards}
 @keyframes nome{0%{opacity:0;transform:scale(.8)}15%{opacity:1;transform:scale(1)}75%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){#barco{transition:none}.praia-nome{animation-duration:.01s;animation-delay:2s}}

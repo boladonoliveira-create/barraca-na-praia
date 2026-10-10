@@ -24,7 +24,7 @@ const previa = testEnabled ? Math.min(10, Number(new URLSearchParams(location.se
 const save = () => { if (!previa) gravarSave(g.snapshot()) }, prefs = lerPrefs();
 const g = new Jogo({
   tone, fanfare, buzz, save, goal: () => hud.goal(),
-  viagem: (fama, minutos) => hud.viagem(fama, minutos),
+  viagem: (fama, minutos) => hud.viagem(fama, minutos), campeao: () => hud.campeao(),
   compra: (praia, area, nivel, segundos) => analytics.registrar('step_buy', { praia, area, nivel, segundos: Math.round(segundos) }),
 });
 g.testMode = testEnabled && prefs.teste;

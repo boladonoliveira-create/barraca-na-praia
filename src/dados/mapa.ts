@@ -5,7 +5,7 @@ export const SHORE = 118, WALL_Y = 326, PLAY_BOTTOM = 742;
 export interface Rect { x: number; y: number; w: number; h: number }
 /** faixa: lote dentro da faixa grande de areia da Praia 7 (sem cerca e sem silhueta; só a placa, quando é da praia atual). */
 export interface Lot { x0: number; x1: number; title?: string; praia?: number; kind?: string; faixa?: boolean }
-export type Item = 'acai' | 'coco' | 'sorvete' | 'caixa' | 'milho' | 'pastel' | 'milhoCru' | 'pastelCru' | 'mate' | 'biscoito' | 'prancha';
+export type Item = 'acai' | 'coco' | 'sorvete' | 'caixa' | 'milho' | 'pastel' | 'milhoCru' | 'pastelCru' | 'mate' | 'biscoito' | 'prancha' | 'laranja' | 'acaiBanana' | 'sucoLaranja' | 'sucoAcai';
 
 export const LOTS: Lot[] = [
   { x0: 0, x1: 400 },
@@ -36,6 +36,10 @@ export const PRODUCTS: Record<Item, { price: number; rate: number; shop: number 
   mate: { price: 30, rate: 1100, shop: 5 },
   biscoito: { price: 40, rate: 1300, shop: 5 },
   prancha: { price: 0, rate: 0, shop: 6 }, // prancha molhada na mão: vai para a arara
+  laranja: { price: 0, rate: 750, shop: -1 },
+  acaiBanana: { price: 0, rate: 850, shop: -1 },
+  sucoLaranja: { price: 90, rate: 0, shop: 7 },
+  sucoAcai: { price: 120, rate: 0, shop: 7 },
 };
 export const BOX_SORVETES = 6, BOX_MAX_CARRY = 3;
 
@@ -63,7 +67,25 @@ export const SHOPS: Shop[] = [
   // Área 7: serviço com fila. "counter" é a arara das pranchas; "drop" é onde se pendura a prancha molhada (ESCOLA)
   { kind: 'escola', name: 'ESCOLINHA DE SURF', cx: 1850, products: [], side: 1, base: 1900, spawnX: 0,
     counter: { x: 1860, y: 298, w: 170, h: 30 }, drop: { x: 1860, y: 366, w: 120, h: 44 }, cash: { x: 1960, y: 390 } },
+  // Área 8: preparo e venda (como o milho): a fruta vai da caixa para a liquidificadora, o copo vai para o balcão
+  { kind: 'counter', name: 'SUCOS E VITAMINAS', cx: 2150, products: ['sucoLaranja', 'sucoAcai'], side: 1, base: 1500, spawnX: 2340,
+    counter: { x: 2150, y: 300, w: 200, h: 40 }, drop: { x: 2150, y: 360, w: 104, h: 44 }, cash: { x: 2246, y: 362 } },
+  // Área 9: atração em evento. Não vende: "counter" é o palco
+  { kind: 'atracao', name: 'PALCO DE PAGODE', cx: 2450, products: [], side: 1, base: 0, spawnX: 0,
+    counter: { x: 2450, y: 236, w: 180, h: 100 }, drop: { x: 2450, y: 372, w: 0, h: 0 }, cash: { x: 2450, y: 372 } },
+  // Área 10: o torneio (meta do lançamento). "counter" é a quadra do torneio
+  { kind: 'atracao', name: 'TORNEIO', cx: 2750, products: [], side: 1, base: 0, spawnX: 0,
+    counter: { x: 2750, y: 236, w: 170, h: 104 }, drop: { x: 2750, y: 372, w: 0, h: 0 }, cash: { x: 2750, y: 372 } },
 ];
+
+/** Área 9: de tempos em tempos um show junta multidão e multiplica a chegada de clientes em todas as áreas, só durante o show.
+    intervalo = max(intervaloMin, intervaloMs - intervaloMenos × "intervalo"); show = showMs + showMais × "showLongo";
+    bônus do show = (bonus + bonusPorNivel × "bonusShow") × marco do palco. "somMelhor" é só visual. */
+export const PALCO = { intervaloMs: 240000, intervaloMenos: 25000, intervaloMin: 120000, showMs: 60000, showMais: 15000, bonus: 0.5, bonusPorNivel: 0.15 };
+
+/** Área 10: 3 etapas em ordem. Cada uma é uma compra e uma partida de partidaMs; vencida, dá um troféu, que soma
+    bonusTrofeu de público para sempre (nesta e nas próximas praias). Arquibancada e patrocínio somam público como a quadra. */
+export const TORNEIO = { etapas: ['Classificatória', 'Semifinal', 'Final'], partidaMs: [40000, 55000, 70000], bonusTrofeu: 0.15, arquibT: 0.08, patrocinio: 0.06 };
 
 /** Área 6: os carrinhos de isopor. O jogador abastece o carrinho parado na vaga; cheio, ele sai com um vendedor pela
     faixa de cima da areia (a dos clientes, onde o jogador não anda), vende sozinho e volta vazio. */
@@ -101,10 +123,15 @@ export const SERVICO = {
 
 /** Praia 4: panelas e fritadeira cozinham em lote o que recebem cru. */
 export const PREPARO = {
-  milho: { cru: 'milhoCru' as Item, cozinharMs: 5000 },
-  pastel: { cru: 'pastelCru' as Item, cozinharMs: 4000 },
-  loteBase: 4, lotePorNivel: 2, // itens por panela: loteBase + lotePorNivel × "panelaMaior"
+  loteBase: 4, lotePorNivel: 2, // itens por panela: loteBase + lotePorNivel × melhoria de lote da receita
   saidaMax: 12, // prontos esperando na panela
+};
+/** O que cada panela (ou liquidificadora) faz: o cru que recebe, o tempo, a melhoria que acelera e a que aumenta o lote. */
+export const RECEITAS: Partial<Record<Item, { cru: Item; cozinharMs: number; rapido?: string; lote: string }>> = {
+  milho: { cru: 'milhoCru', cozinharMs: 5000, lote: 'panelaMaior' },
+  pastel: { cru: 'pastelCru', cozinharMs: 4000, rapido: 'fritaRapida', lote: 'panelaMaior' },
+  sucoLaranja: { cru: 'laranja', cozinharMs: 3500, rapido: 'liquiRapida', lote: 'copoMaior' },
+  sucoAcai: { cru: 'acaiBanana', cozinharMs: 4200, rapido: 'liquiRapida', lote: 'copoMaior' },
 };
 export const CASH_MAGNET = 72, COUNTER_CAP = 20;
 
@@ -125,6 +152,13 @@ export const SLOTS: Record<string, { x: number; y: number }> = {
   // Área 7 (lote 1700-2000, começo da faixa grande)
   fence6: { x: 1670, y: 712 }, pranchas: { x: 1750, y: 470 }, arara: { x: 1860, y: 470 }, cofre6: { x: 1965, y: 470 },
   instrutor: { x: 1760, y: 720 }, aulaUp: { x: 1960, y: 720 },
+  // Área 8 (lote 2000-2300, na faixa: o quadro de abrir fica no meio do lote)
+  abreSucos: { x: 2150, y: 560 }, liqui2: { x: 2250, y: 470 }, barman: { x: 2250, y: 700 }, copoMaior: { x: 2150, y: 712 }, liquiRapida: { x: 2250, y: 612 },
+  cardapioJ: { x: 2060, y: 372 }, cofre7: { x: 2194, y: 410 },
+  // Área 9 (lote 2300-2600, na faixa)
+  abrePalco: { x: 2450, y: 560 }, showLongo: { x: 2370, y: 520 }, intervalo: { x: 2450, y: 640 }, bonusShow: { x: 2530, y: 520 }, somMelhor: { x: 2450, y: 720 },
+  // Área 10 (lote 2600-2900); o quadro de abrir fica na cerca, no fim da faixa
+  fence9: { x: 2566, y: 640 }, arquibT: { x: 2680, y: 520 }, etapa: { x: 2750, y: 640 }, patroc: { x: 2830, y: 520 },
 };
 
 export const UMBRELLA_POS = [{ x: 64, y: 226 }, { x: 336, y: 226 }, { x: 316, y: 158 }, { x: 40, y: 168 }];

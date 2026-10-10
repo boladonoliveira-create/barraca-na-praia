@@ -1,4 +1,4 @@
-import { ACAI_NAMES, SORV_NAMES, MILHO_NAMES, AMB_NAMES, TRILHAS, CAUDAS, AJUDANTE, ECONOMIA as E } from '../dados/planos.ts';
+import { ACAI_NAMES, SORV_NAMES, MILHO_NAMES, AMB_NAMES, SUCO_NAMES, TRILHAS, CAUDAS, AJUDANTE, ECONOMIA as E } from '../dados/planos.ts';
 
 export interface Step { k: 'build' | 'up'; id: string; name: string; slot: string; price: number }
 
@@ -23,6 +23,7 @@ export function makeTrilha(a: number, b: number, rapido = false): Step[] {
     else if (name === '#S') name = SORV_NAMES[n - 1] || ('Sorvete caprichado ' + n);
     else if (name === '#M') name = MILHO_NAMES[n - 1] || ('Milho caprichado ' + n);
     else if (name === '#B') name = AMB_NAMES[n - 1] || ('Combo caprichado ' + n);
+    else if (name === '#J') name = SUCO_NAMES[n - 1] || ('Suco caprichado ' + n);
     else if (i >= TRILHAS[a].length) name = name.replace(/ \d+$/, '') + extra; // cauda: numera de novo
     return { k, id, name, slot, price: stepPrice(a, i, b) };
   });

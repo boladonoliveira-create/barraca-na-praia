@@ -1,6 +1,6 @@
 /* Núcleo do jogo: estado, economia, clientes, ajudantes e compras. Sem canvas e sem DOM. */
 import {
-  SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, LOTS, SERVICO, PREPARO, ATRACAO,
+  SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, LOTS, SERVICO, PREPARO, RECEITAS, ATRACAO, PALCO, TORNEIO,
   AMBULANTE, ESCOLA, FAIXA, PHRASES, SHIRTS, SKINS, W, WALL_Y, PLAY_BOTTOM, type Item, type Rect,
 } from '../dados/mapa.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, MARCOS, ECONOMIA, AREAS } from '../dados/planos.ts';
@@ -41,6 +41,8 @@ export type Estado = 'inicio' | 'play' | 'ad' | 'offline' | 'beach' | 'litoral';
 export interface Save {
   money: number; niveis: number[]; paid: Record<string, number>; praia: number; famaTotal: number; famas: number[]; ganho: number; tempo: number;
   last: number; tutorial: number; pendente?: number;
+  /** Torneio: troféus ganhos (ficam para sempre) e a partida em andamento (etapa 1 a 3, ms que faltam). */
+  trofeus?: number; partida?: { etapa: number; ms: number };
 }
 /** Uma compra visível no chão: área, nível (índice na trilha da área) e o passo. */
 export interface Visivel { a: number; k: number; s: Step }
@@ -51,12 +53,14 @@ export const NUM_AREAS = SHOPS.length;
 export interface Io {
   tone(f: number, dur: number, type?: 'sine' | 'triangle' | 'square', vol?: number, slide?: number, delayMs?: number): void;
   fanfare(): void; buzz(ms: number): void; save(): void; goal(): void;
+  /** Venceu a final do torneio. */
+  campeao(): void;
   /** Comprou a nova praia: fama ganha e minutos de jogo na praia que ficou para trás. */
   viagem(fama: number, minutos: number): void;
   /** Compra feita: praia (de 1 a 10), área, novo nível da área e segundos de jogo desde a compra anterior. */
   compra(praia: number, area: number, nivel: number, segundos: number): void;
 }
-const NO_IO: Io = { tone() {}, fanfare() {}, buzz() {}, save() {}, goal() {}, viagem() {}, compra() {} };
+const NO_IO: Io = { tone() {}, fanfare() {}, buzz() {}, save() {}, goal() {}, viagem() {}, compra() {}, campeao() {} };
 
 export const zoneOf = (m: Pt): Rect => ({ x: m.x, y: m.y + 50, w: 80, h: 44 });
 export const inZone = (a: Pt, z: Rect) => Math.abs(a.x - z.x) < z.w / 2 && Math.abs(a.y - z.y) < z.h / 2;
@@ -72,6 +76,8 @@ export class Jogo {
   machines: Machine[] = []; customers: Customer[] = []; flyers: Flyer[] = []; popups: Popup[] = []; sparks: Spark[] = []; helpers: Helper[] = []; umbrellas: Umbrella[] = []; S: ShopState[] = [];
   boostUntil = 0; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; testMode = false;
   sv: Servico = novoServico(); vend: Vendedor[] = []; esc: Escola = { pranchas: [], fila: [], spawnT: 800 };
+  /** Palco: ms até o próximo show e ms que faltam do show (0 = sem show). Torneio: troféus (para sempre) e a partida. */
+  palco = { t: 0, show: 0 }; trofeus = 0; partida = { etapa: 0, ms: 0 };
   pendente = 0; lastBuyAt = 0; // pendente: ganho offline mostrado no cartão e ainda não pego (vai no save)
   player: Carrier = { x: 200, y: 560, stack: [], walk: 0, face: 1, tT: 0 };
   io: Io; rand: () => number;
@@ -95,9 +101,18 @@ export class Jogo {
   tier(a: number) { return MARCOS.filter(m => (this.nivel[a] || 0) >= m).length }
   /** Área 5 (atração): multiplica a chegada de clientes nas outras áreas. Fechada, vale exatamente 1. */
   publico() {
-    if (!this.aberta(4)) return 1;
-    const A = ATRACAO; return 1 + (A.aberta + A.arquibancada * this.L('arquibancada') + A.rede * this.L('rede') + A.torneio * this.L('torneio')) * this.marco(4);
+    const A = ATRACAO, T = TORNEIO;
+    let p = 1;
+    if (this.aberta(4)) p += (A.aberta + A.arquibancada * this.L('arquibancada') + A.rede * this.L('rede') + A.torneio * this.L('torneio')) * this.marco(4);
+    if (this.aberta(9)) p += (T.arquibT * this.L('arquibT') + T.patrocinio * this.L('patrocinio')) * this.marco(9);
+    if (this.showAtivo()) p *= 1 + this.bonusShow();
+    return p * (1 + T.bonusTrofeu * this.trofeus);
   }
+  /* Área 9 */
+  showAtivo() { return this.aberta(8) && this.palco.show > 0 }
+  bonusShow() { return (PALCO.bonus + PALCO.bonusPorNivel * this.L('bonusShow')) * this.marco(8) }
+  intervaloShow() { return Math.max(PALCO.intervaloMin, PALCO.intervaloMs - PALCO.intervaloMenos * this.L('intervalo')) }
+  duracaoShow() { return PALCO.showMs + PALCO.showMais * this.L('showLongo') }
   /** Área aberta = a loja dela já foi construída (a Barraca do Sol começa aberta). */
   aberta(a: number) { return !!this.S[a]?.open }
   /** Na praia N estão as áreas 1 a N (índices 0 a N-1); a última é a novidade da praia. */
@@ -122,9 +137,9 @@ export class Jogo {
   precoBanho() { return Math.round(SERVICO.precoBanho * Math.pow(1.25, this.L('banhoUp')) * this.marco(2) * this.lucro()) }
   precoCadeira() { return Math.round(SERVICO.precoCadeira * Math.pow(1.25, this.L('aluguel')) * this.marco(2) * this.lucro()) }
   /* Praia 4 */
-  lote() { return PREPARO.loteBase + PREPARO.lotePorNivel * this.L('panelaMaior') }
-  espaco(m: Machine) { return Math.min(this.lote() - (m.loaded || 0), m.cap - m.pile - (m.loaded || 0)) }
-  cookMs(m: Machine) { return PREPARO[m.type as 'milho' | 'pastel'].cozinharMs / (m.type === 'pastel' ? 1 + 0.3 * this.L('fritaRapida') : 1) }
+  lote(t: Item = 'milho') { return PREPARO.loteBase + PREPARO.lotePorNivel * this.L(RECEITAS[t]!.lote) }
+  espaco(m: Machine) { return Math.min(this.lote(m.type) - (m.loaded || 0), m.cap - m.pile - (m.loaded || 0)) }
+  cookMs(m: Machine) { const r = RECEITAS[m.type]!; return r.cozinharMs / (1 + 0.3 * this.L(r.rapido || '')) }
   boostOn() { return this.now < this.boostUntil }
   /** Quadro de nova praia: aparece com a área nova desta praia no nível NIVEL_NOVA_PRAIA. */
   novaPraiaAberta() { const a = this.areasPraia() - 1; return this.aberta(a) && this.nivel[a] >= NIVEL_NOVA_PRAIA }
@@ -134,7 +149,7 @@ export class Jogo {
   custoNovaPraia() { return this.trilhas[this.areasPraia() - 1][NIVEL_NOVA_PRAIA].price }
   beachName() { return PRAIAS[Math.min(this.beach, PRAIAS.length - 1)].nome }
   goalText() {
-    if (this.novaPraiaAberta()) return this.proximaExiste() ? 'Viajar para a ' + PRAIAS[this.beach + 1].nome : PRAIAS[this.beach + 1].nome + ' · em breve';
+    if (this.novaPraiaAberta()) return this.proximaExiste() ? 'Viajar para a ' + PRAIAS[this.beach + 1].nome : (PRAIAS[this.beach + 1]?.nome ?? 'Praia ' + (this.beach + 2)) + ' · em breve';
     const v = this.melhorCompra(false) || this.melhorCompra(true); return v ? AREAS[v.a] + ': ' + v.s.name : '';
   }
   falta(v: Visivel) { return v.s.price - (this.paid[v.a + ':' + v.k] || 0) }
@@ -144,7 +159,7 @@ export class Jogo {
   visibleSteps(): Visivel[] {
     const out: Visivel[] = [];
     for (let a = 0; a < NUM_AREAS; a++) {
-      if (!this.liberada(a)) continue;
+      if (!this.liberada(a) || (a === 9 && this.partida.ms > 0)) continue; // durante a partida, a próxima etapa espera
       const t = this.trilhas[a], k = this.nivel[a];
       out.push({ a, k, s: t[k] });
       if (this.aberta(a) && t[k + 1] && t[k + 1].slot !== t[k].slot) out.push({ a, k: k + 1, s: t[k + 1] });
@@ -167,7 +182,7 @@ export class Jogo {
   /* ---------- Mundo ---------- */
   freshShops() { this.S = SHOPS.map((d, i) => ({ open: i === 0, counter: Object.fromEntries(d.products.map(p => [p, []])), stock: 0, queue: [], cashValue: 0, cashBills: 0, spawnT: 800 })) }
   addMachine(type: Item, x: number, y: number) { this.machines.push({ type, x, y, pile: 0, cap: type === 'caixa' ? 4 : 10, t: 0 }) }
-  addCooker(type: 'milho' | 'pastel', x: number, y: number) { this.machines.push({ type, x, y, pile: 0, cap: PREPARO.saidaMax, t: 0, needs: PREPARO[type].cru, loaded: 0 }) }
+  addCooker(type: Item, x: number, y: number) { this.machines.push({ type, x, y, pile: 0, cap: PREPARO.saidaMax, t: 0, needs: RECEITAS[type]!.cru, loaded: 0 }) }
   syncCadeiras() { const n = Math.min(SERVICO.cadeiras.length, SERVICO.cadeirasBase + SERVICO.cadeirasPorNivel * this.L('cadeiras')); while (this.sv.cadeiras.length < n) this.sv.cadeiras.push({ ...SERVICO.cadeiras[this.sv.cadeiras.length], user: null, suja: false }) }
   syncVendedores() {
     const n = Math.min(AMBULANTE.vagas.length, 1 + this.L('carrinhos'));
@@ -187,7 +202,7 @@ export class Jogo {
   }
   resetWorld() {
     // começo rápido (a partir da Praia 3): as áreas que já foram novidade de uma praia anterior
-    this.trilhas = Array.from({ length: NUM_AREAS }, (_, a) => makeTrilha(a, this.beach, this.beach >= 2 && a < this.beach)); this.nivel = Array(NUM_AREAS).fill(0); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.sv = novoServico(); this.vend = []; this.esc = { pranchas: [], fila: [], spawnT: 800 };
+    this.trilhas = Array.from({ length: NUM_AREAS }, (_, a) => makeTrilha(a, this.beach, this.beach >= 2 && a < this.beach)); this.nivel = Array(NUM_AREAS).fill(0); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.sv = novoServico(); this.vend = []; this.esc = { pranchas: [], fila: [], spawnT: 800 }; this.palco = { t: 0, show: 0 }; this.partida = { etapa: 0, ms: 0 };
     this.money = 0; this.shown = 0; this.camX = 0; this.freshShops();
     this.addMachine('acai', 110, 470); this.player.x = 200; this.player.y = 560; this.player.stack = [];
   }
@@ -209,6 +224,10 @@ export class Jogo {
       if (s.id === 'ambulantes') { this.S[5].open = true; this.addMachine('mate', 1475, 495); this.syncVendedores() }
       if (s.id === 'biscoito') this.addMachine('biscoito', 1615, 495);
       if (s.id === 'escola') { this.S[6].open = true; this.syncPranchas() }
+      if (s.id === 'sucos') { this.S[7].open = true; this.addMachine('laranja', 2050, 470); this.addCooker('sucoLaranja', 2150, 470) }
+      if (s.id === 'liqui2') { this.addMachine('acaiBanana', 2050, 612); this.addCooker('sucoAcai', 2250, 470) }
+      if (s.id === 'palco') { this.S[8].open = true; this.palco = { t: this.intervaloShow(), show: 0 } }
+      if (s.id === 'arena') this.S[9].open = true;
     } else {
       this.lv[s.id] = this.L(s.id) + 1;
       if (s.id === 'ajud') this.addHelper(0);
@@ -221,6 +240,10 @@ export class Jogo {
       if (s.id === 'carrinhos') this.syncVendedores();
       if (s.id === 'instrutor') this.addHelper(6);
       if (s.id === 'pranchas') this.syncPranchas();
+      if (s.id === 'barman') this.addHelper(7);
+      // etapa do torneio: começa a partida (ao carregar o save, não: a partida vem salva)
+      const etapa = ['etapa1', 'etapa2', 'etapa3'].indexOf(s.id) + 1;
+      if (etapa && !silent) this.partida = { etapa, ms: TORNEIO.partidaMs[etapa - 1] };
     }
     if (silent) return;
     const p = SLOTS[s.slot]; this.burst(p.x, p.y, '#ffc23d', 26); this.popups.push({ x: p.x, y: p.y - 42, txt: s.name + '!', life: 1.4, col: '#5b2370', size: 20 });
@@ -231,6 +254,10 @@ export class Jogo {
     if (s.id === 'servico') this.popups.push({ x: 750, y: 250, txt: "Encha a caixa d'água no registro!", life: 2.4, col: '#1c7ed6', size: 15 });
     if (s.id === 'milho') this.popups.push({ x: 1050, y: 250, txt: 'Leve o milho cru à panela!', life: 2.4, col: '#e8590c', size: 15 });
     if (s.id === 'quadra' || s.id === 'arquibancada' || s.id === 'rede' || s.id === 'torneio') this.popups.push({ x: 1300, y: 160, txt: 'Mais público: clientes x' + this.publico().toFixed(2).replace('.', ','), life: 2, col: '#2f9e44', size: 15 });
+    if (s.id === 'cardapioJ') this.popups.push({ x: SHOPS[7].cx, y: 250, txt: 'Suco agora R$ ' + this.price('sucoLaranja'), life: 1.8, col: '#2f9e44', size: 18 });
+    if (s.id === 'sucos') this.popups.push({ x: SHOPS[7].cx, y: 250, txt: 'Leve a laranja à liquidificadora!', life: 2.4, col: '#e8590c', size: 15 });
+    if (s.id === 'palco') this.popups.push({ x: SHOPS[8].cx, y: 160, txt: 'Show a cada ' + Math.round(this.intervaloShow() / 60000) + ' min!', life: 2.4, col: '#9c36b5', size: 15 });
+    if (s.id.startsWith('etapa')) this.popups.push({ x: SHOPS[9].cx, y: 160, txt: TORNEIO.etapas[Number(s.id[5]) - 1] + ': começou!', life: 2.2, col: '#e03131', size: 16 });
     if (s.id === 'cardapioA') this.popups.push({ x: SHOPS[5].cx, y: 250, txt: 'Mate agora R$ ' + this.price('mate'), life: 1.8, col: '#2f9e44', size: 18 });
     if (s.id === 'ambulantes') this.popups.push({ x: SHOPS[5].cx, y: 250, txt: 'Abasteça o carrinho com mate!', life: 2.4, col: '#e8590c', size: 15 });
     if (s.id === 'escola') this.popups.push({ x: SHOPS[6].cx, y: 250, txt: 'Leve as pranchas molhadas à arara!', life: 2.4, col: '#1c7ed6', size: 15 });
@@ -269,17 +296,18 @@ export class Jogo {
   snapshot(last = Date.now()): Save {
     return {
       money: this.testMode ? 0 : Math.floor(this.money), niveis: [...this.nivel], paid: this.paid, praia: this.beach + 1, famaTotal: this.famaTotal, famas: [...this.famas],
-      ganho: Math.floor(this.ganho), tempo: Math.round(this.tempo), last, tutorial: this.tutorial, pendente: this.pendente,
+      ganho: Math.floor(this.ganho), tempo: Math.round(this.tempo), last, tutorial: this.tutorial, pendente: this.pendente, trofeus: this.trofeus, partida: { ...this.partida },
     };
   }
   /** Carrega o progresso salvo e devolve os ganhos com o app fechado (0 se não houver), somando o que ficou pendente. */
   load(s: Save | null, nowMs = Date.now()) {
     this.beach = s ? Math.max(1, Math.min(PRAIAS.length, s.praia || 1)) - 1 : 0;
-    this.famaTotal = s?.famaTotal || 0; this.famas = s?.famas ? [...s.famas] : []; this.ganho = s?.ganho || 0; this.tempo = s?.tempo || 0;
+    this.famaTotal = s?.famaTotal || 0; this.trofeus = s?.trofeus || 0; this.famas = s?.famas ? [...s.famas] : []; this.ganho = s?.ganho || 0; this.tempo = s?.tempo || 0;
     this.resetWorld(); if (!s) return 0;
     this.money = s.money || 0; this.shown = this.money; this.tutorial = s.tutorial || 0; this.paid = s.paid || {}; this.pendente = s.pendente || 0;
     (s.niveis || []).forEach((n, a) => { for (let k = 0; k < Math.min(n, 60) && a < this.areasPraia(); k++) this.applyStep(a, true) });
     for (let a = 0; a < NUM_AREAS; a++) this.gratis(a); // save convertido do v3 (níveis zerados): o começo rápido entra agora
+    if (s.partida) this.partida = { ...s.partida };
     return this.pendente + this.offlineGain(s.last, nowMs);
   }
   /** O cartão de ganhos abriu: o valor já fica no save, para não se perder se o app fechar antes de pegar. */
@@ -450,7 +478,7 @@ export class Jogo {
 
     for (const h of this.helpers) {
       if (h.shop === 2) { this.salvaVidas(h, dt, f); continue }
-      if (h.shop === 3) { this.cozinheiro(h, dt, f); continue }
+      if (h.shop === 3 || h.shop === 7) { this.cozinheiro(h, dt, f); continue }
       if (h.shop === 6) { this.instrutor(h, dt, f); continue }
       const d = SHOPS[h.shop], same = this.helpers.filter(x => x.shop === h.shop), hi = same.indexOf(h);
       if (h.mode === 'pick') {
@@ -467,7 +495,7 @@ export class Jogo {
 
     for (let si = 0; si < SHOPS.length; si++) {
       const st = this.S[si], d = SHOPS[si]; if (!st.open) continue;
-      if (d.kind === 'atracao') continue; // a quadra não tem clientes próprios
+      if (d.kind === 'atracao') { if (si === 8) this.updatePalco(dt); if (si === 9) this.updateTorneio(dt); continue } // atrações não têm clientes próprios
       if (d.kind === 'ambulante') { this.updateAmbulantes(dt, f); continue }
       if (d.kind === 'escola') { this.updateEscola(dt, f); continue }
       if (d.kind === 'servico') { this.updateServico(dt, f); continue }
@@ -591,6 +619,33 @@ export class Jogo {
     }
   }
 
+  /* ---------- Área 9: palco de pagode ---------- */
+  updatePalco(dt: number) {
+    const pc = this.palco;
+    if (pc.show > 0) { if ((pc.show -= dt) <= 0) { pc.show = 0; pc.t = this.intervaloShow() } return }
+    if ((pc.t -= dt) <= 0) {
+      pc.show = this.duracaoShow(); const c = SHOPS[8].counter;
+      this.popups.push({ x: c.x, y: c.y - 70, txt: 'Começou o show!', life: 2, col: '#9c36b5', size: 18 });
+      this.popups.push({ x: c.x, y: c.y - 46, txt: 'Clientes x' + (1 + this.bonusShow()).toFixed(2).replace('.', ','), life: 2, col: '#2f9e44', size: 15 });
+      this.io.fanfare();
+    }
+  }
+
+  /* ---------- Área 10: torneio ---------- */
+  updateTorneio(dt: number) {
+    const pt = this.partida; if (pt.ms <= 0) return;
+    if ((pt.ms -= dt) > 0) return;
+    pt.ms = 0; this.trofeus++;
+    const c = SHOPS[9].counter;
+    for (const col of ['#ffc23d', '#ff6b6b', '#4dabf7', '#69db7c']) this.burst(c.x, c.y - 20, col, 18);
+    this.popups.push({ x: c.x, y: c.y - 74, txt: 'Troféu: ' + TORNEIO.etapas[pt.etapa - 1] + '!', life: 2.4, col: '#e8590c', size: 18 });
+    this.popups.push({ x: c.x, y: c.y - 50, txt: '+' + Math.round(TORNEIO.bonusTrofeu * 100) + '% de público para sempre', life: 2.4, col: '#2f9e44', size: 14 });
+    this.io.fanfare(); this.io.buzz(80); this.io.save(); this.io.goal();
+    if (pt.etapa === 3) this.io.campeao();
+  }
+  /** Campeão: a final já foi vencida. */
+  campeao() { return this.trofeus >= 3 && this.partida.etapa === 3 && this.partida.ms === 0 }
+
   /* ---------- Área 7: escolinha de surf ---------- */
   updateEscola(dt: number, f: number) {
     const E = ESCOLA, es = this.esc, R = this.rand, arara = SHOPS[6].counter;
@@ -646,7 +701,7 @@ export class Jogo {
 
   /* ---------- Praia 4: o cozinheiro faz o ciclo inteiro ---------- */
   cozinheiro(h: Helper, dt: number, f: number) {
-    const st = this.S[3], drop = SHOPS[3].drop, cookers = this.machines.filter(m => m.needs);
+    const st = this.S[h.shop], drop = SHOPS[h.shop].drop, cookers = this.machines.filter(m => m.needs && PRODUCTS[m.type].shop === h.shop);
     const cru = (t: Item) => PRODUCTS[t].shop < 0, temPronto = h.stack.some(t => !cru(t)), meuCru = h.stack.find(cru);
     const pronto = cookers.find(m => m.pile > 0 && st.counter[m.type].length < COUNTER_CAP);
     if (!h.tarefa) {
@@ -663,7 +718,7 @@ export class Jogo {
         else h.tarefa = temPronto ? 'entregar' : 'esperar';
       }
     }
-    const hi = this.helpers.filter(x => x.shop === 3).indexOf(h);
+    const hi = this.helpers.filter(x => x.shop === h.shop).indexOf(h);
     h.wait += dt;
     if (h.tarefa === 'esperar') { if (h.wait > 800) h.tarefa = null; return }
     if (h.tarefa === 'entregar') {

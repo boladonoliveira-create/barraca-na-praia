@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Jogo, padOf, NUM_AREAS } from './jogo.ts';
 import { rng } from './simulador.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, ECONOMIA } from '../dados/planos.ts';
-import { SHOPS, LOTS, SLOTS, ESCOLA, FAIXA } from '../dados/mapa.ts';
+import { SHOPS, LOTS, SLOTS, ESCOLA, FAIXA, PALCO, TORNEIO, PRODUCTS } from '../dados/mapa.ts';
 import type { Save } from './jogo.ts';
 
 const DT = 1000 / 60, PARADO = { x: 0, y: 0 };
@@ -395,6 +395,54 @@ describe('área 7: escolinha de surf', () => {
     expect([g.isoporCap(), g.price('mate')]).toEqual(amb);
     while (g.nivel[5] < 20) g.applyStep(5, true);
     expect(outras()).toEqual(antes);
+  });
+});
+
+describe('área 8: sucos e vitaminas', () => {
+  it('o barman nunca fica travado: laranja e açaí com banana vendem 10 min sem o jogador', () => {
+    const g = mundo([5, 5, 5, 5, 5, 5, 5, 4]); g.lv.cofre7 = 0; // sucos, cardápio, liquidificadora 2, barman
+    expect(g.helpers.some(h => h.shop === 7)).toBe(true); expect(g.machines.filter(m => m.needs && PRODUCTS[m.type].shop === 7)).toHaveLength(2);
+    let vendas = 0, ultimo = 0, parado = 0;
+    rodar(g, 600000, () => { const c = g.S[7].cashValue; if (c > ultimo) { vendas++; parado = 0 } else parado += DT; ultimo = c; expect(parado).toBeLessThan(30000) });
+    expect(vendas).toBeGreaterThan(60);
+  });
+});
+
+describe('área 9: palco de pagode', () => {
+  it('o palco só dá bônus durante o show', () => {
+    const g = mundo([5, 5, 5, 5, 5, 5, 5, 5, 1]), base = g.publico();
+    expect(g.showAtivo()).toBe(false); expect(g.palco.t).toBe(PALCO.intervaloMs);
+    rodar(g, PALCO.intervaloMs - 2000); expect(g.showAtivo()).toBe(false); expect(g.publico()).toBeCloseTo(base);
+    rodar(g, 3000); expect(g.showAtivo()).toBe(true); expect(g.publico()).toBeCloseTo(base * (1 + PALCO.bonus));
+    rodar(g, PALCO.showMs); expect(g.showAtivo()).toBe(false); expect(g.publico()).toBeCloseTo(base);
+  });
+});
+
+describe('área 10: torneio', () => {
+  it('as etapas liberam em ordem, uma partida por vez; a final faz campeão', () => {
+    let campeao = 0; const g = new Jogo({ campeao: () => { campeao++ } }, rng(1)); g.load(null); g.beach = NUM_AREAS - 1;
+    [5, 5, 5, 5, 5, 5, 5, 5, 5, 2].forEach((n, a) => { while (g.nivel[a] < n) g.applyStep(a, true) });
+    const proxima = () => g.visibleSteps().filter(v => v.a === 9 && v.k === g.nivel[9]).map(v => v.s.id)[0];
+    for (let e = 1; e <= 3; e++) {
+      while (proxima() !== 'etapa' + e) { expect(proxima()).not.toMatch(/^etapa/); g.applyStep(9) }
+      g.applyStep(9); // compra a etapa: começa a partida e o quadro seguinte espera
+      expect(g.partida).toEqual({ etapa: e, ms: TORNEIO.partidaMs[e - 1] }); expect(proxima()).toBeUndefined();
+      rodar(g, TORNEIO.partidaMs[e - 1] + 100);
+      expect(g.trofeus).toBe(e);
+    }
+    expect(campeao).toBe(1); expect(g.campeao()).toBe(true);
+  });
+
+  it('o bônus do troféu fica depois da viagem e no save', () => {
+    const g = naPraia(9); g.trofeus = 2; const k = 1 + 2 * TORNEIO.bonusTrofeu;
+    expect(g.publico()).toBeCloseTo(k);
+    g.viajar(); expect(g.trofeus).toBe(2); expect(g.publico()).toBeCloseTo(k);
+    const h = new Jogo(); h.load(JSON.parse(JSON.stringify(g.snapshot()))); expect(h.trofeus).toBe(2); expect(h.publico()).toBeCloseTo(k);
+  });
+
+  it('depois da Praia 10 o quadro de nova praia diz "Praia 11 · em breve"', () => {
+    const g = naPraia(10); for (let a = 0; a < NUM_AREAS; a++) subir(g, a, a < 9 ? NIVEL_ABRE : NIVEL_NOVA_PRAIA);
+    expect(g.novaPraiaAberta()).toBe(true); expect(g.proximaExiste()).toBe(false); expect(g.goalText()).toBe('Praia 11 · em breve');
   });
 });
 

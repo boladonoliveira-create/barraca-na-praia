@@ -1,5 +1,6 @@
 /* Placar, botões e telas (overlays) em DOM. */
 import { PRAIAS } from '../dados/praias.ts';
+import { TORNEIO } from '../dados/mapa.ts';
 import { fmt } from '../core/economia.ts';
 import type { Jogo } from '../core/jogo.ts';
 import { gravarPrefs, type Prefs } from '../plataforma/salvar.ts';
@@ -91,6 +92,13 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
     viagemAtual = { fama, minutos, anuncio: false }; textoFama();
     $('beachAd').hidden = fama < 1; $('ovBeach').hidden = false; buzz([60, 40, 120]);
   }
+  /** Venceu a final do torneio: festa e a prévia da Arena. */
+  function campeao() {
+    const prev = g.state; g.state = 'ad';
+    $('campeaoText').textContent = 'Você venceu as 3 etapas do torneio. Os troféus dão +' + Math.round(g.trofeus * TORNEIO.bonusTrofeu * 100) + '% de público para sempre.';
+    $('ovCampeao').hidden = false; praiaNova(); buzz([80, 40, 80, 40, 160]);
+    $('campeaoOk').onclick = () => { $('ovCampeao').hidden = true; g.state = prev === 'ad' ? 'play' : prev };
+  }
   function chegar() {
     $('ovBeach').hidden = true; g.state = 'play';
     if (viagemAtual) { const v = viagemAtual; analytics.registrar('praia_nova', { praia: g.beach + 1, fama_ganha: v.fama, minutos: Math.round(v.minutos), anuncio: v.anuncio }); viagemAtual = null }
@@ -139,5 +147,5 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
   $('litoralFechar').addEventListener('click', () => { $('ovLitoral').hidden = true; if (g.state === 'litoral') g.state = 'play' });
   syncPrefs();
 
-  return { goal, viagem, showOffline, showStart, frame, syncTest };
+  return { goal, viagem, campeao, showOffline, showStart, frame, syncTest };
 }

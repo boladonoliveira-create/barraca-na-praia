@@ -1,5 +1,5 @@
 /* Câmera, cenário, personagens, máquinas e efeitos. Só lê o estado do núcleo. */
-import { W, H, WORLD_W, SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SLOTS, COUNTER_CAP, CASH_MAGNET, SERVICO, ESCOLA, type Item, type Lot, type Rect } from '../dados/mapa.ts';
+import { W, H, WORLD_W, SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SLOTS, COUNTER_CAP, CASH_MAGNET, SERVICO, ESCOLA, TORNEIO, type Item, type Lot, type Rect } from '../dados/mapa.ts';
 import { fmt } from '../core/economia.ts';
 import { NIVEL_ABRE, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
@@ -71,6 +71,19 @@ function drawItem(kind: Kind, x: number, y: number, s = 1) {
     ctx.fillStyle = '#ffe8cc'; rr(-7, -8, 14, 16, 3); ctx.fill(); ctx.strokeStyle = '#e8590c'; ctx.lineWidth = 1; ctx.stroke();
     ctx.fillStyle = '#e8590c'; ctx.fillRect(-7, -8, 14, 3);
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; for (const [bx, by] of [[-3, 0], [3, 1], [0, 5]]) { ctx.beginPath(); ctx.arc(bx, by, 2.2, 0, Math.PI * 2); ctx.stroke() }
+  } else if (kind === 'laranja') {
+    ctx.fillStyle = '#fd7e14'; circ(0, 0, 6.5); ctx.fill(); ctx.fillStyle = '#ffa94d'; circ(-2, -2, 2.5); ctx.fill(); ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.ellipse(2, -7, 3, 1.4, -0.5, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === 'acaiBanana') {
+    ctx.fillStyle = '#5b2370'; for (const [bx, by] of [[-3, 1], [2, 2], [0, -2]]) { circ(bx, by, 3); ctx.fill() }
+    ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 3.4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(2, -4, 6, 0.3, 1.9); ctx.stroke();
+  } else if (kind === 'sucoLaranja' || kind === 'sucoAcai') {
+    // copo de suco: cresce com o "copo maior"; o cardápio põe gelo, hortelã e canudo
+    const lv = g.L('cardapioJ'), cor = kind === 'sucoLaranja' ? '#fd7e14' : '#7b3a92'; if (g.L('copoMaior') >= 2) ctx.scale(1.12, 1.12);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.beginPath(); ctx.moveTo(-6, -8); ctx.lineTo(6, -8); ctx.lineTo(4.5, 8); ctx.lineTo(-4.5, 8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = cor; ctx.beginPath(); ctx.moveTo(-5.4, -4); ctx.lineTo(5.4, -4); ctx.lineTo(4.2, 7); ctx.lineTo(-4.2, 7); ctx.closePath(); ctx.fill();
+    if (lv >= 1) { ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fillRect(-3, -3, 3, 3); ctx.fillRect(1, -1, 3, 3) }
+    if (lv >= 3) { ctx.fillStyle = '#40c057'; ctx.beginPath(); ctx.ellipse(-3, -9, 3, 1.5, -0.6, 0, Math.PI * 2); ctx.fill() }
+    ctx.strokeStyle = lv >= 2 ? '#ffd43b' : '#fff'; ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(2, -4); ctx.lineTo(4, -13); ctx.stroke();
   } else if (kind === 'prancha') {
     // prancha molhada (com gotas)
     ctx.rotate(-0.5); ctx.fillStyle = '#4dabf7'; ctx.beginPath(); ctx.ellipse(0, 0, 11, 3.6, 0, 0, Math.PI * 2); ctx.fill();
@@ -144,7 +157,14 @@ function drawMachine(m: Machine) {
     ctx.fillStyle = 'rgba(255,255,255,0.85)'; rr(m.x - 20, m.y + 16, 40, 6, 3); ctx.fill(); ctx.fillStyle = '#ffc23d'; rr(m.x - 20, m.y + 16, 40 * Math.min(1, m.t / r), 6, 3); ctx.fill();
   } else if (m.needs) {
     // panela (milho) ou fritadeira (pastel): mostra o que está cozinhando e a barra de tempo
-    const tempo = g.cookMs(m), frit = m.type === 'pastel';
+    const tempo = g.cookMs(m), frit = m.type === 'pastel', liqui = m.type === 'sucoLaranja' || m.type === 'sucoAcai';
+    if (liqui) { // liquidificadora: copo alto na base, com a fruta batendo
+      shadow(m.x, m.y + 22, 30); ctx.fillStyle = '#495057'; rr(m.x - 24, m.y + 2, 48, 20, 5); ctx.fill();
+      ctx.fillStyle = 'rgba(208,235,255,0.9)'; rr(m.x - 16, m.y - 34, 32, 36, 6); ctx.fill(); ctx.strokeStyle = '#868e96'; ctx.lineWidth = 2; ctx.stroke();
+      if (m.loaded) { ctx.fillStyle = m.type === 'sucoLaranja' ? '#fd7e14' : '#7b3a92'; const h = 30 * Math.min(1, (m.loaded || 0) / g.lote(m.type)); rr(m.x - 14, m.y - h, 28, h, 4); ctx.fill() }
+      ctx.fillStyle = '#fff'; ctx.font = '800 10px "Baloo 2",sans-serif'; ctx.fillText('SUCO ' + (m.loaded || 0) + '/' + g.lote(m.type), m.x, m.y + 13);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)'; rr(m.x - 20, m.y - 44, 40, 6, 3); ctx.fill(); ctx.fillStyle = '#ff922b'; rr(m.x - 20, m.y - 44, 40 * Math.min(1, m.t / tempo), 6, 3); ctx.fill();
+    } else {
     shadow(m.x, m.y + 22, 34); ctx.fillStyle = '#495057'; rr(m.x - 30, m.y + 4, 60, 18, 5); ctx.fill(); // fogão
     ctx.fillStyle = frit ? '#adb5bd' : '#868e96'; rr(m.x - 26, m.y - 22, 52, 30, frit ? 4 : 12); ctx.fill();
     ctx.fillStyle = frit ? '#ffd8a8' : '#d0ebff'; rr(m.x - 22, m.y - 20, 44, 8, 4); ctx.fill(); // óleo / água
@@ -152,10 +172,11 @@ function drawMachine(m: Machine) {
     if (m.loaded && !reduceMotion) { ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2; for (let i = -1; i <= 1; i++) { const o = Math.sin(g.now / 200 + i) * 3; ctx.beginPath(); ctx.moveTo(m.x + i * 12, m.y - 26); ctx.quadraticCurveTo(m.x + i * 12 + o, m.y - 34, m.x + i * 12, m.y - 42); ctx.stroke() } }
     ctx.fillStyle = '#fff'; ctx.font = '800 10px "Baloo 2",sans-serif'; ctx.fillText((frit ? 'FRITADEIRA ' : 'PANELA ') + (m.loaded || 0) + '/' + g.lote(), m.x, m.y + 13);
     ctx.fillStyle = 'rgba(255,255,255,0.85)'; rr(m.x - 20, m.y - 4, 40, 6, 3); ctx.fill(); ctx.fillStyle = '#ff922b'; rr(m.x - 20, m.y - 4, 40 * Math.min(1, m.t / tempo), 6, 3); ctx.fill();
-  } else if (m.type === 'milhoCru' || m.type === 'pastelCru') {
+    }
+  } else if (m.type === 'milhoCru' || m.type === 'pastelCru' || m.type === 'laranja' || m.type === 'acaiBanana') {
     shadow(m.x, m.y + 22, 34); ctx.fillStyle = '#c8955a'; rr(m.x - 30, m.y - 18, 60, 38, 5); ctx.fill(); ctx.fillStyle = '#a87742'; ctx.fillRect(m.x - 30, m.y - 4, 60, 3); ctx.fillRect(m.x - 30, m.y + 8, 60, 3);
     for (let i = 0; i < 3; i++) drawItem(m.type, m.x - 14 + i * 14, m.y - 20, 0.8);
-    ctx.fillStyle = '#3a2316'; ctx.font = '800 10px "Baloo 2",sans-serif'; ctx.fillText(m.type === 'milhoCru' ? 'MILHO CRU' : 'MASSA', m.x, m.y + 3);
+    ctx.fillStyle = '#3a2316'; ctx.font = '800 10px "Baloo 2",sans-serif'; ctx.fillText(({ milhoCru: 'MILHO CRU', pastelCru: 'MASSA', laranja: 'LARANJA', acaiBanana: 'AÇAÍ E BANANA' } as Record<string, string>)[m.type], m.x, m.y + 3);
     ctx.fillStyle = 'rgba(255,255,255,0.85)'; rr(m.x - 20, m.y + 12, 40, 6, 3); ctx.fill(); ctx.fillStyle = '#ffc23d'; rr(m.x - 20, m.y + 12, 40 * Math.min(1, m.t / r), 6, 3); ctx.fill();
   } else {
     shadow(m.x, m.y + 22, 34); ctx.fillStyle = '#d9b382'; rr(m.x - 30, m.y - 22, 60, 42, 6); ctx.fill(); ctx.fillStyle = '#c8955a'; rr(m.x - 30, m.y - 22, 60, 10, 6); ctx.fill();
@@ -189,7 +210,7 @@ function drawPadPraia() {
   ctx.setLineDash(pode ? [6, 5] : [2, 4]); ctx.lineWidth = 3; ctx.strokeStyle = '#e0a800'; rr(x - w / 2, y - h / 2, w, h, 12); ctx.stroke(); ctx.setLineDash([]);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#3a2316';
   if (!pode) {
-    ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText(prox ? prox.nome : 'Próxima praia', x, y - 8);
+    ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText(prox ? prox.nome : 'Praia ' + (g.beach + 2), x, y - 8);
     ctx.font = '800 11px "Nunito",sans-serif'; ctx.fillStyle = '#8a6a52'; ctx.fillText('em breve', x, y + 12); return;
   }
   ctx.font = '800 10px "Nunito",sans-serif'; ctx.fillText('Viajar para a', x, y - 27);
@@ -309,6 +330,44 @@ function drawQuadra() {
   tagTxt(c.x, y0 + c.h + 12, 'Clientes x' + g.publico().toFixed(2).replace('.', ','));
 }
 const SHIRTS_Q = ['#ff6b6b', '#4dabf7', '#ffd43b', '#69db7c', '#f783ac', '#ff922b'];
+
+/* ---------- Área 9: palco de pagode ---------- */
+function drawPalco() {
+  if (!g.aberta(8)) return;
+  const c = SHOPS[8].counter, x0 = c.x - c.w / 2, y0 = c.y - c.h / 2, show = g.showAtivo(), som = g.L('somMelhor'), t = reduceMotion ? 0 : g.now;
+  // palco: tablado, fundo e caixas de som (maiores com o "som melhor")
+  ctx.fillStyle = '#5f3dc4'; rr(x0, y0, c.w, c.h - 26, 8); ctx.fill();
+  ctx.fillStyle = '#8d5a2b'; rr(x0 - 6, y0 + c.h - 30, c.w + 12, 18, 4); ctx.fill();
+  for (const s of [-1, 1]) { ctx.fillStyle = '#212529'; rr(c.x + s * (c.w / 2 - 8) - 9 - som * 2, y0 + c.h - 62 - som * 4, 18 + som * 4, 32 + som * 4, 3); ctx.fill(); ctx.fillStyle = '#495057'; circ(c.x + s * (c.w / 2 - 8), y0 + c.h - 42 - som * 2, 5 + som); ctx.fill() }
+  ctx.fillStyle = '#fffdf7'; rr(c.x - 58, y0 + 6, 116, 16, 8); ctx.fill(); ctx.fillStyle = '#5f3dc4'; ctx.font = '800 11px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('PALCO DE PAGODE', c.x, y0 + 14);
+  if (show) {
+    // banda tocando, luzes e notas musicais
+    for (let i = 0; i < 3; i++) drawPerson(c.x - 40 + i * 40, y0 + c.h - 30, { shirt: ['#ff6b6b', '#ffd43b', '#69db7c'][i], skin: ['#a8714c', '#d9a37a', '#7a4b2e'][i], walk: t / 140 + i, face: 1, hair: '#1a1a1a', hat: i === 1, shorts: '#343a40' });
+    for (let i = 0; i < 5; i++) { const on = Math.floor(t / 250 + i) % 2 === 0; ctx.fillStyle = on ? 'rgba(255,236,153,0.55)' : 'rgba(255,135,135,0.4)'; ctx.beginPath(); ctx.moveTo(x0 + 18 + i * 36, y0 + 2); ctx.lineTo(x0 + 6 + i * 36, y0 + c.h - 30); ctx.lineTo(x0 + 30 + i * 36, y0 + c.h - 30); ctx.closePath(); ctx.fill() }
+    ctx.fillStyle = '#fff'; ctx.font = '800 16px "Baloo 2",sans-serif'; for (let i = 0; i < 4; i++) { const k = ((t / 1400 + i / 4) % 1); ctx.globalAlpha = 1 - k; ctx.fillText(i % 2 ? '♪' : '♫', x0 + 30 + i * 40, y0 - k * 40); } ctx.globalAlpha = 1;
+    tagTxt(c.x, y0 + c.h + 12, 'SHOW! ' + tempoTxt(g.palco.show) + ' · Clientes x' + (1 + g.bonusShow()).toFixed(2).replace('.', ','));
+  } else tagTxt(c.x, y0 + c.h + 12, 'Próximo show em ' + tempoTxt(g.palco.t));
+}
+const tempoTxt = (ms: number) => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') };
+
+/* ---------- Área 10: torneio ---------- */
+function drawTorneio() {
+  if (!g.aberta(9)) return;
+  const c = SHOPS[9].counter, x0 = c.x - c.w / 2, y0 = c.y - c.h / 2, pt = g.partida, jogando = pt.ms > 0, t = reduceMotion ? 0 : g.now;
+  ctx.fillStyle = '#f3d9a4'; rr(x0, y0, c.w, c.h, 6); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(x0 + 6, y0 + 6, c.w - 12, c.h - 12);
+  ctx.fillStyle = '#868e96'; ctx.fillRect(c.x - 2, y0 - 6, 4, c.h + 12);
+  for (let y = y0; y < y0 + c.h; y += 7) { ctx.fillStyle = Math.floor((y - y0) / 7) % 2 ? '#ffd43b' : '#e03131'; ctx.fillRect(c.x - 1, y, 2, 5) }
+  // faixa do torneio e os troféus ganhos
+  ctx.fillStyle = '#1971c2'; rr(c.x - 70, y0 - 28, 140, 18, 6); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '800 11px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('TORNEIO DA PRAIA', c.x, y0 - 19);
+  for (let i = 0; i < 3; i++) { const tx = x0 + c.w + 12, ty = y0 + 8 + i * 30; ctx.globalAlpha = i < g.trofeus ? 1 : 0.25; ctx.fillStyle = '#f59f00'; rr(tx - 7, ty, 14, 12, 4); ctx.fill(); ctx.fillRect(tx - 2, ty + 12, 4, 6); ctx.fillRect(tx - 7, ty + 18, 14, 3); ctx.globalAlpha = 1 }
+  // dois de cada lado; na partida, a bola vai e volta e o placar mostra a etapa
+  const k = jogando ? (Math.sin(t / 450) + 1) / 2 : 0.5, bx = c.x - 55 + 110 * k, by = c.y - 10 - Math.sin(k * Math.PI) * (jogando ? 55 : 0);
+  for (const [dx, cor, f] of [[-60, '#e03131', 1], [-30, '#e03131', 1], [30, '#1971c2', -1], [60, '#1971c2', -1]] as const) drawPerson(c.x + dx, c.y + 24 + (dx % 60 ? 14 : 0), { shirt: cor, skin: dx < 0 ? '#d9a37a' : '#a8714c', walk: jogando ? t / 150 + dx : 0, face: f, hair: '#2b1d14', shorts: '#343a40' });
+  ctx.fillStyle = '#fff'; circ(bx, by, 5); ctx.fill(); ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 1.5; ctx.stroke();
+  if (jogando) tagTxt(c.x, y0 + c.h + 12, TORNEIO.etapas[pt.etapa - 1] + ' · ' + tempoTxt(pt.ms));
+  else if (g.campeao()) tagTxt(c.x, y0 + c.h + 12, 'Campeão da Praia! 🏆');
+  else tagTxt(c.x, y0 + c.h + 12, 'Troféus ' + g.trofeus + '/3 · Clientes x' + g.publico().toFixed(2).replace('.', ','));
+}
 
 /* ---------- Área 6: ambulantes ---------- */
 function drawCarrinho(x: number, y: number, carga: number, cap: number) {
@@ -443,7 +502,7 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   ctx.fillStyle = 'rgba(255,255,255,0.22)'; rr(10, WALL_Y + 4, 380, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill();
   LOTS.forEach((l, i) => { if (i && g.S[i]?.open) { rr(l.x0 + 10, WALL_Y + 4, l.x1 - l.x0 - 20, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill() } });
   g.umbrellas.forEach(drawUmbrella);
-  drawBarraca(); drawKiosk(); drawServico(); drawBarraca(3); drawQuadra(); drawAmbulantes(); drawEscola();
+  drawBarraca(); drawKiosk(); drawServico(); drawBarraca(3); drawQuadra(); drawAmbulantes(); drawEscola(); drawBarraca(7); drawPalco(); drawTorneio();
   for (let a = 0; a < NUM_AREAS; a++) drawEnfeites(a);
   // lotes fechados: os desta praia e o da próxima; os depois disso não aparecem
   LOTS.forEach((lot, i) => { if (!lot.praia || i > g.areasPraia() || g.S[i]?.open || lot.x1 < x0 || lot.x0 > x1) return; drawLockedLot(lot, i) });

@@ -6,9 +6,10 @@ export const ACAI_NAMES = ['Açaí com granola', 'Leite condensado', 'Morango no
 export const SORV_NAMES = ['Duas bolas', 'Três bolas', 'Granulado', 'Cereja no topo'];
 export const MILHO_NAMES = ['Milho na manteiga', 'Pastel de queijo', 'Milho com queijo ralado', 'Pastel de carne', 'Milho completo'];
 export const AMB_NAMES = ['Mate com limão', 'Combo mate e biscoito'];
+export const SUCO_NAMES = ['Suco com gelo', 'Vitamina caprichada', 'Suco com hortelã', 'Combo do verão'];
 
 /** Áreas, da esquerda para a direita. A área i é a loja SHOPS[i] e o lote LOTS[i]. */
-export const AREAS = ['Barraca do Sol', 'Sorveteria', 'Chuveirão', 'Milho e Pastel', 'Quadra de futevôlei', 'Ambulantes', 'Escolinha de surf'];
+export const AREAS = ['Barraca do Sol', 'Sorveteria', 'Chuveirão', 'Milho e Pastel', 'Quadra de futevôlei', 'Ambulantes', 'Escolinha de surf', 'Sucos e vitaminas', 'Palco de pagode', 'Torneio de futevôlei'];
 
 /** Trilha de cada área. O primeiro passo das áreas 2 a 4 abre a área (o quadro aparece na cerca). */
 export const TRILHAS: PlanStep[][] = [
@@ -53,6 +54,19 @@ export const TRILHAS: PlanStep[][] = [
     ['up', 'aulaUp', 'Aula mais cara 2', 'aulaUp'], ['up', 'pranchas', 'Mais pranchas 3', 'pranchas'], ['up', 'instrutor', 'Mais um instrutor', 'instrutor'], ['up', 'aulaUp', 'Aula mais cara 3', 'aulaUp'],
     ['up', 'arara', 'Arara maior 3', 'arara'],
   ],
+  [ // 8. Sucos e vitaminas (preparo e venda): fruta → liquidificadora → balcão; o barman faz o ciclo
+    ['build', 'sucos', 'Sucos e vitaminas', 'abreSucos'], ['up', 'cardapioJ', '#J', 'cardapioJ'], ['build', 'liqui2', 'Liquidificadora 2', 'liqui2'], ['up', 'barman', 'Barman', 'barman'],
+    ['up', 'copoMaior', 'Copo maior', 'copoMaior'], ['up', 'liquiRapida', 'Liquidificadora mais rápida', 'liquiRapida'], ['up', 'cofre7', 'Cofre automático', 'cofre7'], ['up', 'cardapioJ', '#J', 'cardapioJ'],
+    ['up', 'copoMaior', 'Copo maior 2', 'copoMaior'], ['up', 'liquiRapida', 'Liquidificadora mais rápida 2', 'liquiRapida'], ['up', 'cardapioJ', '#J', 'cardapioJ'], ['up', 'barman', 'Mais um barman', 'barman'],
+  ],
+  [ // 9. Palco de pagode (atração em evento): o show multiplica a chegada de clientes enquanto dura
+    ['build', 'palco', 'Palco de pagode', 'abrePalco'], ['up', 'showLongo', 'Show mais longo', 'showLongo'], ['up', 'intervalo', 'Mais shows', 'intervalo'], ['up', 'bonusShow', 'Bônus do show', 'bonusShow'],
+    ['up', 'somMelhor', 'Som melhor', 'somMelhor'], ['up', 'showLongo', 'Show mais longo 2', 'showLongo'], ['up', 'intervalo', 'Mais shows 2', 'intervalo'], ['up', 'bonusShow', 'Bônus do show 2', 'bonusShow'],
+  ],
+  [ // 10. Torneio de futevôlei (meta do lançamento): 3 etapas em ordem; cada troféu dá público para sempre
+    ['build', 'arena', 'Arena do torneio', 'fence9'], ['up', 'arquibT', 'Arquibancada do torneio', 'arquibT'], ['up', 'etapa1', 'Classificatória', 'etapa'], ['up', 'patrocinio', 'Patrocínio', 'patroc'],
+    ['up', 'etapa2', 'Semifinal', 'etapa'], ['up', 'arquibT', 'Arquibancada do torneio 2', 'arquibT'], ['up', 'etapa3', 'Final', 'etapa'],
+  ],
 ];
 /** Depois da trilha fixa, cada área repete estas melhorias para sempre ter o que comprar. */
 export const CAUDAS: PlanStep[][] = [
@@ -63,6 +77,9 @@ export const CAUDAS: PlanStep[][] = [
   [['up', 'torneio', 'Torneio da tarde', 'torneio'], ['up', 'arquibancada', 'Arquibancada maior', 'arquib'], ['up', 'rede', 'Rede de campeonato', 'rede']],
   [['up', 'cardapioA', '#B', 'cardapioA'], ['up', 'isopor', 'Isopor maior', 'isopor'], ['up', 'carrinhoRapido', 'Carrinho mais rápido', 'rapidoA']],
   [['up', 'aulaUp', 'Aula mais cara', 'aulaUp'], ['up', 'arara', 'Arara maior', 'arara'], ['up', 'pranchas', 'Mais pranchas', 'pranchas']],
+  [['up', 'cardapioJ', '#J', 'cardapioJ'], ['up', 'liquiRapida', 'Liquidificadora mais rápida', 'liquiRapida'], ['up', 'copoMaior', 'Copo maior', 'copoMaior']],
+  [['up', 'bonusShow', 'Bônus do show', 'bonusShow'], ['up', 'showLongo', 'Show mais longo', 'showLongo'], ['up', 'somMelhor', 'Som melhor', 'somMelhor']],
+  [['up', 'arquibT', 'Arquibancada do torneio', 'arquibT'], ['up', 'patrocinio', 'Patrocínio', 'patroc']],
 ];
 
 /** A área N+1 abre (o quadro aparece na cerca) quando a área N chega a este nível. */
@@ -72,13 +89,13 @@ export const MARCOS = [5, 10, 15, 20];
 /** Nova praia: o quadro dourado aparece quando a área nova da praia (a área N na praia N) chega a este nível. */
 export const NIVEL_NOVA_PRAIA = 10;
 /** O 1º ajudante de cada área (começo rápido: vem de graça, com o cofre, a partir da Praia 3). */
-export const AJUDANTE = ['ajud', 'ajudS', 'salva', 'cozinheiro', '', 'gerente', 'instrutor'];
+export const AJUDANTE = ['ajud', 'ajudS', 'salva', 'cozinheiro', '', 'gerente', 'instrutor', 'barman', '', ''];
 
 /** Números da economia (GDD seção 8). Ajustados com o simulador: npm run sim. */
 export const ECONOMIA = {
-  abrir: [0, 8500, 100000, 300000, 900000, 2500000, 6000000],  // preço de abrir cada área (o quadro na cerca), na Praia 1
-  base: [100, 700, 8500, 26000, 120000, 300000, 700000],      // preço da primeira melhoria de cada área, na Praia 1
-  cresce: [1.55, 1.4, 1.3, 1.3, 1.35, 1.3, 1.3],             // cada nível custa isto vezes o anterior, dentro da área
+  abrir: [0, 8500, 100000, 300000, 900000, 2500000, 6000000, 14000000, 30000000, 60000000],  // preço de abrir cada área (o quadro na cerca), na Praia 1
+  base: [100, 700, 8500, 26000, 120000, 300000, 700000, 1600000, 4000000, 9000000],          // preço da primeira melhoria de cada área, na Praia 1
+  cresce: [1.55, 1.4, 1.3, 1.3, 1.35, 1.3, 1.3, 1.3, 1.35, 1.35],                          // cada nível custa isto vezes o anterior, dentro da área
   praia: 1.45,     // cada praia multiplica os preços de compra (praia^b); as vendas sobem com a fama
   antiga: 0.2,     // começo rápido (Praia 3 em diante): as áreas antigas custam esta fração do preço
   famaK: 2000,     // fama ganha numa praia = floor(sqrt(ganho na praia / famaK))
