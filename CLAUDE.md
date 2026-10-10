@@ -4,9 +4,9 @@ Jogo mobile "idle arcade" (no estilo do Pizza Ready): o jogador anda com um dedo
 
 - Design completo: `GDD-BARRACA-NA-PRAIA.md` (fonte da verdade para regras e números).
 - Protótipo de referência: `barraca-na-praia.html`. O que o GDD marca como "já existe no protótipo" precisa manter o mesmo comportamento.
-- **Áreas:** a praia é dividida em áreas, da esquerda para a direita: Barraca do Sol, Sorvete, Chuveirão e cadeiras, Milho e pastel; depois, só a placa da Quadra de futevôlei.
+- **Áreas:** a praia é dividida em áreas, da esquerda para a direita: Barraca do Sol, Sorvete, Chuveirão e cadeiras, Milho e pastel, Quadra de futevôlei (atração: não vende, aumenta a chegada de clientes nas outras); depois, só a placa dos Ambulantes.
 - **Trilhas:** cada área tem a sua trilha de níveis, independente das outras, e a área N+1 abre quando a área N chega ao nível 5 (GDD seções 6 a 8).
-- **Praia:** é o nível de prestígio, opcional, com as 4 áreas abertas no nível 10.
+- **Praia:** é o nível de prestígio, opcional, com todas as áreas abertas no nível 10.
 
 ## Pilares (GDD seção 2, não quebrar)
 
@@ -23,7 +23,7 @@ Vite + TypeScript, empacotado com Capacitor 8 para Android (`android/`, id `com.
 
 ```
 src/
-  dados/        mapa.ts (lotes, lojas/SHOPS, SERVICO, PREPARO, produtos, slots), planos.ts (AREAS, TRILHAS, ECONOMIA)
+  dados/        mapa.ts (lotes, lojas/SHOPS, SERVICO, PREPARO, ATRACAO, produtos, slots), planos.ts (AREAS, TRILHAS, ECONOMIA)
   core/         jogo.ts (estado, clientes, ajudantes, compras; sem canvas e sem DOM)
                 economia.ts (trilhas e preços), simulador.ts (bot que mede o ritmo)
   render/       desenho.ts (câmera, cenário, personagens, máquinas, efeitos)
@@ -76,4 +76,4 @@ O `npm run sim` roda com o Node 24, que executa TypeScript direto. Por isso os i
 
 ## Ordem de trabalho (GDD seção 12)
 
-Feitas: etapa 1 (base, porte, testes, simulador) e etapa 2 (personagens, sons e mar, vibração, tela inicial, save versionado, ganhos offline). Rodada 3 (etapa 3: Capacitor, AdMob de teste, analytics) feita. Rodada 4 (refeita): consentimento de anúncios e progressão por áreas independentes com as áreas 3 e 4; ver RELATORIO.md. Não avance além do roteiro sem o usuário pedir.
+Feitas: etapa 1 (base, porte, testes, simulador) e etapa 2 (personagens, sons e mar, vibração, tela inicial, save versionado, ganhos offline). Rodada 3 (etapa 3: Capacitor, AdMob de teste, analytics) feita. Rodada 4 (refeita): consentimento de anúncios, progressão por áreas independentes com as áreas 3 e 4, e a área 5 (quadra); ver RELATORIO.md. Não avance além do roteiro sem o usuário pedir.

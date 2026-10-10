@@ -1,5 +1,5 @@
 /* Mapa: uma praia, vários lotes. Coordenadas do mundo em unidades do canvas lógico (400 x 760). */
-export const W = 400, H = 760, WORLD_W = 1400;
+export const W = 400, H = 760, WORLD_W = 1600;
 export const SHORE = 118, WALL_Y = 326, PLAY_BOTTOM = 742;
 
 export interface Rect { x: number; y: number; w: number; h: number }
@@ -11,7 +11,8 @@ export const LOTS: Lot[] = [
   { x0: 400, x1: 600, title: 'QUIOSQUE DE SORVETE', praia: 2 },
   { x0: 600, x1: 900, title: 'CHUVEIRÃO E CADEIRAS', praia: 3, kind: 'shower' },
   { x0: 900, x1: 1200, title: 'MILHO E PASTEL', praia: 4, kind: 'corn' },
-  { x0: 1200, x1: 1400, title: 'QUADRA DE FUTEVÔLEI', praia: 5, kind: 'volei' }, // só a placa (pilar 6)
+  { x0: 1200, x1: 1400, title: 'QUADRA DE FUTEVÔLEI', praia: 5, kind: 'volei' },
+  { x0: 1400, x1: 1600, title: 'AMBULANTES', praia: 6, kind: 'ambulantes' }, // só a placa (pilar 6)
 ];
 
 // price 0 = não é vendido; rate 0 = não sai de máquina; shop -1 = cru (vai para a panela, não para o balcão)
@@ -28,7 +29,7 @@ export const PRODUCTS: Record<Item, { price: number; rate: number; shop: number 
 export const BOX_SORVETES = 6, BOX_MAX_CARRY = 3;
 
 export interface Shop {
-  kind: 'counter' | 'kiosk' | 'servico'; name: string; cx: number; products: Item[]; side: number; base: number; spawnX: number;
+  kind: 'counter' | 'kiosk' | 'servico' | 'atracao'; name: string; cx: number; products: Item[]; side: number; base: number; spawnX: number;
   counter: Rect; drop: Rect; cash: { x: number; y: number };
 }
 export const SHOPS: Shop[] = [
@@ -42,7 +43,14 @@ export const SHOPS: Shop[] = [
   // Praia 4: venda com preparo. Balcão comum; o milho e o pastel saem das panelas (PREPARO)
   { kind: 'counter', name: 'MILHO E PASTEL', cx: 1050, products: ['milho', 'pastel'], side: 1, base: 1500, spawnX: 1460,
     counter: { x: 1050, y: 300, w: 200, h: 40 }, drop: { x: 1050, y: 360, w: 104, h: 44 }, cash: { x: 1146, y: 362 } },
+  // Área 5: atração. Não vende: "counter" é a quadra (enfeites e comemoração); drop e caixa não são usados
+  { kind: 'atracao', name: 'QUADRA', cx: 1300, products: [], side: 1, base: 0, spawnX: 0,
+    counter: { x: 1300, y: 236, w: 160, h: 104 }, drop: { x: 1300, y: 372, w: 0, h: 0 }, cash: { x: 1300, y: 372 } },
 ];
+
+/** Área 5: o jogo na quadra junta público e aumenta a chegada de clientes em todas as outras áreas.
+    publico = 1 + (aberta + por nível de cada melhoria) × marco da quadra; com a quadra fechada, 1. */
+export const ATRACAO = { aberta: 0.15, arquibancada: 0.1, rede: 0.06, torneio: 0.15 };
 
 /** Praia 3: chuveirão (fila, banho, caixa d'água) e cadeiras de aluguel. */
 export const SERVICO = {
@@ -75,7 +83,9 @@ export const SLOTS: Record<string, { x: number; y: number }> = {
   // Praia 3 (lote 600-900)
   fence2: { x: 560, y: 548 }, cadeiras: { x: 740, y: 480 }, salva: { x: 760, y: 712 }, cofre2: { x: 640, y: 712 }, caixaAgua: { x: 850, y: 460 }, chuveiro2: { x: 766, y: 412 }, aluguel: { x: 650, y: 480 },
   // Praia 4 (lote 900-1200)
-  fence3: { x: 860, y: 548 }, pastel: { x: 1150, y: 470 }, panela2: { x: 1050, y: 612 }, cozinheiro: { x: 1150, y: 700 }, panelaUp: { x: 1050, y: 712 }, fritaUp: { x: 1150, y: 612 }, cardapioM: { x: 960, y: 372 }, cofre3: { x: 1146, y: 410 },
+  fence3: { x: 860, y: 548 }, pastel: { x: 1150, y: 470 }, panela2: { x: 1050, y: 612 }, cozinheiro: { x: 1150, y: 700 }, panelaUp: { x: 1050, y: 712 }, fritaUp: { x: 1150, y: 612 }, cardapioM: { x: 960, y: 372 }, cofre3: { x: 1094, y: 410 },
+  // Área 5 (lote 1200-1400); o quadro de abrir fica na cerca, no fim do lote do milho
+  fence4: { x: 1166, y: 410 }, arquib: { x: 1250, y: 520 }, rede: { x: 1350, y: 520 }, torneio: { x: 1300, y: 660 },
 };
 
 export const UMBRELLA_POS = [{ x: 64, y: 226 }, { x: 336, y: 226 }, { x: 316, y: 158 }, { x: 40, y: 168 }];

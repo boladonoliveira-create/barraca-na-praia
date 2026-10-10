@@ -1,6 +1,6 @@
 /* Núcleo do jogo: estado, economia, clientes, ajudantes e compras. Sem canvas e sem DOM. */
 import {
-  SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, BEACHES, LOTS, SERVICO, PREPARO,
+  SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, BEACHES, LOTS, SERVICO, PREPARO, ATRACAO,
   PHRASES, SHIRTS, SKINS, W, WALL_Y, PLAY_BOTTOM, type Item, type Rect,
 } from '../dados/mapa.ts';
 import { NIVEL_ABRE, NIVEL_PRESTIGIO, MARCOS, ECONOMIA, AREAS } from '../dados/planos.ts';
@@ -33,7 +33,7 @@ export type Estado = 'inicio' | 'play' | 'ad' | 'offline' | 'beach';
 export interface Save { money: number; niveis: number[]; paid: Record<string, number>; beach: number; last: number; tutorial: number; pendente?: number }
 /** Uma compra visível no chão: área, nível (índice na trilha da área) e o passo. */
 export interface Visivel { a: number; k: number; s: Step }
-export const NUM_AREAS = 4;
+export const NUM_AREAS = 5;
 
 /** Saídas do núcleo para som, vibração, salvar e interface. */
 export interface Io {
@@ -76,6 +76,11 @@ export class Jogo {
   /** Marcos (níveis 5, 10, 15, 20): cada um dobra o dinheiro que a área gera. */
   marco(a: number) { return Math.pow(2, this.tier(a)) }
   tier(a: number) { return MARCOS.filter(m => (this.nivel[a] || 0) >= m).length }
+  /** Área 5 (atração): multiplica a chegada de clientes nas outras áreas. Fechada, vale exatamente 1. */
+  publico() {
+    if (!this.aberta(4)) return 1;
+    const A = ATRACAO; return 1 + (A.aberta + A.arquibancada * this.L('arquibancada') + A.rede * this.L('rede') + A.torneio * this.L('torneio')) * this.marco(4);
+  }
   /** Área aberta = a loja dela já foi construída (a Barraca do Sol começa aberta). */
   aberta(a: number) { return !!this.S[a]?.open }
   /** A área a pode ser aberta: a anterior chegou ao nível mínimo. */
@@ -158,6 +163,7 @@ export class Jogo {
       if (s.id === 'milho') { this.S[3].open = true; this.addMachine('milhoCru', 950, 470); this.addCooker('milho', 1050, 470) }
       if (s.id === 'pastel') { this.addMachine('pastelCru', 950, 612); this.addCooker('pastel', 1150, 470) }
       if (s.id === 'panela2') this.addCooker('milho', 1050, 612);
+      if (s.id === 'quadra') this.S[4].open = true;
     } else {
       this.lv[s.id] = this.L(s.id) + 1;
       if (s.id === 'ajud') this.addHelper(0);
@@ -175,6 +181,7 @@ export class Jogo {
     if (s.id === 'sorv') this.popups.push({ x: 500, y: 250, txt: 'Leve caixas do depósito ao freezer!', life: 2.4, col: '#1c7ed6', size: 15 });
     if (s.id === 'servico') this.popups.push({ x: 750, y: 250, txt: "Encha a caixa d'água no registro!", life: 2.4, col: '#1c7ed6', size: 15 });
     if (s.id === 'milho') this.popups.push({ x: 1050, y: 250, txt: 'Leve o milho cru à panela!', life: 2.4, col: '#e8590c', size: 15 });
+    if (s.id === 'quadra' || s.id === 'arquibancada' || s.id === 'rede' || s.id === 'torneio') this.popups.push({ x: 1300, y: 160, txt: 'Mais público: clientes x' + this.publico().toFixed(2).replace('.', ','), life: 2, col: '#2f9e44', size: 15 });
     if (s.id === 'cardapioM') this.popups.push({ x: SHOPS[3].cx, y: 250, txt: 'Milho agora R$ ' + this.price('milho'), life: 1.8, col: '#2f9e44', size: 18 });
     if (MARCOS.includes(i)) this.comemorar(a, i);
     this.io.compra(this.beach, a, i, (this.now - this.lastBuyAt) / 1000); this.lastBuyAt = this.now;
@@ -365,9 +372,10 @@ export class Jogo {
 
     for (let si = 0; si < SHOPS.length; si++) {
       const st = this.S[si], d = SHOPS[si]; if (!st.open) continue;
+      if (d.kind === 'atracao') continue; // a quadra não tem clientes próprios
       if (d.kind === 'servico') { this.updateServico(dt, f); continue }
       const stock = this.stockOf(si), stockF = stock >= 8 ? 0.5 : stock >= 3 ? 0.75 : 1.25, demand = si === 0 ? 1 + 0.35 * this.umbrellas.length : 1;
-      const maxQ = si === 0 ? 6 + this.umbrellas.length : 7, interval = d.base / demand * stockF;
+      const maxQ = si === 0 ? 6 + this.umbrellas.length : 7, interval = d.base / demand * stockF / this.publico();
       st.spawnT -= dt; if (st.spawnT <= 0) { st.spawnT = interval * (0.75 + this.rand() * 0.5); if (st.queue.length < maxQ) this.spawnCustomer(si) }
       st.queue.forEach((c, i) => { const q = this.slotPos(si, i); c.arr = moveTo(c, q.x, q.y, 2.5, f) });
       // os 4 primeiros da fila podem comprar
@@ -437,7 +445,7 @@ export class Jogo {
     this.arrumar(p, true);
     // chuveirão: quem sai do mar entra na fila; sem água, a fila para
     sv.spawnT -= dt;
-    if (sv.spawnT <= 0) { sv.spawnT = SHOPS[2].base * (0.75 + R() * 0.5); if (sv.fila.length < SERVICO.filaMax) sv.fila.push(this.novoCliente(SERVICO.filaX + (R() - 0.5) * 120, 110, 'fila')) }
+    if (sv.spawnT <= 0) { sv.spawnT = SHOPS[2].base / this.publico() * (0.75 + R() * 0.5); if (sv.fila.length < SERVICO.filaMax) sv.fila.push(this.novoCliente(SERVICO.filaX + (R() - 0.5) * 120, 110, 'fila')) }
     sv.fila.forEach((c, i) => { c.arr = moveTo(c, SERVICO.filaX, 250 - i * 26, 2.5, f) });
     for (const ch of sv.chuveiros) {
       if (!ch.user && sv.agua > 0 && sv.fila[0]?.arr) { const c = sv.fila.shift()!; ch.user = c; ch.t = SERVICO.banhoMs; sv.agua--; c.state = 'banho' }
@@ -449,7 +457,7 @@ export class Jogo {
     // cadeiras: só aluga cadeira livre e arrumada; paga ao sair e deixa a cadeira bagunçada
     sv.spawnC -= dt;
     if (sv.spawnC <= 0) {
-      sv.spawnC = SERVICO.chegadaCadeiraMs * (0.75 + R() * 0.5);
+      sv.spawnC = SERVICO.chegadaCadeiraMs / this.publico() * (0.75 + R() * 0.5);
       const livres = sv.cadeiras.filter(c => !c.user && !c.suja);
       if (livres.length) { const cad = livres[Math.floor(R() * livres.length)], c = this.novoCliente(cad.x, 110, 'toChair'); cad.user = c; c.tx = cad.x; c.ty = cad.y - 6 }
     }

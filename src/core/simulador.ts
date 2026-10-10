@@ -101,7 +101,9 @@ function alvo(g: Jogo): Rect | Pt {
   return zoneOf(g.machines.reduce((a, b) => b.pile > a.pile ? b : a));
 }
 
-/** Joga até abrir as 4 áreas (ou travar). */
+/** As metas de ritmo (seção 8) valem até a 4ª área; a quadra (área 5) vem depois. */
+export const AREAS_RITMO = 4;
+/** Joga até abrir as 4 primeiras áreas (ou travar). */
 export function simular({ seed = 1, limiteMin = 120, humano = true } = {}): Resultado {
   const g = new Jogo({}, rng(seed)), R = rng(seed + 7);
   const entre = (a: number, b: number) => a + R() * (b - a);
@@ -109,7 +111,7 @@ export function simular({ seed = 1, limiteMin = 120, humano = true } = {}): Resu
   g.load(null); g.firstScene(); g.tutorial = 4;
   const compras: Compra[] = [], fases: number[] = [];
   let tFase = 0, tCompra = 0, feitas = 0;
-  const limite = limiteMin * 60000, abertas = () => g.S.slice(0, NUM_AREAS).filter(s => s.open).length;
+  const limite = limiteMin * 60000, abertas = () => g.S.slice(0, AREAS_RITMO).filter(s => s.open).length;
   for (let t = 0; t < limite; t += DT) {
     if (g.state === 'beach') g.state = 'play';
     g.now += DT; tFase += DT; tCompra += DT;
@@ -132,7 +134,7 @@ export function simular({ seed = 1, limiteMin = 120, humano = true } = {}): Resu
     for (let ar = 0; ar < NUM_AREAS; ar++) while (antes[ar] < g.nivel[ar]) {
       const s = g.trilhas[ar][antes[ar]++]; compras.push({ fase: faseAtual, area: ar, nivel: antes[ar], nome: s.name, preco: s.price, segundos: tCompra / 1000 }); tCompra = 0; feitas++;
     }
-    if (abertas() - 1 > faseAtual) { fases.push(tFase / 60000); tFase = 0; if (abertas() === NUM_AREAS) return { compras, fases, total: fases.reduce((x, y) => x + y, 0), travou: false } }
+    if (abertas() - 1 > faseAtual) { fases.push(tFase / 60000); tFase = 0; if (abertas() === AREAS_RITMO) return { compras, fases, total: fases.reduce((x, y) => x + y, 0), travou: false } }
     if (tCompra > 10 * 60000) break; // 10 min sem comprar: travado
   }
   return { compras, fases, total: fases.reduce((x, y) => x + y, 0), travou: true };

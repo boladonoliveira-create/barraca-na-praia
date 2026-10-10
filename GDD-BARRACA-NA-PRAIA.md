@@ -59,7 +59,8 @@ Uma praia só, desenhada uma vez, dividida em **áreas** da esquerda para a dire
 | 2 | 200 | Sorvete | Barraca do Sol no nível 5 |
 | 3 | 300 | Chuveirão e cadeiras de aluguel | Sorvete no nível 5 |
 | 4 | 300 | Milho e pastel | Chuveirão no nível 5 |
-| 5 | 200 | Quadra de futevôlei (por enquanto só a placa) | Milho e pastel no nível 5 |
+| 5 | 200 | Quadra de futevôlei (atração) | Milho e pastel no nível 5 |
+| 6 | 200 | Ambulantes (por enquanto só a placa, "em breve") | próxima rodada |
 
 Cada área fechada mostra uma cerca, a silhueta do que vai ter ali e uma placa com cadeado com o progresso: "Sorvete · abre com Barraca do Sol nv 5 (3/5)". Quando a área anterior chega ao nível mínimo, a placa diz "pronta para abrir" e o **quadro de compra da área nova aparece na cerca**. Comprar esse quadro abre a área.
 
@@ -80,9 +81,9 @@ Quatro tipos de mecânica, combinados para que cada área traga um trabalho novo
 | 2 | Sorvete | Abastecer | Leva caixas do depósito ao freezer (1 caixa = 6 sorvetes) | Sorveteiro abastece |
 | 3 | Chuveirão e cadeiras | Serviço | Chuveirão: clientes saindo do mar fazem fila, tomam banho e pagam; a caixa d'água esvazia a cada alguns banhos e o jogador enche parado no registro (com a caixa vazia, a fila para). Cadeiras: o cliente senta, fica um tempo e paga ao sair; a cadeira fica bagunçada até o jogador passar por cima, e cadeira bagunçada não é alugada | Salva-vidas enche a caixa e arruma as cadeiras |
 | 4 | Milho e pastel | Venda com preparo | Pega o cru na caixa, leva à panela ou à fritadeira, espera o preparo (barra de tempo) e leva ao balcão | Cozinheiro faz o ciclo todo |
-| 5 | Quadra de futevôlei | Atração | Compra arquibancada e melhorias; jogo rolando traz público | Não precisa |
+| 5 | Quadra de futevôlei | Atração | Não vende nada. Um jogo rola na quadra e junta público: a área multiplica a chegada de clientes em todas as outras ("Clientes x1,31"). Trilha própria: arquibancada (+0,10 por nível), rede nova (+0,06), torneio da tarde (+0,15), sobre 1,15 ao abrir; os marcos dobram esse bônus | Não precisa |
 
-**Próximas áreas (próximas rodadas):** ambulantes, escolinha de surf, sucos e vitaminas, palco de pagode, torneio de futevôlei.
+**Próximas áreas (próximas rodadas):** ambulantes (área 6, já com placa), escolinha de surf, sucos e vitaminas, palco de pagode, torneio de futevôlei.
 
 **Fora do lançamento (atualizações):** arena de beach soccer, temporadas (Carnaval, Réveillon, Copa) com decoração e produtos temporários.
 
@@ -108,20 +109,21 @@ A estrutura segue dois jogos de referência. No Idle Miner Tycoon, cada parte da
 ### Preços (ajustados com o simulador)
 
 - **Barraca do Sol:** a melhoria k custa 100 × 1,6^k.
-- **Áreas 2 a 4:** abrir custa 12 mil (Sorvete), 55 mil (Chuveirão) e 72 mil (Milho e pastel). As melhorias seguem base × cresce^(k-1):
+- **Áreas 2 a 5:** abrir custa 12 mil (Sorvete), 55 mil (Chuveirão), 72 mil (Milho e pastel) e 150 mil (Quadra). As melhorias seguem base × cresce^(k-1):
 
   | Área | Base | Cresce |
   |---|---|---|
   | Sorvete | 1.000 | 1,4 |
   | Chuveirão | 3.000 | 1,3 |
   | Milho e pastel | 6.000 | 1,3 |
+  | Quadra | 20.000 | 1,35 |
 
   Todos os números ficam em `ECONOMIA` (`src/dados/planos.ts`).
 - **Praia:** cada praia multiplica todos os preços de compra e de venda por 1,5^b.
 
 ### Nova praia (prestígio)
 
-- **Opcional:** só fica disponível com a praia completa, isto é, as 4 áreas abertas e todas no nível 10. Aparece num quadrado dourado, no canto da Barraca do Sol, fora do caminho do trabalho.
+- **Opcional:** só fica disponível com a praia completa, isto é, todas as áreas abertas (hoje 5) e todas no nível 10. Aparece num quadrado dourado, no canto da Barraca do Sol, fora do caminho do trabalho.
 - **Recomeço:** todas as áreas fecham de novo, mas o **multiplicador da praia fica para sempre**, e o mar muda de cor.
 - **Começo rápido:** cada praia nova começa com o dinheiro exato para as 2 primeiras compras da Barraca do Sol.
 

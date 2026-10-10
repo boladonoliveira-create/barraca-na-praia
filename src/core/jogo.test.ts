@@ -127,6 +127,23 @@ describe('áreas independentes', () => {
   });
 });
 
+describe('área 5: quadra de futevôlei (atração)', () => {
+  it('não vende nada, mas aumenta a chegada de clientes em todas as outras áreas', () => {
+    // com rand fixo em 0,5 o intervalo de chegada sai exato
+    function chegada(niveis: number[]) {
+      const g = new Jogo({}, () => 0.5); g.load(null);
+      niveis.forEach((n, a) => { while (g.nivel[a] < n) g.applyStep(a, true) });
+      for (const si of [0, 1]) g.S[si].spawnT = 0; g.sv.spawnT = 0; g.sv.spawnC = 0;
+      g.update(DT, PARADO);
+      return [g.S[0].spawnT, g.S[1].spawnT, g.sv.spawnT, g.sv.spawnC, g.publico()];
+    }
+    const sem = chegada([5, 5, 5, 5]), com = chegada([5, 5, 5, 5, 3]); // quadra, arquibancada, rede nova
+    expect(sem[4]).toBe(1); expect(com[4]).toBeCloseTo(1 + 0.15 + 0.1 + 0.06);
+    for (let i = 0; i < 4; i++) expect(com[i]).toBeCloseTo(sem[i] / com[4]);
+    const g = mundo([5, 5, 5, 5, 3]); expect(g.S[4].cashValue).toBe(0); expect(g.helpers.some(h => h.shop === 4)).toBe(false);
+  });
+});
+
 describe('compras', () => {
   it('parado no quadrado, paga aos poucos (1/28 a cada 40 ms) e aplica a compra', () => {
     const g = novo(); const v = g.visibleSteps()[0]; Object.assign(g.player, padOf(v.s.slot)); g.money = 1000;
@@ -143,7 +160,7 @@ describe('compras', () => {
   });
 
   it('1 ou 2 por área, em quadrados diferentes e dentro da própria área (o de abrir fica na cerca)', () => {
-    const g = mundo([8, 6, 6, 3]);
+    const g = mundo([8, 6, 6, 6, 2]);
     for (let n = 0; n < 30; n++) {
       const vs = g.visibleSteps();
       for (let a = 0; a < NUM_AREAS; a++) {
@@ -164,15 +181,15 @@ describe('compras', () => {
 });
 
 describe('prestígio', () => {
-  it(`só com as 4 áreas abertas e todas no nível ${NIVEL_PRESTIGIO}; recomeça com multiplicador e dinheiro das 2 primeiras compras`, () => {
-    const g = mundo([NIVEL_PRESTIGIO, NIVEL_PRESTIGIO, NIVEL_PRESTIGIO, NIVEL_PRESTIGIO - 1]);
+  it(`só com todas as áreas abertas e no nível ${NIVEL_PRESTIGIO}; recomeça com multiplicador e dinheiro das 2 primeiras compras`, () => {
+    const g = mundo([NIVEL_PRESTIGIO, NIVEL_PRESTIGIO, NIVEL_PRESTIGIO, NIVEL_PRESTIGIO, NIVEL_PRESTIGIO - 1]);
     expect(g.prestigeOpen()).toBe(false);
-    g.applyStep(3, true); expect(g.prestigeOpen()).toBe(true);
+    g.applyStep(4, true); expect(g.prestigeOpen()).toBe(true);
     Object.assign(g.player, padOf('praia')); g.money = g.prestigeCost(); g.S[0].spawnT = 1e9;
     rodar(g, 3000);
     expect(g.beach).toBe(1); expect(g.state).toBe('beach');
     expect(g.money).toBe(g.trilhas[0][0].price + g.trilhas[0][1].price);
-    expect(g.nivel).toEqual([0, 0, 0, 0]); expect(g.machines).toHaveLength(1); expect(g.kioskOpen()).toBe(false);
+    expect(g.nivel).toEqual([0, 0, 0, 0, 0]); expect(g.machines).toHaveLength(1); expect(g.kioskOpen()).toBe(false);
     expect(g.price('acai')).toBe(9);
   });
 });
@@ -181,9 +198,9 @@ describe('salvar', () => {
   it('salva e carrega o progresso por área; ganhos com o app fechado = 24 × ajudantes × multiplicador por minuto, até 2 h', () => {
     const g = mundo([12, 3]); g.beach = 1; g.money = 321;
     const s = JSON.parse(JSON.stringify(g.snapshot(1000)));
-    expect(s.niveis).toEqual([12, 3, 0, 0]);
+    expect(s.niveis).toEqual([12, 3, 0, 0, 0]);
     const h = new Jogo(); const off = h.load(s, 1000 + 30 * 60000);
-    expect(h.beach).toBe(1); expect(h.money).toBe(321); expect(h.nivel).toEqual([12, 3, 0, 0]);
+    expect(h.beach).toBe(1); expect(h.money).toBe(321); expect(h.nivel).toEqual([12, 3, 0, 0, 0]);
     expect(h.helpers.length).toBe(g.helpers.length); expect(h.aberta(1)).toBe(true);
     expect(off).toBe(Math.round(30 * 24 * h.helpers.length * 1.5));
     expect(new Jogo().load(s, 10 * 3600000)).toBe(Math.round(120 * 24 * h.helpers.length * 1.5));

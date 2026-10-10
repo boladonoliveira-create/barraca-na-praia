@@ -7,7 +7,7 @@ export const SORV_NAMES = ['Duas bolas', 'Três bolas', 'Granulado', 'Cereja no 
 export const MILHO_NAMES = ['Milho na manteiga', 'Pastel de queijo', 'Milho com queijo ralado', 'Pastel de carne', 'Milho completo'];
 
 /** Áreas, da esquerda para a direita. A área i é a loja SHOPS[i] e o lote LOTS[i]. */
-export const AREAS = ['Barraca do Sol', 'Sorvete', 'Chuveirão', 'Milho e Pastel', 'Quadra de futevôlei'];
+export const AREAS = ['Barraca do Sol', 'Sorvete', 'Chuveirão', 'Milho e Pastel', 'Quadra de futevôlei', 'Ambulantes'];
 
 /** Trilha de cada área. O primeiro passo das áreas 2 a 4 abre a área (o quadro aparece na cerca). */
 export const TRILHAS: PlanStep[][] = [
@@ -36,6 +36,10 @@ export const TRILHAS: PlanStep[][] = [
     ['up', 'cardapioM', '#M', 'cardapioM'], ['up', 'panelaMaior', 'Panela maior 2', 'panelaUp'], ['up', 'fritaRapida', 'Fritadeira mais rápida 2', 'fritaUp'], ['up', 'cardapioM', '#M', 'cardapioM'],
     ['up', 'cozinheiro', 'Mais um cozinheiro', 'cozinheiro'],
   ],
+  [ // 5. Quadra de futevôlei (atração: não vende, traz público para todas as áreas)
+    ['build', 'quadra', 'Quadra de futevôlei', 'fence4'], ['up', 'arquibancada', 'Arquibancada', 'arquib'], ['up', 'rede', 'Rede nova', 'rede'], ['up', 'torneio', 'Torneio da tarde', 'torneio'],
+    ['up', 'arquibancada', 'Arquibancada maior', 'arquib'], ['up', 'rede', 'Rede de campeonato', 'rede'], ['up', 'torneio', 'Torneio da tarde 2', 'torneio'], ['up', 'arquibancada', 'Arquibancada maior 2', 'arquib'],
+  ],
 ];
 /** Depois da trilha fixa, cada área repete estas melhorias para sempre ter o que comprar. */
 export const CAUDAS: PlanStep[][] = [
@@ -43,6 +47,7 @@ export const CAUDAS: PlanStep[][] = [
   [['up', 'cardapioS', '#S', 'cardapioS'], ['up', 'turboS', 'Depósito rápido', 'extraS'], ['up', 'freezer', 'Freezer maior', 'frzUp']],
   [['up', 'aluguel', 'Aluguel mais caro', 'aluguel'], ['up', 'banhoUp', 'Banho caprichado', 'chuveiro2'], ['up', 'caixaAgua', "Caixa d'água maior", 'caixaAgua']],
   [['up', 'cardapioM', '#M', 'cardapioM'], ['up', 'fritaRapida', 'Fritadeira mais rápida', 'fritaUp'], ['up', 'panelaMaior', 'Panela maior', 'panelaUp']],
+  [['up', 'torneio', 'Torneio da tarde', 'torneio'], ['up', 'arquibancada', 'Arquibancada maior', 'arquib'], ['up', 'rede', 'Rede de campeonato', 'rede']],
 ];
 
 /** A área N+1 abre (o quadro aparece na cerca) quando a área N chega a este nível. */
@@ -54,9 +59,9 @@ export const NIVEL_PRESTIGIO = 10;
 
 /** Números da economia (GDD seção 8). Ajustados com o simulador: npm run sim. */
 export const ECONOMIA = {
-  abrir: [0, 12000, 55000, 72000],  // preço de abrir cada área (o quadro na cerca), na Praia 1
-  base: [100, 1000, 3000, 6000],      // preço da primeira melhoria de cada área, na Praia 1
-  cresce: [1.6, 1.4, 1.3, 1.3],      // cada nível custa isto vezes o anterior, dentro da área
+  abrir: [0, 12000, 55000, 72000, 150000],  // preço de abrir cada área (o quadro na cerca), na Praia 1
+  base: [100, 1000, 3000, 6000, 20000],       // preço da primeira melhoria de cada área, na Praia 1
+  cresce: [1.6, 1.4, 1.3, 1.3, 1.35],        // cada nível custa isto vezes o anterior, dentro da área
   praia: 1.5,      // cada praia multiplica preços de compra e de venda
   novaPraia: 60000, // custo da nova praia (× praia^b)
 };

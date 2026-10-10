@@ -242,6 +242,36 @@ function drawServico() {
   sv.cadeiras.forEach(drawCadeira);
   drawShopCash(2);
 }
+/* ---------- Área 5: quadra de futevôlei (atração) ---------- */
+function drawQuadra() {
+  if (!g.aberta(4)) return;
+  const c = SHOPS[4].counter, x0 = c.x - c.w / 2, y0 = c.y - c.h / 2, arq = g.L('arquibancada'), rede = g.L('rede'), tor = g.L('torneio');
+  ctx.fillStyle = '#f3d9a4'; rr(x0, y0, c.w, c.h, 6); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(x0 + 6, y0 + 6, c.w - 12, c.h - 12);
+  // rede (a nova é listrada) e os postes
+  ctx.fillStyle = '#868e96'; ctx.fillRect(c.x - 2, y0 - 6, 4, c.h + 12);
+  for (let y = y0; y < y0 + c.h; y += 7) { ctx.fillStyle = rede && Math.floor((y - y0) / 7) % 2 ? '#ffd43b' : rede ? '#1c7ed6' : 'rgba(255,255,255,0.9)'; ctx.fillRect(c.x - 1, y, 2, 5) }
+  // jogo rolando: dois jogadores e a bola indo e voltando por cima da rede
+  const t = reduceMotion ? 0.5 : (Math.sin(g.now / 700) + 1) / 2, bx = c.x - 50 + 100 * t, by = c.y - 10 - Math.sin(t * Math.PI) * 50;
+  drawPerson(c.x - 55, c.y + 20, { shirt: '#ff6b6b', skin: '#d9a37a', walk: g.now / 160, face: 1, hair: '#2b1d14', shorts: '#343a40' });
+  drawPerson(c.x + 55, c.y + 20, { shirt: '#4dabf7', skin: '#a8714c', walk: g.now / 160 + 1, face: -1, hair: '#1a1a1a', shorts: '#343a40' });
+  ctx.fillStyle = '#fff'; circ(bx, by, 5); ctx.fill(); ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 1.5; ctx.stroke();
+  // arquibancada com público: mais gente a cada nível
+  if (arq) {
+    const ya = WALL_Y + 22; ctx.fillStyle = '#c08a4a'; for (let r = 0; r < 2; r++) rr(x0 + 4, ya + r * 16, c.w - 8, 8, 3), ctx.fill();
+    const n = Math.min(18, 6 * arq + 2 * tor);
+    for (let i = 0; i < n; i++) { const px = x0 + 14 + (i % 9) * 17, py = ya - 6 + Math.floor(i / 9) * 16, pulo = reduceMotion ? 0 : Math.abs(Math.sin(g.now / 260 + i)) * 2;
+      ctx.fillStyle = SHIRTS_Q[i % SHIRTS_Q.length]; rr(px - 5, py - pulo, 10, 9, 4); ctx.fill(); ctx.fillStyle = '#d9a37a'; circ(px, py - 6 - pulo, 4); ctx.fill() }
+  }
+  // torneio da tarde: faixa e troféu
+  if (tor) {
+    ctx.fillStyle = '#e03131'; rr(c.x - 62, y0 - 26, 124, 18, 6); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '800 11px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('TORNEIO DA TARDE', c.x, y0 - 17);
+    ctx.fillStyle = '#f59f00'; rr(x0 + c.w - 18, y0 - 30, 12, 12, 3); ctx.fill(); ctx.fillRect(x0 + c.w - 14, y0 - 18, 4, 6); ctx.fillRect(x0 + c.w - 18, y0 - 12, 12, 3);
+  }
+  tagTxt(c.x, y0 + c.h + 12, 'Clientes x' + g.publico().toFixed(2).replace('.', ','));
+}
+const SHIRTS_Q = ['#ff6b6b', '#4dabf7', '#ffd43b', '#69db7c', '#f783ac', '#ff922b'];
+
 function drawKiosk() {
   const d = SHOPS[1], st = g.S[1], c = d.counter; if (!st.open) return;
   shadow(c.x, c.y + 24, 56);
@@ -267,6 +297,8 @@ function drawLockedLot(lot: Lot, i: number) {
     ctx.fillStyle = '#868e96'; ctx.fillRect(cx - 70, WALL_Y + 90, 5, 120); ctx.fillRect(cx + 65, WALL_Y + 90, 5, 120);
     ctx.strokeStyle = '#868e96'; ctx.lineWidth = 1.5; for (let y = WALL_Y + 92; y < WALL_Y + 140; y += 8) { ctx.beginPath(); ctx.moveTo(cx - 65, y); ctx.lineTo(cx + 65, y); ctx.stroke() }
     ctx.fillStyle = '#ffd43b'; circ(cx + 20, WALL_Y + 70, 10); ctx.fill();
+  } else if (lot.kind === 'ambulantes') {
+    for (const [dx, dy] of [[-40, 120], [30, 220]]) { ctx.fillStyle = '#ff922b'; rr(cx + dx - 26, WALL_Y + dy, 52, 30, 6); ctx.fill(); ctx.fillStyle = '#495057'; circ(cx + dx - 14, WALL_Y + dy + 34, 7); ctx.fill(); circ(cx + dx + 14, WALL_Y + dy + 34, 7); ctx.fill() }
   } else if (lot.kind === 'corn') { ctx.fillStyle = '#ffd43b'; rr(cx - 50, WALL_Y + 90, 100, 60, 10); ctx.fill(); ctx.fillStyle = '#868e96'; circ(cx - 30, WALL_Y + 160, 12); ctx.fill(); circ(cx + 30, WALL_Y + 160, 12); ctx.fill(); ctx.fillStyle = '#e9c46a'; rr(cx - 30, WALL_Y + 240, 60, 40, 8); ctx.fill() }
   else { ctx.fillStyle = '#4dabf7'; rr(cx - 46, WALL_Y - 30, 92, 40, 10); ctx.fill(); ctx.fillStyle = '#d9b382'; rr(cx - 30, WALL_Y + 210, 60, 42, 6); ctx.fill() }
   ctx.globalAlpha = 1;
@@ -321,7 +353,7 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   ctx.fillStyle = 'rgba(255,255,255,0.22)'; rr(10, WALL_Y + 4, 380, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill();
   LOTS.forEach((l, i) => { if (i && g.S[i]?.open) { rr(l.x0 + 10, WALL_Y + 4, l.x1 - l.x0 - 20, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill() } });
   g.umbrellas.forEach(drawUmbrella);
-  drawBarraca(); drawKiosk(); drawServico(); drawBarraca(3);
+  drawBarraca(); drawKiosk(); drawServico(); drawBarraca(3); drawQuadra();
   for (let a = 0; a < NUM_AREAS; a++) drawEnfeites(a);
   LOTS.forEach((lot, i) => { if (!lot.praia || g.S[i]?.open || lot.x1 < x0 || lot.x0 > x1) return; drawLockedLot(lot, i) });
   for (const v of g.visibleSteps()) { const s = SLOTS[v.s.slot], got = g.paid[v.a + ':' + v.k] || 0; drawPad(s.x, s.y, v.s.name, v.s.price - got, got / v.s.price, v.s.k === 'up', false, v.k !== g.nivel[v.a]) }
