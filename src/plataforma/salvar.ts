@@ -6,8 +6,9 @@ import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import type { Save } from '../core/jogo.ts';
 
-export const SAVE_KEY = 'barraca-na-praia:save', SAVE_VERSION = 2; // v2: campo opcional "pendente" (ganho offline ainda não pego)
-const OLD_KEY = 'barracaPraia.v5'; // formato do protótipo, sem versão dentro
+// v3: progresso por área (niveis) no lugar da lista única de compras. Saves antigos recomeçam do zero
+// (ainda não há jogadores; decisão do roteiro da rodada 4).
+export const SAVE_KEY = 'barraca-na-praia:save', SAVE_VERSION = 3;
 const PREFS_KEY = 'barraca-na-praia:prefs';
 
 type Get = (k: string) => string | null;
@@ -28,13 +29,11 @@ export async function iniciarArmazenamento() {
   for (const key of [SAVE_KEY, PREFS_KEY]) { try { const { value } = await Preferences.get({ key }); if (value != null) cache.set(key, value) } catch { /* sem save */ } }
 }
 
-/** Lê o progresso. Aceita as versões 1 e 2 e o save do protótipo; versão desconhecida devolve null. */
+/** Lê o progresso da versão atual; qualquer outra versão (ou save quebrado) devolve null e o jogo recomeça. */
 export function lerSave(get: Get = ls.get): Save | null {
   try {
-    const raw = get(SAVE_KEY);
-    if (raw) { const s = JSON.parse(raw); return s && (s.versao === 1 || s.versao === SAVE_VERSION) ? s.jogo : null } // v1 → v2: só ganhou um campo opcional
-    const old = get(OLD_KEY);
-    return old ? JSON.parse(old) : null;
+    const s = JSON.parse(get(SAVE_KEY) || 'null');
+    return s && s.versao === SAVE_VERSION && Array.isArray(s.jogo?.niveis) ? s.jogo : null;
   } catch { return null }
 }
 

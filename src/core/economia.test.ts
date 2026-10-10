@@ -1,30 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { makePlan, stepPrice, fmt } from './economia.ts';
+import { makeTrilha, stepPrice, fmt } from './economia.ts';
+import { ECONOMIA, TRILHAS } from '../dados/planos.ts';
 
-describe('plano de compras', () => {
-  it('preço = base × cresce^i × praia^b em múltiplos de 5', () => {
-    expect(stepPrice(0, 0)).toBe(100);
-    expect(stepPrice(1, 0)).toBe(130);
-    expect(stepPrice(0, 1)).toBe(150);
-    for (const b of [0, 1, 3]) makePlan(b).forEach((s, i) => { expect(s.price % 5).toBe(0); expect(s.price).toBe(stepPrice(i, b)) });
+describe('trilhas por área', () => {
+  it('preço: Barraca base × cresce^k; nas outras, o passo 0 abre a área e as melhorias seguem base × cresce^(k-1); × praia^b', () => {
+    expect(stepPrice(0, 0, 0)).toBe(ECONOMIA.base[0]);
+    expect(stepPrice(1, 0, 0)).toBe(ECONOMIA.abrir[1]);
+    expect(stepPrice(1, 1, 0)).toBe(ECONOMIA.base[1]);
+    expect(stepPrice(0, 0, 1)).toBe(Math.round(ECONOMIA.base[0] * 1.5 / 5) * 5);
+    for (const a of [0, 1, 2, 3]) for (const b of [0, 2]) makeTrilha(a, b).forEach((s, k) => { expect(s.price % 5).toBe(0); expect(s.price).toBe(stepPrice(a, k, b)) });
   });
 
-  it('Praia 1 começa pela base, sem sorvete; lista com 80 passos', () => {
-    const p = makePlan(0);
-    expect(p).toHaveLength(80);
-    expect(p.slice(0, 5).map(s => s.name)).toEqual(['Máquina de açaí 2', 'Guarda-sol', 'Coqueiro', 'Ajudante', 'Açaí com granola']);
-    expect(p.some(s => s.id.endsWith('S') || s.id === 'sorv')).toBe(false);
+  it('cada trilha tem 60 passos: a lista fixa e depois a cauda', () => {
+    for (const a of [0, 1, 2, 3]) { const t = makeTrilha(a, 0); expect(t).toHaveLength(60); expect(t.slice(0, TRILHAS[a].length).map(s => s.id)).toEqual(TRILHAS[a].map(s => s[1])) }
   });
 
-  it('a partir da Praia 2 o quiosque entra na posição 3 e o cardápio do sorvete ganha nome', () => {
-    const p = makePlan(1);
-    expect(p[3].id).toBe('sorv');
-    expect(p.filter(s => s.id === 'cardapioS').slice(0, 2).map(s => s.name)).toEqual(['Duas bolas', 'Três bolas']);
+  it('as áreas 2 a 4 começam abrindo a loja', () => {
+    expect([1, 2, 3].map(a => makeTrilha(a, 0)[0].id)).toEqual(['sorv', 'servico', 'milho']);
   });
 
-  it('nomes do cardápio do açaí seguem a ordem e depois numeram', () => {
-    const names = makePlan(0).filter(s => s.id === 'cardapio').map(s => s.name);
+  it('nomes do cardápio seguem a ordem e depois numeram', () => {
+    const names = makeTrilha(0, 0).filter(s => s.id === 'cardapio').map(s => s.name);
     expect(names.slice(0, 6)).toEqual(['Açaí com granola', 'Leite condensado', 'Morango no açaí', 'Paçoca no açaí', 'Açaí completo', 'Cardápio caprichado 6']);
+    expect(makeTrilha(1, 0).filter(s => s.id === 'cardapioS').slice(0, 2).map(s => s.name)).toEqual(['Duas bolas', 'Três bolas']);
   });
 });
 

@@ -51,72 +51,100 @@ O formato segue o dos jogos de "idle arcade" que estão no topo da Google Play (
 
 ## 6. O mapa
 
-Uma praia só, desenhada uma vez, dividida em lotes da esquerda para a direita. A câmera segue o jogador na horizontal e mostra 140 unidades além do último lote aberto, para o jogador espiar o que vem.
+Uma praia só, desenhada uma vez, dividida em **áreas** da esquerda para a direita. A câmera segue o jogador na horizontal e mostra 140 unidades além da última área aberta, para o jogador espiar o que vem.
 
-| Lote | Largura | Conteúdo | Abre na |
+| Área | Largura | Conteúdo | Abre quando |
 |---|---|---|---|
-| 1 | 400 | Barraca do Sol (açaí e coco) | Praia 1 |
-| 2 | 200 | Quiosque de sorvete | Praia 2 |
-| 3 | 300 | Areia livre: chuveirão e aluguel de cadeiras | Praia 3 |
-| 4 a 10 | zona grande com áreas pré-definidas | ver seção 7 | Praias 4 a 10 |
+| 1 | 400 | Barraca do Sol (açaí e coco) | já começa aberta |
+| 2 | 200 | Sorvete | Barraca do Sol no nível 5 |
+| 3 | 300 | Chuveirão e cadeiras de aluguel | Sorvete no nível 5 |
+| 4 | 300 | Milho e pastel | Chuveirão no nível 5 |
+| 5 | 200 | Quadra de futevôlei (por enquanto só a placa) | Milho e pastel no nível 5 |
 
-Cada lote fechado mostra uma cerca, a silhueta do que vai ter ali e uma placa com cadeado: nome e "abre na Praia N".
+Cada área fechada mostra uma cerca, a silhueta do que vai ter ali e uma placa com cadeado com o progresso: "Sorvete · abre com Barraca do Sol nv 5 (3/5)". Quando a área anterior chega ao nível mínimo, a placa diz "pronta para abrir" e o **quadro de compra da área nova aparece na cerca**. Comprar esse quadro abre a área.
 
-"Praia" é o nível de prestígio. O mapa é o mesmo, mas cada praia nova tem nome e cor do mar diferentes: Praia do Sol, Praia Grande, Praia do Farol, Praia Dourada, Ilha do Coqueiro, e depois repete com número.
+"Praia" é o nível de prestígio (seção 8). O mapa é o mesmo, mas cada praia nova tem nome e cor do mar diferentes: Praia do Sol, Praia Grande, Praia do Farol, Praia Dourada, Ilha do Coqueiro, e depois repete com número.
 
-## 7. Os 10 níveis do lançamento
+## 7. As áreas
 
-Quatro tipos de mecânica, combinados para que cada praia traga um trabalho novo:
+Quatro tipos de mecânica, combinados para que cada área traga um trabalho novo:
 
 - **Venda:** pegar o produto na máquina e entregar no balcão.
 - **Abastecer:** levar um insumo até um equipamento que vende sozinho.
 - **Serviço:** o cliente usa algo e paga; o jogador mantém funcionando.
-- **Atração:** não vende nada; aumenta a demanda de todas as lojas.
+- **Atração:** não vende nada; aumenta a demanda de todas as áreas.
 
-| Praia | O que abre | Tipo | O que o jogador faz | O que o ajudante automatiza |
+| Área | O que é | Tipo | O que o jogador faz | O que o ajudante automatiza |
 |---|---|---|---|---|
-| 1 | Barraca do Sol: açaí e coco | Venda | Leva da máquina ao balcão | Leva da máquina ao balcão |
-| 2 | Quiosque de sorvete (já existe) | Abastecer | Leva caixas do depósito ao freezer (1 caixa = 6 sorvetes) | Sorveteiro abastece |
-| 3 | Chuveirão e aluguel de cadeiras | Serviço | Chuveirão: enche a caixa d'água quando esvazia. Cadeiras: arruma a cadeira bagunçada depois que o cliente sai | Salva-vidas cuida dos dois |
-| 4 | Milho e pastel | Venda com preparo | Leva milho cru à panela; depois do tempo de cozimento, leva ao balcão | Cozinheiro |
+| 1 | Barraca do Sol: açaí e coco | Venda | Leva da máquina ao balcão | Ajudante: leva da máquina ao balcão |
+| 2 | Sorvete | Abastecer | Leva caixas do depósito ao freezer (1 caixa = 6 sorvetes) | Sorveteiro abastece |
+| 3 | Chuveirão e cadeiras | Serviço | Chuveirão: clientes saindo do mar fazem fila, tomam banho e pagam; a caixa d'água esvazia a cada alguns banhos e o jogador enche parado no registro (com a caixa vazia, a fila para). Cadeiras: o cliente senta, fica um tempo e paga ao sair; a cadeira fica bagunçada até o jogador passar por cima, e cadeira bagunçada não é alugada | Salva-vidas enche a caixa e arruma as cadeiras |
+| 4 | Milho e pastel | Venda com preparo | Pega o cru na caixa, leva à panela ou à fritadeira, espera o preparo (barra de tempo) e leva ao balcão | Cozinheiro faz o ciclo todo |
 | 5 | Quadra de futevôlei | Atração | Compra arquibancada e melhorias; jogo rolando traz público | Não precisa |
-| 6 | Ambulantes | Venda automática | Abastece o carrinho dos ambulantes com mate e biscoito de polvilho; eles andam pela praia vendendo | Gerente de ambulantes |
-| 7 | Escolinha de surf | Serviço com fila | Entrega as pranchas aos alunos e recolhe na volta | Instrutor |
-| 8 | Quiosque de sucos e vitaminas | Preparo | Leva frutas ao liquidificador e o suco ao balcão | Barman |
-| 9 | Palco de pagode | Atração em evento | Um show começa a cada alguns minutos e traz uma multidão por 60 s | Não precisa |
-| 10 | Torneio de futevôlei | Meta | Pagar a inscrição e os prêmios; ao vencer, mostra a arena "em breve" | Não precisa |
+
+**Próximas áreas (próximas rodadas):** ambulantes, escolinha de surf, sucos e vitaminas, palco de pagode, torneio de futevôlei.
 
 **Fora do lançamento (atualizações):** arena de beach soccer, temporadas (Carnaval, Réveillon, Copa) com decoração e produtos temporários.
 
 ## 8. Progressão e economia
 
-### Plano de compras (já existe no protótipo)
+A estrutura segue dois jogos de referência. No Idle Miner Tycoon, cada parte da mina tem a sua trilha de níveis e o jogador escolhe onde investir. No My Perfect Hotel, as áreas novas abrem por marcos.
 
-Cada praia tem uma lista ordenada de compras. Só as próximas 2 aparecem no chão, sempre em lugares diferentes. A lista alterna melhorias de **produção** (máquinas, ajudantes, turbo) e de **demanda** (guarda-sóis, cardápio), para nenhum dos lados virar gargalo por muito tempo.
+### Trilhas por área
 
-- **Preço da compra número i na praia b:** 100 × 1,31^i × 1,5^b, arredondado para múltiplos de 5 (era 50 × 1,21^i no protótipo; ajustado com o simulador).
-- **Renda:** cada praia multiplica todos os preços de venda por 1,5^b.
-- **Nova praia:** aparece depois de 14 compras, num quadrado dourado. Custa 4000 × 1,5^b (era 3000 no protótipo).
-- **Começo rápido:** cada praia nova começa com o dinheiro exato para as 2 primeiras compras.
-- **Depois da lista fixa,** a lista continua com turbo e cardápio, para sempre ter algo a comprar.
+- **Cada área tem a sua trilha de níveis:** máquinas, ajudante, cardápio, capacidade, cofre e o que for próprio dela. O nível da área é quantas melhorias ela já comprou; o número aparece num selo ao lado do balcão ("Nv 7 ★").
+- **Melhorar uma área nunca depende de outra.** Cada área tem o seu turbo, o seu cardápio e as suas capacidades.
+- **As melhorias aparecem no chão só dentro da área, ao lado do que melhoram:** a próxima da trilha e, se ficar em outro lugar, uma prévia da seguinte (apagada, com "depois"). A prévia só pode ser paga depois da próxima.
+- **Depois da lista fixa,** cada área repete melhorias de cardápio, velocidade e capacidade, para sempre ter algo a comprar.
 
-### Cardápio visível (já existe no protótipo)
+### Liberação, marcos e cofre
+
+- **Liberação:** a área N+1 abre quando a área N chega ao **nível 5** (`NIVEL_ABRE`).
+- **Marcos:** nos níveis 5, 10, 15 e 20, a área **dobra o dinheiro que gera** (×2, ×4, ×8, ×16 no preço de venda) e muda de visual: bandeirinhas (nível 5), selo dourado (10), luzinhas (15), moldura dourada (20). Vem com comemoração na tela ("Barraca do Sol nível 5! Produção x2").
+- **Cofre automático:** melhoria de cada área. Com ele, o dinheiro daquela área entra sozinho no caixa e não precisa ser buscado. No lugar da pilha de notas aparece um cofre.
+- **Dinheiro:** um caixa só, compartilhado. As melhorias são independentes, mas o lucro de uma área ajuda a abrir a próxima.
+- **Seta:** sugere a compra de melhor custo-benefício que cabe no bolso, sem obrigar. Abrir uma área nova vale 3 vezes mais, e chegar a um marco ou ao nível que abre a próxima área vale 2 vezes mais. O topo da tela mostra essa sugestão ("Barraca do Sol: Mais um guarda-sol").
+
+### Preços (ajustados com o simulador)
+
+- **Barraca do Sol:** a melhoria k custa 100 × 1,6^k.
+- **Áreas 2 a 4:** abrir custa 12 mil (Sorvete), 55 mil (Chuveirão) e 72 mil (Milho e pastel). As melhorias seguem base × cresce^(k-1):
+
+  | Área | Base | Cresce |
+  |---|---|---|
+  | Sorvete | 1.000 | 1,4 |
+  | Chuveirão | 3.000 | 1,3 |
+  | Milho e pastel | 6.000 | 1,3 |
+
+  Todos os números ficam em `ECONOMIA` (`src/dados/planos.ts`).
+- **Praia:** cada praia multiplica todos os preços de compra e de venda por 1,5^b.
+
+### Nova praia (prestígio)
+
+- **Opcional:** só fica disponível com a praia completa, isto é, as 4 áreas abertas e todas no nível 10. Aparece num quadrado dourado, no canto da Barraca do Sol, fora do caminho do trabalho.
+- **Recomeço:** todas as áreas fecham de novo, mas o **multiplicador da praia fica para sempre**, e o mar muda de cor.
+- **Começo rápido:** cada praia nova começa com o dinheiro exato para as 2 primeiras compras da Barraca do Sol.
+
+### Cardápio visível
 
 Cada nível aumenta o preço em 25% e muda o desenho do produto:
 
 - **Açaí:** granola → leite condensado → morango → paçoca → açaí completo (copo maior).
 - **Coco:** canudo colorido → guarda-chuvinha → limão.
 - **Sorvete:** duas bolas → três bolas → granulado → cereja.
+- **Milho e pastel:** milho na manteiga → pastel de queijo → milho com queijo ralado → pastel de carne → milho completo.
 
 O preço atual aparece numa plaquinha em cima de cada produto, e a compra mostra "Açaí agora R$ X".
 
-### Ritmo alvo
+### Ritmo alvo (bot humano do simulador)
 
-- Tempo até a próxima compra: cerca de 15 s no começo de cada praia, subindo devagar até cerca de 90 s no fim dela.
-- Uma praia completa: 8 a 15 minutos.
-- Esses números são o ponto de partida. Os valores finais saem do simulador (seção 11) e das métricas do teste fechado.
+- **Dentro de cada fase** (de uma área aberta até a próxima): compras de ~15 s no começo, subindo até ~90 s.
+- **Áreas novas:** uma a cada 8 a 15 minutos.
+- **As 4 áreas abertas:** em 35 a 60 minutos.
+- **Hoje:** 11 / 12 / 14 minutos por área, e as 4 abertas em 37 minutos.
+- Os valores finais saem do simulador (seção 11) e das métricas do teste fechado.
 
-### Ganhos com o app fechado (já existe no protótipo)
+### Ganhos com o app fechado
 
 24 × número de ajudantes × multiplicador da praia por minuto, até no máximo 2 horas. Ao voltar, o jogador pode pegar ou dobrar com anúncio.
 

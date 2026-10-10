@@ -3,8 +3,8 @@ import {
   SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, BEACHES, LOTS, SERVICO, PREPARO,
   PHRASES, SHIRTS, SKINS, W, WALL_Y, PLAY_BOTTOM, type Item, type Rect,
 } from '../dados/mapa.ts';
-import { PRESTIGE_AFTER, ECONOMIA } from '../dados/planos.ts';
-import { makePlan, type Step } from './economia.ts';
+import { NIVEL_ABRE, NIVEL_PRESTIGIO, MARCOS, ECONOMIA, AREAS } from '../dados/planos.ts';
+import { makeTrilha, type Step } from './economia.ts';
 
 export type Kind = Item | 'bill';
 export interface Pt { x: number; y: number }
@@ -29,14 +29,18 @@ export interface Cadeira extends Pt { user: Customer | null; suja: boolean }
 export interface Servico { agua: number; enchT: number; spawnT: number; spawnC: number; chuveiros: Chuveiro[]; fila: Customer[]; cadeiras: Cadeira[] }
 const novoServico = (): Servico => ({ agua: 0, enchT: 0, spawnT: 800, spawnC: 1500, chuveiros: [], fila: [], cadeiras: [] });
 export type Estado = 'inicio' | 'play' | 'ad' | 'offline' | 'beach';
-export interface Save { money: number; done: number[]; paid: Record<string, number>; beach: number; last: number; tutorial: number; pendente?: number }
+/** niveis: quantas compras cada área já fez (a trilha é refeita na mesma ordem ao carregar). */
+export interface Save { money: number; niveis: number[]; paid: Record<string, number>; beach: number; last: number; tutorial: number; pendente?: number }
+/** Uma compra visível no chão: área, nível (índice na trilha da área) e o passo. */
+export interface Visivel { a: number; k: number; s: Step }
+export const NUM_AREAS = 4;
 
 /** Saídas do núcleo para som, vibração, salvar e interface. */
 export interface Io {
   tone(f: number, dur: number, type?: 'sine' | 'triangle' | 'square', vol?: number, slide?: number, delayMs?: number): void;
   fanfare(): void; buzz(ms: number): void; save(): void; goal(): void; prestige(): void;
-  /** Compra feita: praia, índice no plano e segundos de jogo desde a compra anterior. */
-  compra(praia: number, indice: number, segundos: number): void;
+  /** Compra feita: praia, área, novo nível da área e segundos de jogo desde a compra anterior. */
+  compra(praia: number, area: number, nivel: number, segundos: number): void;
 }
 const NO_IO: Io = { tone() {}, fanfare() {}, buzz() {}, save() {}, goal() {}, prestige() {}, compra() {} };
 
@@ -50,7 +54,7 @@ export function moveTo(a: Walker, tx: number, ty: number, sp: number, f: number)
 }
 
 export class Jogo {
-  money = 0; shown = 0; lv: Record<string, number> = {}; beach = 0; plan: Step[] = makePlan(0); done = new Set<number>(); paid: Record<string, number> = {};
+  money = 0; shown = 0; lv: Record<string, number> = {}; beach = 0; trilhas: Step[][] = []; nivel: number[] = []; paid: Record<string, number> = {};
   machines: Machine[] = []; customers: Customer[] = []; flyers: Flyer[] = []; popups: Popup[] = []; sparks: Spark[] = []; helpers: Helper[] = []; umbrellas: Umbrella[] = []; S: ShopState[] = [];
   boostUntil = 0; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; testMode = false;
   sv: Servico = novoServico();
@@ -66,8 +70,16 @@ export class Jogo {
   L(id: string) { return this.lv[id] || 0 }
   mult() { return Math.pow(ECONOMIA.praia, this.beach) }
   cardLv(shop: number) { return this.L(['cardapio', 'cardapioS', '', 'cardapioM'][shop]) }
-  price(t: Item) { return Math.round(PRODUCTS[t].price * Math.pow(1.25, this.cardLv(PRODUCTS[t].shop)) * this.mult()) }
-  rateOf(t: Item) { return PRODUCTS[t].rate / (1 + 0.25 * this.L('turbo')) }
+  price(t: Item) { const a = PRODUCTS[t].shop; return Math.round(PRODUCTS[t].price * Math.pow(1.25, this.cardLv(a)) * this.marco(a) * this.mult()) }
+  /** Cada área tem o seu turbo: o da Barraca não acelera o depósito do sorvete. */
+  rateOf(t: Item) { return PRODUCTS[t].rate / (1 + 0.25 * this.L(['turbo', 'turboS'][PRODUCTS[t].shop] || '')) }
+  /** Marcos (níveis 5, 10, 15, 20): cada um dobra o dinheiro que a área gera. */
+  marco(a: number) { return Math.pow(2, this.tier(a)) }
+  tier(a: number) { return MARCOS.filter(m => (this.nivel[a] || 0) >= m).length }
+  /** Área aberta = a loja dela já foi construída (a Barraca do Sol começa aberta). */
+  aberta(a: number) { return !!this.S[a]?.open }
+  /** A área a pode ser aberta: a anterior chegou ao nível mínimo. */
+  liberada(a: number) { return a === 0 || (this.aberta(a - 1) && this.nivel[a - 1] >= NIVEL_ABRE) }
   playerCap() { return 8 + 3 * this.L('bolsa') }
   freezerCap() { return 18 + 12 * this.L('freezer') }
   prestigeCost() { return Math.round(ECONOMIA.novaPraia * this.mult() / 50) * 50 }
@@ -76,26 +88,42 @@ export class Jogo {
   openEdge() { let e = 400; LOTS.forEach((l, i) => { if (this.S[i]?.open) e = l.x1 }); return e }
   /* Praia 3 */
   aguaCap() { return SERVICO.aguaBase + SERVICO.aguaPorNivel * this.L('caixaAgua') }
-  precoBanho() { return Math.round(SERVICO.precoBanho * this.mult()) }
-  precoCadeira() { return Math.round(SERVICO.precoCadeira * Math.pow(1.25, this.L('aluguel')) * this.mult()) }
+  precoBanho() { return Math.round(SERVICO.precoBanho * Math.pow(1.25, this.L('banhoUp')) * this.marco(2) * this.mult()) }
+  precoCadeira() { return Math.round(SERVICO.precoCadeira * Math.pow(1.25, this.L('aluguel')) * this.marco(2) * this.mult()) }
   /* Praia 4 */
   lote() { return PREPARO.loteBase + PREPARO.lotePorNivel * this.L('panelaMaior') }
   espaco(m: Machine) { return Math.min(this.lote() - (m.loaded || 0), m.cap - m.pile - (m.loaded || 0)) }
   cookMs(m: Machine) { return PREPARO[m.type as 'milho' | 'pastel'].cozinharMs / (m.type === 'pastel' ? 1 + 0.3 * this.L('fritaRapida') : 1) }
   boostOn() { return this.now < this.boostUntil }
-  prestigeOpen() { return this.done.size >= PRESTIGE_AFTER }
+  /** Nova praia: opcional, com a praia completa (as 4 áreas abertas) e todas no nível de prestígio. */
+  prestigeOpen() { for (let a = 0; a < NUM_AREAS; a++) if (!this.aberta(a) || this.nivel[a] < NIVEL_PRESTIGIO) return false; return true }
   beachName() { const n = BEACHES.length; return BEACHES[this.beach % n].n + (this.beach >= n ? ' ' + (Math.floor(this.beach / n) + 1) : '') }
-  goalText() { const v = this.visibleSteps()[0]; return v ? v.s.name : 'Nova praia' }
+  goalText() { const v = this.melhorCompra(false) || this.melhorCompra(true); return v ? AREAS[v.a] + ': ' + v.s.name : 'Nova praia' }
+  falta(v: Visivel) { return v.s.price - (this.paid[v.a + ':' + v.k] || 0) }
 
-  /** As próximas 2 compras, sempre em quadrados diferentes. */
-  visibleSteps() {
-    const out: { i: number; s: Step }[] = [];
-    for (let i = 0; i < this.plan.length && out.length < 2; i++) {
-      if (this.done.has(i)) continue;
-      if (out.length && out[0].s.slot === this.plan[i].slot) break;
-      out.push({ i, s: this.plan[i] });
+  /** Compras no chão: em cada área aberta, a próxima da trilha e, se ficar em outro quadrado, a seguinte.
+      De uma área fechada, só o quadro de abertura, e só quando a área anterior chegou ao nível mínimo. */
+  visibleSteps(): Visivel[] {
+    const out: Visivel[] = [];
+    for (let a = 0; a < NUM_AREAS; a++) {
+      if (!this.liberada(a)) continue;
+      const t = this.trilhas[a], k = this.nivel[a];
+      out.push({ a, k, s: t[k] });
+      if (this.aberta(a) && t[k + 1] && t[k + 1].slot !== t[k].slot) out.push({ a, k: k + 1, s: t[k + 1] });
     }
     return out;
+  }
+  /** Melhor custo-benefício: abrir área vale mais, chegar a um marco (ou ao nível que abre a próxima) também.
+      soCabe: só entre as que o dinheiro já paga (é o que a seta sugere). */
+  melhorCompra(soCabe = true): Visivel | null {
+    let best: Visivel | null = null, bs = -1;
+    for (const v of this.visibleSteps()) {
+      if (v.k !== this.nivel[v.a]) continue; // só a próxima de cada área (a seguinte vem depois dela)
+      if (soCabe && this.money < this.falta(v)) continue;
+      const proximo = v.k + 1, ganho = 1 + (v.s.k === 'build' && !this.aberta(v.a) ? 2 : 0) + (MARCOS.includes(proximo) || proximo === NIVEL_ABRE ? 1 : 0);
+      const sc = ganho / Math.max(1, this.falta(v)); if (sc > bs) { bs = sc; best = v }
+    }
+    return best;
   }
 
   /* ---------- Mundo ---------- */
@@ -112,13 +140,14 @@ export class Jogo {
     while (this.umbrellas.length < n && this.umbrellas.length < UMBRELLA_POS.length) { const p = UMBRELLA_POS[this.umbrellas.length]; this.umbrellas.push({ x: p.x, y: p.y, seats: [null, null] }) }
   }
   resetWorld() {
-    this.plan = makePlan(this.beach); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.done = new Set(); this.sv = novoServico();
+    this.trilhas = Array.from({ length: NUM_AREAS }, (_, a) => makeTrilha(a, this.beach)); this.nivel = Array(NUM_AREAS).fill(0); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.sv = novoServico();
     this.money = 0; this.shown = 0; this.camX = 0; this.freshShops();
     this.addMachine('acai', 110, 470); this.player.x = 200; this.player.y = 560; this.player.stack = [];
   }
 
-  applyStep(i: number, silent = false) {
-    const s = this.plan[i]; this.done.add(i);
+  /** Compra o próximo nível da área a. */
+  applyStep(a: number, silent = false) {
+    const s = this.trilhas[a][this.nivel[a]], i = ++this.nivel[a];
     if (s.k === 'build') {
       if (s.id === 'maq2') this.addMachine('acai', 290, 470);
       if (s.id === 'coco') this.addMachine('coco', 110, 612);
@@ -147,12 +176,22 @@ export class Jogo {
     if (s.id === 'servico') this.popups.push({ x: 750, y: 250, txt: "Encha a caixa d'água no registro!", life: 2.4, col: '#1c7ed6', size: 15 });
     if (s.id === 'milho') this.popups.push({ x: 1050, y: 250, txt: 'Leve o milho cru à panela!', life: 2.4, col: '#e8590c', size: 15 });
     if (s.id === 'cardapioM') this.popups.push({ x: SHOPS[3].cx, y: 250, txt: 'Milho agora R$ ' + this.price('milho'), life: 1.8, col: '#2f9e44', size: 18 });
-    this.io.compra(this.beach, i, (this.now - this.lastBuyAt) / 1000); this.lastBuyAt = this.now;
+    if (MARCOS.includes(i)) this.comemorar(a, i);
+    this.io.compra(this.beach, a, i, (this.now - this.lastBuyAt) / 1000); this.lastBuyAt = this.now;
     this.io.fanfare(); this.io.buzz(40); this.io.goal(); this.io.save();
   }
 
+  /** Marco de nível: festa no balcão da área (a produção já dobrou em marco()). */
+  comemorar(a: number, n: number) {
+    const d = SHOPS[a], x = d.counter.x, y = d.counter.y;
+    for (const c of ['#ffc23d', '#ff6b6b', '#4dabf7', '#69db7c']) this.burst(x, y - 20, c, 14);
+    this.popups.push({ x, y: y - 70, txt: AREAS[a] + ' nível ' + n + '!', life: 2.2, col: '#5b2370', size: 18 });
+    this.popups.push({ x, y: y - 46, txt: 'Produção x' + this.marco(a), life: 2.2, col: '#2f9e44', size: 16 });
+    this.io.buzz(80);
+  }
+
   prestige() {
-    this.beach++; this.resetWorld(); this.tutorial = 4; this.money = this.plan[0].price + this.plan[1].price; this.shown = this.money;
+    this.beach++; this.resetWorld(); this.tutorial = 4; this.money = this.trilhas[0][0].price + this.trilhas[0][1].price; this.shown = this.money;
     this.syncTest(); this.io.save(); this.io.goal();
     this.state = 'beach'; this.io.prestige(); this.io.fanfare();
   }
@@ -161,13 +200,13 @@ export class Jogo {
 
   /* ---------- Salvar ---------- */
   snapshot(last = Date.now()): Save {
-    return { money: this.testMode ? 0 : Math.floor(this.money), done: [...this.done], paid: this.paid, beach: this.beach, last, tutorial: this.tutorial, pendente: this.pendente };
+    return { money: this.testMode ? 0 : Math.floor(this.money), niveis: [...this.nivel], paid: this.paid, beach: this.beach, last, tutorial: this.tutorial, pendente: this.pendente };
   }
   /** Carrega o progresso salvo e devolve os ganhos com o app fechado (0 se não houver), somando o que ficou pendente. */
   load(s: Save | null, nowMs = Date.now()) {
     this.beach = s ? s.beach || 0 : 0; this.resetWorld(); if (!s) return 0;
     this.money = s.money || 0; this.shown = this.money; this.tutorial = s.tutorial || 0; this.paid = s.paid || {}; this.pendente = s.pendente || 0;
-    (s.done || []).sort((a, b) => a - b).forEach(i => { if (this.plan[i]) this.applyStep(i, true) });
+    (s.niveis || []).forEach((n, a) => { for (let k = 0; k < Math.min(n, 60) && a < NUM_AREAS; k++) this.applyStep(a, true) });
     return this.pendente + this.offlineGain(s.last, nowMs);
   }
   /** O cartão de ganhos abriu: o valor já fica no save, para não se perder se o app fechar antes de pegar. */
@@ -182,7 +221,7 @@ export class Jogo {
   }
   /** Primeira vez na praia: já tem clientes na fila e açaí no balcão. */
   firstScene() {
-    if (this.done.size || this.money || this.beach !== 0) return;
+    if (this.nivel.some(n => n) || this.money || this.beach !== 0) return;
     for (let i = 0; i < 3; i++) { this.spawnCustomer(0); const q = this.S[0].queue, c = q[q.length - 1], p = this.slotPos(0, q.length - 1); c.x = p.x; c.y = p.y }
     for (let i = 0; i < 4; i++) this.S[0].counter.acai.push('acai');
     this.machines[0].pile = 4;
@@ -288,9 +327,10 @@ export class Jogo {
     for (const v of this.visibleSteps()) {
       const pad = padOf(v.s.slot), pr = v.s.price;
       if (inZone(p, pad) && this.money > 0 && this.payT > 40) {
-        this.payT = 0; const got = this.paid[v.i] || 0, chunk = Math.min(Math.floor(this.money), this.testMode ? pr : Math.max(1, Math.ceil(pr / 28)), pr - got); if (chunk <= 0) continue;
-        this.money -= chunk; this.paid[v.i] = got + chunk; this.fly('bill', p.x, p.y - 16, pad.x, pad.y, 170); this.io.tone(600 + this.paid[v.i] / pr * 500, 0.04, 'triangle', 0.04, 1);
-        if (this.paid[v.i] >= pr) { delete this.paid[v.i]; if (this.tutorial === 3) this.tutorial = 4; this.applyStep(v.i) }
+        const key = v.a + ':' + v.k; if (v.k !== this.nivel[v.a]) continue; // a seguinte só depois da próxima
+        this.payT = 0; const got = this.paid[key] || 0, chunk = Math.min(Math.floor(this.money), this.testMode ? pr : Math.max(1, Math.ceil(pr / 28)), pr - got); if (chunk <= 0) continue;
+        this.money -= chunk; this.paid[key] = got + chunk; this.fly('bill', p.x, p.y - 16, pad.x, pad.y, 170); this.io.tone(600 + this.paid[key] / pr * 500, 0.04, 'triangle', 0.04, 1);
+        if (this.paid[key] >= pr) { delete this.paid[key]; if (this.tutorial === 3) this.tutorial = 4; this.applyStep(v.a) }
       }
     }
     if (this.prestigeOpen()) {
@@ -335,7 +375,7 @@ export class Jogo {
       if (bi >= 0) {
         const c = st.queue[bi]; if (d.kind === 'kiosk') st.stock--; else st.counter[c.want].pop(); st.queue.splice(bi, 1); c.has = c.want;
         this.fly(c.want, d.kind === 'kiosk' ? d.cx : d.cx + (c.want === d.products[0] ? -50 : 50), d.counter.y - 4, c.x, c.y - 26, 200);
-        st.cashValue += this.price(c.want) * (this.boostOn() ? 2 : 1); st.cashBills += 1; this.fly('bill', c.x, c.y, d.cash.x, d.cash.y, 320);
+        this.receber(si, this.price(c.want), c.x, c.y);
         if (this.rand() < .28) this.popups.push({ x: c.x, y: c.y - 46, txt: PHRASES[Math.floor(this.rand() * PHRASES.length)], life: 1.2, col: '#3a2316', size: 15 });
         this.io.tone(880, 0.07, 'sine', 0.05, 1.2);
         let seat: Customer['seat'] = null; if (si === 0) for (const u of this.umbrellas) for (let s = 0; s < 2; s++) if (!u.seats[s] && !seat) { seat = { u, s }; u.seats[s] = c }
@@ -367,9 +407,15 @@ export class Jogo {
     const R = this.rand, c: Customer = { shop: 2, x, y, want: 'acai', shirt: SHIRTS[Math.floor(R() * SHIRTS.length)], skin: SKINS[Math.floor(R() * SKINS.length)], hat: R() < .35, walk: R() * 6, face: 1, has: null, state, sitT: 0, seat: null, tx: 0, ty: 0 };
     this.customers.push(c); return c;
   }
+  /** Dinheiro de uma venda: vai para a pilha da área ou, com o cofre automático, direto para o caixa. */
+  receber(si: number, valor: number, x: number, y: number) {
+    const st = this.S[si], d = SHOPS[si], v = valor * (this.boostOn() ? 2 : 1);
+    this.fly('bill', x, y, d.cash.x, d.cash.y, 320);
+    if (this.L('cofre' + si)) { this.money += v; if (this.tutorial === 2) this.tutorial = 3 } // com cofre não há pilha para recolher
+    else { st.cashValue += v; st.cashBills += 1 }
+  }
   private pagar(si: number, valor: number, x: number, y: number) {
-    const st = this.S[si], d = SHOPS[si];
-    st.cashValue += valor * (this.boostOn() ? 2 : 1); st.cashBills += 1; this.fly('bill', x, y, d.cash.x, d.cash.y, 320);
+    this.receber(si, valor, x, y);
     if (this.rand() < .28) this.popups.push({ x, y: y - 46, txt: PHRASES[Math.floor(this.rand() * PHRASES.length)], life: 1.2, col: '#3a2316', size: 15 });
     this.io.tone(880, 0.07, 'sine', 0.05, 1.2);
   }

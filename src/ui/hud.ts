@@ -46,7 +46,7 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
 
   function prestige() {
     const b = BEACHES[g.beach % BEACHES.length]; $('beachTitle').textContent = 'Bem-vindo à ' + b.n + '!';
-    const novidade = g.beach === 1 ? ' Novidade: o quiosque de sorvete do outro lado da cerca!' : '';
+    const novidade = ' As áreas recomeçam fechadas, mas o multiplicador fica para sempre.';
     $('beachText').textContent = 'Tudo aqui vende ' + Math.round((g.mult() - 1) * 100) + '% mais caro, e você já começa com dinheiro pras primeiras compras.' + novidade;
     $('ovBeach').hidden = false; praiaNova(); buzz([60, 40, 120]);
   }

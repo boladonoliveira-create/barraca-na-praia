@@ -70,12 +70,12 @@ export const BEACHES = [
 
 export const SLOTS: Record<string, { x: number; y: number }> = {
   maq2: { x: 290, y: 470 }, sombra: { x: 40, y: 446 }, voce: { x: 350, y: 696 }, equipe: { x: 200, y: 690 }, coco: { x: 110, y: 612 },
-  cardapio: { x: 92, y: 372 }, turbo: { x: 200, y: 470 }, coco2: { x: 290, y: 612 }, praia: { x: 200, y: 548 },
-  fence: { x: 360, y: 548 }, cardapioS: { x: 450, y: 440 }, frzUp: { x: 550, y: 440 }, equipeS: { x: 500, y: 690 },
+  cardapio: { x: 92, y: 372 }, turbo: { x: 200, y: 470 }, coco2: { x: 290, y: 612 }, praia: { x: 52, y: 704 }, // nova praia: no canto, fora do caminho do trabalho
+  fence: { x: 360, y: 548 }, cardapioS: { x: 450, y: 440 }, frzUp: { x: 550, y: 440 }, equipeS: { x: 446, y: 690 }, extraS: { x: 554, y: 690 }, cofre0: { x: 344, y: 410 },
   // Praia 3 (lote 600-900)
-  fence2: { x: 560, y: 548 }, cadeiras: { x: 740, y: 480 }, salva: { x: 760, y: 712 }, caixaAgua: { x: 850, y: 460 }, chuveiro2: { x: 766, y: 412 }, aluguel: { x: 650, y: 480 },
+  fence2: { x: 560, y: 548 }, cadeiras: { x: 740, y: 480 }, salva: { x: 760, y: 712 }, cofre2: { x: 640, y: 712 }, caixaAgua: { x: 850, y: 460 }, chuveiro2: { x: 766, y: 412 }, aluguel: { x: 650, y: 480 },
   // Praia 4 (lote 900-1200)
-  fence3: { x: 860, y: 548 }, pastel: { x: 1150, y: 470 }, panela2: { x: 1050, y: 612 }, cozinheiro: { x: 1150, y: 700 }, panelaUp: { x: 1050, y: 712 }, fritaUp: { x: 1150, y: 612 }, cardapioM: { x: 960, y: 372 },
+  fence3: { x: 860, y: 548 }, pastel: { x: 1150, y: 470 }, panela2: { x: 1050, y: 612 }, cozinheiro: { x: 1150, y: 700 }, panelaUp: { x: 1050, y: 712 }, fritaUp: { x: 1150, y: 612 }, cardapioM: { x: 960, y: 372 }, cofre3: { x: 1146, y: 410 },
 };
 
 export const UMBRELLA_POS = [{ x: 64, y: 226 }, { x: 336, y: 226 }, { x: 316, y: 158 }, { x: 40, y: 168 }];

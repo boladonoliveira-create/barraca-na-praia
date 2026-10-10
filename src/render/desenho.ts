@@ -1,7 +1,8 @@
 /* Câmera, cenário, personagens, máquinas e efeitos. Só lê o estado do núcleo. */
 import { W, H, WORLD_W, SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SLOTS, BEACHES, COUNTER_CAP, CASH_MAGNET, SERVICO, type Item, type Lot, type Rect } from '../dados/mapa.ts';
 import { fmt } from '../core/economia.ts';
-import { zoneOf, padOf, inZone, type Jogo, type Kind, type Machine, type Umbrella, type Carrier } from '../core/jogo.ts';
+import { NIVEL_ABRE, AREAS } from '../dados/planos.ts';
+import { zoneOf, padOf, inZone, NUM_AREAS, type Jogo, type Kind, type Machine, type Umbrella, type Carrier } from '../core/jogo.ts';
 
 export interface Joy { on: boolean; ox: number; oy: number; x: number; y: number }
 interface PersonLook { shirt: string; skin: string; walk?: number; face?: number; cap?: string; hat?: boolean; apron?: boolean; hair?: string; hairStyle?: number; shorts?: string; flip?: string; shades?: boolean; carry?: boolean }
@@ -146,15 +147,17 @@ function drawMachine(m: Machine) {
   else for (let i = 0; i < m.pile; i++) drawItem(m.type, z.x - 24 + (i % 4) * 16, z.y + 4 - Math.floor(i / 4) * 9, 0.9);
 }
 
-function drawPad(x: number, y: number, name: string, remain: number, progress: number, isUp: boolean, gold: boolean) {
+function drawPad(x: number, y: number, name: string, remain: number, progress: number, isUp: boolean, gold: boolean, previa = false) {
   const w = 72, h = 60, afford = g.money >= remain;
+  if (previa) ctx.globalAlpha = 0.45;
   rr(x - w / 2, y - h / 2, w, h, 12); ctx.fillStyle = gold ? 'rgba(255,243,196,0.92)' : 'rgba(255,253,247,0.8)'; ctx.fill();
   ctx.save(); rr(x - w / 2, y - h / 2, w, h, 12); ctx.clip(); ctx.fillStyle = 'rgba(47,158,68,0.35)'; ctx.fillRect(x - w / 2, y + h / 2 - h * progress, w, h * progress); ctx.restore();
   ctx.setLineDash([6, 5]); ctx.lineWidth = 2.5; ctx.strokeStyle = gold ? '#e0a800' : afford ? '#2f9e44' : '#b08a5a'; rr(x - w / 2, y - h / 2, w, h, 12); ctx.stroke(); ctx.setLineDash([]);
   if (isUp) { ctx.fillStyle = '#2f9e44'; circ(x + w / 2 - 4, y - h / 2 + 4, 9); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x + w / 2 - 4, y - h / 2 + 9); ctx.lineTo(x + w / 2 - 4, y - h / 2); ctx.moveTo(x + w / 2 - 8, y - h / 2 + 3.5); ctx.lineTo(x + w / 2 - 4, y - h / 2 - 0.5); ctx.lineTo(x + w / 2, y - h / 2 + 3.5); ctx.stroke() }
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#3a2316'; ctx.font = '800 11px "Nunito",sans-serif';
   const words = name.split(' '), half = Math.ceil(words.length / 2); ctx.fillText(words.slice(0, half).join(' '), x, y - 15); const l2 = words.slice(half).join(' '); if (l2) ctx.fillText(l2, x, y - 3);
-  ctx.font = '800 15px "Baloo 2",sans-serif'; ctx.fillStyle = '#2f9e44'; ctx.fillText(g.testMode ? 'Grátis' : 'R$ ' + fmt(remain), x, y + 15);
+  ctx.font = '800 15px "Baloo 2",sans-serif'; ctx.fillStyle = '#2f9e44'; ctx.fillText(previa ? 'depois' : g.testMode ? 'Grátis' : 'R$ ' + fmt(remain), x, y + 15);
+  ctx.globalAlpha = 1;
 }
 
 function drawUmbrella(u: Umbrella) {
@@ -166,12 +169,33 @@ function drawUmbrella(u: Umbrella) {
 function priceTag(x: number, y: number, t: Item) { const txt = 'R$ ' + g.price(t); ctx.font = '800 11px "Baloo 2",sans-serif'; const w = ctx.measureText(txt).width + 12; ctx.fillStyle = '#fff'; rr(x - w / 2, y - 9, w, 18, 9); ctx.fill(); ctx.strokeStyle = '#2f9e44'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = '#2f9e44'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, x, y) }
 function drawShopCash(si: number) {
   const d = SHOPS[si], st = g.S[si];
+  if (g.L('cofre' + si)) { // cofre automático: o dinheiro vai direto para o caixa
+    const { x, y } = d.cash; shadow(x, y + 14, 18); ctx.fillStyle = '#495057'; rr(x - 15, y - 12, 30, 26, 4); ctx.fill(); ctx.fillStyle = '#868e96'; rr(x - 11, y - 8, 22, 18, 3); ctx.fill();
+    ctx.strokeStyle = '#ffd43b'; ctx.lineWidth = 2; circ(x, y + 1, 5); ctx.stroke(); ctx.fillStyle = '#2f9e44'; ctx.font = '800 10px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('COFRE', x, y - 20);
+  }
   if (st.cashValue > 0) { ctx.strokeStyle = 'rgba(47,158,68,0.25)'; ctx.setLineDash([3, 6]); ctx.lineWidth = 2; circ(d.cash.x, d.cash.y, CASH_MAGNET); ctx.stroke(); ctx.setLineDash([]) }
   for (let i = 0; i < Math.min(16, st.cashBills); i++) drawItem('bill', d.cash.x - 10 + (i % 2) * 20, d.cash.y + 12 - Math.floor(i / 2) * 5, 1);
   if (st.cashValue > 0) { ctx.fillStyle = '#2f9e44'; ctx.font = '800 13px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.fillText('R$ ' + fmt(st.cashValue), d.cash.x, d.cash.y - 30) }
 }
 function drawDropZone(dz: Rect, label: string) { rr(dz.x - dz.w / 2, dz.y - dz.h / 2, dz.w, dz.h, 10); ctx.fillStyle = 'rgba(91,35,112,0.12)'; ctx.fill(); ctx.strokeStyle = 'rgba(91,35,112,0.4)'; ctx.setLineDash([5, 4]); ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = 'rgba(91,35,112,0.65)'; ctx.font = '800 11px "Nunito",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, dz.x, dz.y) }
 
+/** Visual dos marcos (níveis 5, 10, 15, 20): bandeirinhas, letreiro, luzinhas e moldura dourada; e o selo "Nv". */
+function drawEnfeites(a: number) {
+  if (!g.aberta(a)) return;
+  const c = SHOPS[a].counter, t = g.tier(a), x0 = c.x - c.w / 2, yb = c.y + c.h / 2;
+  if (t >= 1) { // bandeirinhas penduradas na frente do balcão
+    const cols = ['#ff6b6b', '#ffd43b', '#4dabf7', '#69db7c'], n = Math.max(4, Math.round(c.w / 14));
+    for (let i = 0; i < n; i++) { const x = x0 + (i + 0.5) * c.w / n; ctx.fillStyle = cols[i % 4]; ctx.beginPath(); ctx.moveTo(x - 6, yb); ctx.lineTo(x + 6, yb); ctx.lineTo(x, yb + 9); ctx.closePath(); ctx.fill() }
+  }
+  if (t >= 3) { for (let i = 0; i <= 10; i++) { const on = reduceMotion || Math.floor(g.now / 300 + i) % 2 === 0; ctx.fillStyle = on ? '#fff3bf' : '#ffd43b'; circ(x0 + i * c.w / 10, c.y - c.h / 2 - 2, 2.6); ctx.fill() } } // luzinhas
+  if (t >= 4) { ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 3; rr(x0 - 3, c.y - c.h / 2 - 3, c.w + 6, c.h + 6, 12); ctx.stroke() } // moldura dourada
+  // selo de nível (com uma estrela por marco; a partir do 2º marco vira letreiro dourado)
+  const txt = 'Nv ' + g.nivel[a] + (t ? ' ' + '★'.repeat(t) : ''); ctx.font = '800 11px "Baloo 2",sans-serif'; const w = ctx.measureText(txt).width + 12;
+  // à esquerda do balcão, na altura dele: ali não há plaquinha de preço nem fila
+  const bx = Math.max(LOTS[a].x0 + 6, x0 - w - 4); // sem passar para o lote vizinho
+  ctx.fillStyle = t >= 2 ? '#f59f00' : '#5b2370'; rr(bx, c.y - 8, w, 16, 8); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, bx + w / 2, c.y);
+}
 function drawBarraca(si = 0) {
   const d = SHOPS[si], st = g.S[si], c = d.counter; if (!st.open) return;
   ctx.fillStyle = 'rgba(120,80,30,0.12)'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 20, 104, 12, 0, 0, Math.PI * 2); ctx.fill();
@@ -232,7 +256,7 @@ function drawKiosk() {
   drawDropZone(d.drop, 'ABASTECER'); drawShopCash(1);
 }
 // placa a 66 do começo do lote: inteira dentro das 140 unidades que a câmera mostra além do último lote aberto
-function drawLockedLot(lot: Lot) {
+function drawLockedLot(lot: Lot, i: number) {
   const w = lot.x1 - lot.x0, cx = lot.x0 + w / 2;
   ctx.fillStyle = 'rgba(58,35,22,0.07)'; ctx.fillRect(lot.x0, WALL_Y - 10, w, PLAY_BOTTOM - WALL_Y + 30);
   ctx.globalAlpha = 0.35;
@@ -248,10 +272,19 @@ function drawLockedLot(lot: Lot) {
   ctx.globalAlpha = 1;
   for (let y = WALL_Y - 14; y < PLAY_BOTTOM + 10; y += 22) { ctx.fillStyle = '#c08a4a'; rr(lot.x0 - 4, y, 8, 18, 3); ctx.fill() }
   ctx.fillStyle = '#a26b2f'; ctx.fillRect(lot.x0 - 6, WALL_Y + 40, 12, 4); ctx.fillRect(lot.x0 - 6, PLAY_BOTTOM - 40, 12, 4);
-  ctx.save(); ctx.translate(lot.x0 + 66, WALL_Y + 150); ctx.rotate(-0.04); ctx.fillStyle = '#fff3c4'; rr(-72, -30, 144, 60, 10); ctx.fill(); ctx.strokeStyle = '#e0b84f'; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.fillStyle = '#3a2316'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 11px "Nunito",sans-serif'; ctx.fillText(lot.title!, 0, -12);
-  ctx.fillStyle = '#e0a800'; ctx.font = '800 15px "Baloo 2",sans-serif'; ctx.fillText('abre na Praia ' + lot.praia, 0, 8);
-  ctx.fillStyle = '#8a6a52'; ctx.beginPath(); ctx.arc(0, -34, 7, Math.PI, 0); ctx.lineWidth = 3; ctx.strokeStyle = '#8a6a52'; ctx.stroke(); ctx.fillRect(-8, -34, 16, 12); ctx.restore();
+  ctx.save(); ctx.translate(lot.x0 + 66, WALL_Y + 150); ctx.rotate(-0.04); ctx.fillStyle = '#fff3c4'; rr(-72, -36, 144, 72, 10); ctx.fill(); ctx.strokeStyle = '#e0b84f'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = '#3a2316'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 11px "Nunito",sans-serif';
+  if (ctx.measureText(lot.title!).width > 132) ctx.font = '800 9px "Nunito",sans-serif'; // título longo: cabe na placa
+  ctx.fillText(lot.title!, 0, -20);
+  // "abre com a área anterior no nível 5 (3/5)"; quando já pode abrir, manda comprar na cerca
+  const ant = i - 1, n = Math.min(g.nivel[ant] || 0, NIVEL_ABRE), pronta = i < NUM_AREAS && g.liberada(i);
+  ctx.font = '800 10px "Nunito",sans-serif'; ctx.fillStyle = '#8a6a52';
+  if (i >= NUM_AREAS) ctx.fillText('em breve', 0, 0);
+  else if (pronta) { ctx.fillStyle = '#2f9e44'; ctx.fillText('Pronta para abrir:', 0, -2) }
+  else ctx.fillText('abre com ' + AREAS[ant] + ' nv ' + NIVEL_ABRE, 0, -2);
+  ctx.fillStyle = pronta ? '#2f9e44' : '#e0a800'; ctx.font = '800 15px "Baloo 2",sans-serif';
+  if (i < NUM_AREAS) ctx.fillText(pronta ? 'compre na cerca' : '(' + n + '/' + NIVEL_ABRE + ')', 0, 18);
+  ctx.fillStyle = '#8a6a52'; ctx.beginPath(); ctx.arc(0, -40, 7, Math.PI, 0); ctx.lineWidth = 3; ctx.strokeStyle = '#8a6a52'; ctx.stroke(); ctx.fillRect(-8, -40, 16, 12); ctx.restore();
 }
 function arrowAt(x: number, y: number, col?: string) { const b = reduceMotion ? 0 : Math.sin(g.now / 180) * 5; ctx.fillStyle = col || '#ff4d6d'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y + b); ctx.lineTo(x - 11, y - 16 + b); ctx.lineTo(x - 4, y - 16 + b); ctx.lineTo(x - 4, y - 30 + b); ctx.lineTo(x + 4, y - 30 + b); ctx.lineTo(x + 4, y - 16 + b); ctx.lineTo(x + 11, y - 16 + b); ctx.closePath(); ctx.stroke(); ctx.fill() }
 function arrowUp(x: number, y: number) { ctx.save(); ctx.translate(x, y); ctx.scale(1, -1); arrowAt(0, 0); ctx.restore() }
@@ -267,7 +300,7 @@ function tutorialTarget(): { t: Rect | { x: number; y: number; h: number } | nul
     if (g.kioskOpen() && g.S[1].stock <= 3 && !g.helpers.some(h => h.shop === 1)) { const dep = g.machines.find(m => m.type === 'caixa'); if (dep) { t = p.stack.includes('caixa') ? SHOPS[1].drop : zoneOf(dep); up = !p.stack.includes('caixa') } }
     if (!t && g.S[2]?.open && g.sv.agua === 0 && !g.helpers.some(h => h.shop === 2) && !inZone(p, SHOPS[2].drop)) t = SHOPS[2].drop;
     if (!t) {
-      const v = g.visibleSteps().find(v => g.money >= v.s.price - (g.paid[v.i] || 0));
+      const v = g.melhorCompra(true);
       if (v) { const pad = padOf(v.s.slot); if (!inZone(p, pad)) t = pad }
       else if (g.prestigeOpen() && g.money >= g.prestigeCost() - (g.paid.praia || 0)) { const pad = padOf('praia'); if (!inZone(p, pad)) t = pad }
     }
@@ -289,8 +322,9 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   LOTS.forEach((l, i) => { if (i && g.S[i]?.open) { rr(l.x0 + 10, WALL_Y + 4, l.x1 - l.x0 - 20, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill() } });
   g.umbrellas.forEach(drawUmbrella);
   drawBarraca(); drawKiosk(); drawServico(); drawBarraca(3);
-  LOTS.forEach((lot, i) => { if (!lot.praia || g.S[i]?.open || lot.x1 < x0 || lot.x0 > x1) return; drawLockedLot(lot) });
-  for (const v of g.visibleSteps()) { const s = SLOTS[v.s.slot], got = g.paid[v.i] || 0; drawPad(s.x, s.y, v.s.name, v.s.price - got, got / v.s.price, v.s.k === 'up', false) }
+  for (let a = 0; a < NUM_AREAS; a++) drawEnfeites(a);
+  LOTS.forEach((lot, i) => { if (!lot.praia || g.S[i]?.open || lot.x1 < x0 || lot.x0 > x1) return; drawLockedLot(lot, i) });
+  for (const v of g.visibleSteps()) { const s = SLOTS[v.s.slot], got = g.paid[v.a + ':' + v.k] || 0; drawPad(s.x, s.y, v.s.name, v.s.price - got, got / v.s.price, v.s.k === 'up', false, v.k !== g.nivel[v.a]) }
   if (g.prestigeOpen()) { const s = SLOTS.praia, pr = g.prestigeCost(), got = g.paid.praia || 0; drawPad(s.x, s.y, 'Nova praia', pr - got, got / pr, false, true) }
 
   // ordem de profundidade pelo y

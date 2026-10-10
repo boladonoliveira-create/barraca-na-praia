@@ -23,8 +23,8 @@ let ultimoInter = Date.now(); // o primeiro intersticial vem só depois de 4 min
 const g = new Jogo({
   tone, fanfare, buzz, save, goal: () => hud.goal(),
   prestige: () => { hud.prestige(); analytics.registrar('prestige', { praia: g.beach }) },
-  compra: (praia, indice, segundos) => {
-    analytics.registrar('step_buy', { praia, indice, segundos: Math.round(segundos) });
+  compra: (praia, area, nivel, segundos) => {
+    analytics.registrar('step_buy', { praia, area, nivel, segundos: Math.round(segundos) });
     // intersticial (GDD seção 9): logo depois de uma compra, a partir da Praia 2, no máximo a cada 4 min
     if (!g.testMode && podeIntersticial(praia, Date.now(), ultimoInter)) { ultimoInter = Date.now(); setTimeout(() => hud.intersticial(), 700) }
   },
@@ -89,8 +89,10 @@ requestAnimationFrame(frame);
 
 // gancho de depuração no console (o mesmo do protótipo)
 (window as any).__praia = {
-  get state() { return { beach: g.beach, done: g.done.size, next: g.visibleSteps().map(v => v.s.name), helpers: g.helpers.map(h => h.shop + ':' + h.mode + ':' + h.stack.join(',')), stock: g.S.map((s, i) => i === 1 ? s.stock : Object.values(s.counter).map(a => a.length)), queues: g.S.map(s => s.queue.length), cash: g.S.map(s => s.cashValue), cam: Math.round(g.camX) } },
-  buyAll(n: number) { for (let i = 0; i < n; i++) { const v = g.visibleSteps()[0]; if (v) g.applyStep(v.i, true) } },
+  get state() { return { beach: g.beach, niveis: g.nivel.join('/'), next: g.visibleSteps().map(v => v.s.name), helpers: g.helpers.map(h => h.shop + ':' + h.mode + ':' + h.stack.join(',')), stock: g.S.map((s, i) => i === 1 ? s.stock : Object.values(s.counter).map(a => a.length)), queues: g.S.map(s => s.queue.length), cash: g.S.map(s => s.cashValue), cam: Math.round(g.camX) } },
+  buyAll(n: number) { for (let i = 0; i < n; i++) { const v = g.melhorCompra(false); if (v) g.applyStep(v.a, true) } },
+  /** Sobe a área a até o nível n (compras de graça, com efeito de comemoração nos marcos). */
+  subir(a: number, n: number) { while (g.nivel[a] < n && g.liberada(a)) g.applyStep(a) },
   prestige() { g.prestige() }, tp(x: number, y: number) { g.player.x = x; g.player.y = y },
   /** Roda o jogo ms milissegundos de uma vez e redesenha (para conferir com a aba em segundo plano). */
   avancar(ms: number) { for (let t = 0; t < ms; t += 16.67) { g.now += 16.67; g.update(16.67, { x: 0, y: 0 }); g.updateFx(16.67) } desenhar(ctx, g, k, joy) },
