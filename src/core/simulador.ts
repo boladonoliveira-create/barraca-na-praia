@@ -188,7 +188,7 @@ export function simular({ seed = 1, limiteMin = 900, humano = true, praias = NUM
     antigas voltam a funcionar nos primeiros ANTIGAS_MAX % do tempo da praia. */
 export const METAS: [number, number][] = [[8, 10], [15, 20], [20, 25], [25, 35], [35, 45], [45, 55], [55, 65], [60, 75], [70, 85], [80, 95]];
 /** O total das 10 praias, em horas de jogo ativo. */
-export const TOTAL_HORAS: [number, number] = [8, 10];
+export const TOTAL_HORAS: [number, number] = [7.5, 9];
 export const ESPERA_MAX = 150, ANTIGAS_MAX = 25;
 export function foraDaFaixa(r: Resultado) {
   const erros: string[] = [];

@@ -19,7 +19,7 @@ O formato segue o dos jogos de "idle arcade" que estão no topo da Google Play (
 3. **Sem menus.** Comprar é pisar num quadrado no chão. A próxima compra aparece ao lado da coisa que ela melhora.
 4. **Progresso sempre visível.** Toda compra muda algo na tela (máquina nova, guarda-sol novo, copo de açaí com mais ingredientes, plaquinha de preço subindo).
 5. **Trabalho manual vira automação, área por área.** Cada área nova começa manual; o ajudante dela automatiza depois. Sempre existe uma área onde o jogador ainda trabalha com as mãos.
-6. **O futuro próximo fica à vista.** A área da próxima praia aparece cercada, com a silhueta e a placa ("Na próxima praia: Sorveteria"); o resto fica escondido. É o principal motivo para viajar para a próxima praia.
+6. **O futuro fica à vista.** As áreas das próximas praias aparecem trancadas no lugar delas, com placa ("Trancado · Palco de pagode · Praia 9"), e dá para passar por cima e ver. É o principal motivo para viajar para a próxima praia.
 
 ## 3. Ciclo principal (já existe no protótipo)
 
@@ -51,25 +51,44 @@ O formato segue o dos jogos de "idle arcade" que estão no topo da Google Play (
 
 ## 6. O mapa
 
-O jogo é um **litoral com 10 praias** em sequência (no estilo do Cash Inc). Cada praia é o mesmo mapa, dividido em **áreas** da esquerda para a direita, e a **praia N tem as áreas 1 a N**: a área N é a novidade dela.
+O jogo é um **litoral com 10 praias** em sequência (no estilo do Cash Inc). Cada praia é a mesma orla, e a **praia N tem as áreas 1 a N**: a área N é a novidade dela.
 
-| Praia | Nome | Área nova | Lote (x) |
+### A orla em faixas
+
+A praia é organizada em faixas, do mar até a rua, como uma orla de verdade (o Recreio, no Rio). O mundo tem 2600 × 1140; a tela mostra 400 × 760.
+
+| Faixa | y | O que tem |
+|---|---|---|
+| Mar | 0 a 118 | nadadores e os alunos da escolinha surfando |
+| Areia | 118 a 820 | banhistas, crianças, cangas, frescobol; Barraca do Sol, Chuveirão, Palco, Quadra e Escolinha |
+| Grama | 820 a 920 | os quiosques pequenos: Sorveteria, Milho e pastel, Sucos |
+| Calçadão | 920 a 1060 | ciclovia em cima; bancos e calçada embaixo; a bancada dos ambulantes |
+| Rua | 1060 a 1140 | só visual: a baia do caminhão de mercadoria |
+
+- **O jogador anda** da areia (perto da água) até o fim da calçada; não entra na rua. A praia inteira é aberta para andar: a areia entre as áreas é livre.
+- **A câmera** segue o jogador na horizontal e também na vertical. Na areia de cima ela fica parada, como sempre foi (o começo da Praia 1 e o tutorial não mudam); perto do pé da tela ela desce, mais depressa que o jogador, para a grama e o calçadão aparecerem inteiros. O HUD e o joystick não mudam.
+- **Os dados** ficam em `src/dados/mapa.ts`: `FAIXAS`, `LUGARES` (o lugar de cada área) e `livre(x, y)`, que diz onde dá para desenhar enfeite sem cobrir balcão, quadro, fila, máquina ou zona de uma área.
+
+### Onde fica cada área
+
+| Praia | Nome | Área nova | Onde fica |
 |---|---|---|---|
-| 1 | Praia do Sol | Barraca do Sol (açaí e coco) | 0 a 400 |
-| 2 | Praia Grande | Sorveteria | 400 a 600 |
-| 3 | Praia do Farol | Chuveirão e cadeiras | 600 a 900 |
-| 4 | Praia dos Coqueiros | Milho e pastel | 900 a 1200 |
-| 5 | Praia do Forte | Quadra de futevôlei (atração) | 1200 a 1400 |
-| 6 | Praia Dourada | Ambulantes (venda automática) | 1400 a 1700 |
-| 7 | Praia Brava | Escolinha de surf (serviço com fila) | 1700 a 2000, começo da faixa grande |
-| 8 | Baía Azul | Sucos e vitaminas (preparo e venda) | 2000 a 2300, na faixa grande |
-| 9 | Praia do Pôr do Sol | Palco de pagode (atração em evento) | 2300 a 2600, na faixa grande |
-| 10 | Praia do Campeonato | Torneio de futevôlei (meta do lançamento) | 2600 a 2900 |
+| 1 | Praia do Sol | Barraca do Sol (açaí e coco) | areia, à esquerda (0 a 400), grande como sempre |
+| 2 | Praia Grande | Sorveteria | quiosque na grama (x 470 a 690) |
+| 3 | Praia do Farol | Chuveirão e cadeiras | areia, perto da grama (x 660 a 1050) |
+| 4 | Praia dos Coqueiros | Milho e pastel | quiosque na grama (x 905 a 1580) |
+| 5 | Praia do Forte | Quadra de futevôlei | areia, perto da grama (x 2130 a 2500), sem cerca alta |
+| 6 | Praia Dourada | Ambulantes | bancada no calçadão e baia do caminhão na rua (x 2180 a 2600); os carrinhos rodam pela praia toda |
+| 7 | Praia Brava | Escolinha de surf | beira da água (x 1460 a 1840) |
+| 8 | Baía Azul | Sucos e vitaminas | quiosque na grama (x 1620 a 2210) |
+| 9 | Praia do Pôr do Sol | Palco de pagode | centro da areia (x 1120 a 1400), com caminho livre em volta |
+| 10 | Praia do Campeonato | Torneio de futevôlei | na quadra da área 5, que ganha arquibancada |
 
-- **Dentro da praia,** as áreas abrem em ordem: a área N+1 abre quando a área N chega ao nível 5. Cada área fechada mostra uma cerca, a silhueta do que vai ter ali e uma placa com cadeado com o progresso: "Sorveteria · abre com Barraca do Sol nv 5 (3/5)". Quando a área anterior chega ao nível mínimo, a placa diz "pronta para abrir" e o **quadro de compra da área nova aparece na cerca**.
-- **A próxima praia fica à vista:** a câmera segue o jogador na horizontal e mostra 140 unidades além da última área aberta, até o lote da área N+1. Esse lote aparece cercado, com a silhueta e a placa "Na próxima praia: Sorveteria". Os lotes depois dele não aparecem.
-- **A faixa grande (Praia 7 em diante):** quando a Escolinha abre, abre junto uma faixa larga de areia que vai até o fim do lote 9 (x = 2600). Na Praia 7, os lugares do 8 e do 9 ficam vazios: areia sem cerca, sem placa e sem silhueta. Nas Praias 8 e 9, o lote da vez aparece nesse espaço, só com a placa (sem cerca) e com o quadro de abrir no meio do lote. O lote 10 segue a regra normal: aparece cercado, com a placa da próxima praia, na Praia 9.
-- **Cenário:** cada praia tem cores do mar, da areia e do céu, hora do dia (manhã, tarde ou pôr do sol) e enfeites de fundo próprios (`src/dados/praias.ts`, `src/render/cenarios.ts`; regras em `docs/MOLDE-CENARIOS.md`). A decoração da areia segue `docs/MOLDE-AREIA.md`.
+- **Quiosques na grama:** o quiosque (balcão) fica na grama; os clientes fazem fila do lado da areia; o jogador trabalha do lado do calçadão (entrega, máquinas e quadros de compra).
+- **Dentro da praia,** as áreas abrem em ordem: a área N+1 abre quando a área N chega ao nível 5. A área da praia atual que ainda não abriu aparece como um quadrado tracejado no lugar dela, com placa e cadeado: "Sorveteria · abre com Barraca do Sol nv 5 (3/5)". Quando a área anterior chega ao nível mínimo, a placa diz "Pronta para abrir!" e o **quadro de compra aparece no lugar da área**.
+- **O futuro fica à vista:** as áreas das próximas praias aparecem trancadas no lugar delas, com a placa "Trancado · Palco de pagode · Praia 9". O jogador pode passar por cima e ver; isso não muda nada no jogo. O torneio, que usa a quadra, mostra só a placa ao lado dela.
+- **A praia cheia:** banhistas (gente que não compra) andam devagar, deitam na canga, nadam, jogam frescobol e brincam na areia; de 25 a 40 por tela, conforme a praia (`PRAIAS[b].banhistas`; a Praia do Pôr do Sol tem menos). O roteiro de cada um é sorteado ao criar a praia (com `rand`) e a posição sai do tempo: ninguém trava, e eles nunca bloqueiam o jogador nem os clientes (todo mundo passa por cima). Os clientes de verdade continuam vindo como sempre.
+- **Cenário:** cada praia tem cores do mar, da areia e do céu, hora do dia (manhã, tarde ou pôr do sol) e enfeites de fundo próprios (`src/dados/praias.ts`, `src/render/cenarios.ts`; regras em `docs/MOLDE-CENARIOS.md`). A decoração da areia segue `docs/MOLDE-AREIA.md` e fica fora das zonas das áreas. O desenho da orla (grama, calçadão, rua), dos banhistas, dos quiosques e do palco segue `docs/MOLDE-ORLA.md`.
 - **Litoral:** o jogo abre direto na praia atual (sem menus). Um botão pequeno "Litoral" mostra a costa com as 10 praias: as concluídas com a fama ganha, a atual em destaque, a próxima com o nome e a área nova ("Praia Grande · Sorveteria"), as seguintes só com o nome e um cadeado (a área é surpresa) e, no fim, "Praia 11 em diante · em breve".
 
 ## 7. As áreas
@@ -81,7 +100,7 @@ Os tipos de mecânica, combinados para que cada área traga um trabalho novo:
 - **Serviço:** o cliente usa algo e paga; o jogador mantém funcionando.
 - **Atração:** não vende nada; aumenta a demanda de todas as áreas.
 
-Toda área nova começa manual, e o ajudante dela automatiza depois (pilar 5). Cada área entra como dados (`SHOPS`, `LOTS`, `TRILHAS` e as regras em `src/dados/`), sem reescrever o motor.
+Toda área nova começa manual, e o ajudante dela automatiza depois (pilar 5). Cada área entra como dados (`SHOPS`, `LUGARES`, `TRILHAS` e as regras em `src/dados/`), sem reescrever o motor.
 
 | Área | O que é | Tipo | O que o jogador faz | O que o ajudante automatiza |
 |---|---|---|---|---|
@@ -90,7 +109,7 @@ Toda área nova começa manual, e o ajudante dela automatiza depois (pilar 5). C
 | 3 | Chuveirão e cadeiras | Serviço | Chuveirão: clientes saindo do mar fazem fila, tomam banho e pagam; a caixa d'água esvazia a cada alguns banhos e o jogador enche parado no registro (com a caixa vazia, a fila para). Cadeiras: o cliente senta, fica um tempo e paga ao sair; a cadeira fica bagunçada até o jogador passar por cima, e cadeira bagunçada não é alugada | Salva-vidas enche a caixa e arruma as cadeiras |
 | 4 | Milho e pastel | Venda com preparo | Pega o cru na caixa, leva à panela ou à fritadeira, espera o preparo (barra de tempo) e leva ao balcão | Cozinheiro faz o ciclo todo |
 | 5 | Quadra de futevôlei | Atração | Não vende nada. Um jogo rola na quadra e junta público: a área multiplica a chegada de clientes em todas as outras ("Clientes x1,31"). Trilha própria: arquibancada (+0,10 por nível), rede nova (+0,06), torneio da tarde (+0,15), sobre 1,15 ao abrir; os marcos dobram esse bônus | Não precisa |
-| 6 | Ambulantes | Venda automática | Leva mate e biscoito das máquinas do depósito ao carrinho de isopor parado na vaga. Cheio, o carrinho sai com um vendedor pela faixa de cima da areia (a dos clientes, onde o jogador não anda), vende sozinho para quem passa e volta vazio. Trilha: mais vendedores, isopor maior, carrinho mais rápido, cardápio (mate → mate com limão → biscoito de polvilho → combo) | Gerente abastece os carrinhos |
+| 6 | Ambulantes | Venda automática | O caminhão chega sozinho à baia da rua e deixa caixas de mate (e, com o cardápio, de biscoito) em pilhas na calçada. O jogador leva as caixas até a bancada do calçadão (1 caixa = 6 unidades). Cada ambulante enche o carrinho na bancada, anda pela areia entre as pessoas vendendo, volta vazio e deixa o dinheiro na bancada (ou no cofre). A abertura já traz 1 ambulante. Trilha: mais ambulantes, isopor maior, carrinho mais rápido, cardápio (mate → mate com limão → biscoito de polvilho → combo) | Ajudante do caminhão leva as caixas para a bancada |
 | 7 | Escolinha de surf | Serviço com fila | O aluno faz fila, aluga uma prancha seca da arara, vai surfar no mar, volta e paga. A prancha volta molhada e fica na areia; prancha molhada não é alugada. O jogador pega as pranchas da areia (passando por cima) e pendura na arara, onde elas secam. Trilha: mais pranchas, arara maior, aula mais cara | Instrutor leva as pranchas para secar |
 | 8 | Sucos e vitaminas | Preparo e venda | Leva a fruta da caixa à liquidificadora, espera a barra e leva o copo ao balcão. Dois sabores, cada um com a sua caixa: laranja e, com a liquidificadora 2, açaí com banana. Trilha: liquidificadora mais rápida, copo maior (lote), cardápio | Barman faz o ciclo todo |
 | 9 | Palco de pagode | Atração em evento | Não vende nada. De tempos em tempos (no começo, a cada 4 min), um show de 60 s traz multidão e multiplica a chegada de clientes em todas as áreas (×1,5 no começo). A contagem "Próximo show em 2:10" fica na tela; no show, o palco tem banda, luzes e notas. O bônus só vale durante o show. Trilha: show mais longo (+15 s), mais shows (−25 s no intervalo, no mínimo 2 min), bônus maior (+0,15), som melhor (só visual) | Não precisa |
@@ -127,12 +146,12 @@ A estrutura segue dois jogos de referência. No Idle Miner Tycoon, cada parte da
   | Sorveteria | 6.000 | 700 | 1,4 |
   | Chuveirão | 130 mil | 11 mil | 1,3 |
   | Milho e pastel | 450 mil | 38 mil | 1,3 |
-  | Quadra | 1,3 milhão | 190 mil | 1,3 |
-  | Ambulantes | 800 mil | 1,8 milhão | 1,15 |
-  | Escolinha de surf | 3 milhões | 4,9 milhões | 1,15 |
-  | Sucos e vitaminas | 6 milhões | 10 milhões | 1,15 |
-  | Palco de pagode | 12 milhões | 20 milhões | 1,15 |
-  | Torneio | 25 milhões | 30 milhões | 1,25 |
+  | Quadra | 1,2 milhão | 130 mil | 1,3 |
+  | Ambulantes | 800 mil | 1,05 milhão | 1,15 |
+  | Escolinha de surf | 2 milhões | 3 milhões | 1,15 |
+  | Sucos e vitaminas | 4 milhões | 6 milhões | 1,15 |
+  | Palco de pagode | 12 milhões | 13 milhões | 1,15 |
+  | Torneio | 18 milhões | 19 milhões | 1,25 |
 
   Nas áreas 6 a 10, abrir é barato e as melhorias são caras e sobem devagar: assim a área nova ocupa a maior parte da praia, e não a espera para abrir.
 - **Praia:** cada praia multiplica os preços de compra por 1,45^b. As vendas não sobem com a praia: sobem com a fama.
@@ -169,21 +188,21 @@ O bot segue a seta: compra a melhor que já cabe no bolso e, se nada cabe, junta
 
 | Praia | Meta | Hoje (sementes 1, 2 e 3) |
 |---|---|---|
-| 1 | 8 a 10 min | 8,7 / 8,7 / 8,6 |
-| 2 | 15 a 20 min | 18,2 / 18,2 / 18,5 |
-| 3 | 20 a 25 min | 22,8 / 22,0 / 22,9 |
-| 4 | 25 a 35 min | 31,2 / 28,4 / 31,2 |
-| 5 | 35 a 45 min | 37,5 / 40,2 / 38,0 |
-| 6 | 45 a 55 min | 49,8 / 51,3 / 52,6 |
-| 7 | 55 a 65 min | 64,3 / 57,9 / 57,1 |
-| 8 | 60 a 75 min | 65,1 / 74,1 / 67,9 |
-| 9 | 70 a 85 min | 79,7 / 80,4 / 84,5 |
-| 10 | 80 a 95 min | 90,1 / 84,9 / 90,2 |
-| Total | 8 a 10 h | 7,8 / 7,8 / 7,9 h |
+| 1 | 8 a 10 min | 8,7 / 8,7 / 8,7 |
+| 2 | 15 a 20 min | 18,5 / 18,6 / 18,4 |
+| 3 | 20 a 25 min | 21,7 / 21,6 / 22,0 |
+| 4 | 25 a 35 min | 30,4 / 28,3 / 30,3 |
+| 5 | 35 a 45 min | 38,2 / 36,8 / 37,4 |
+| 6 | 45 a 55 min | 48,1 / 50,5 / 47,2 |
+| 7 | 55 a 65 min | 60,4 / 57,4 / 57,3 |
+| 8 | 60 a 75 min | 61,2 / 67,7 / 69,6 |
+| 9 | 70 a 85 min | 83,8 / 80,1 / 76,5 |
+| 10 | 80 a 95 min | 90,1 / 88,3 / 89,7 |
+| Total | 7,5 a 9 h | 7,7 / 7,6 / 7,6 h |
 
-- **Nenhuma espera** entre compras passa de 150 s (hoje, no máximo 148 s; na Praia 2, 118 s).
-- **As áreas antigas** voltam a funcionar nos primeiros 25% do tempo da praia (hoje, de 6% a 18%).
-- **O total** ainda fica abaixo das 8 h: a soma dos meios das faixas por praia é 7,7 h, então passar de 8 h exige todas as praias perto do teto ao mesmo tempo.
+- **Nenhuma espera** entre compras passa de 150 s (hoje, no máximo 147 s).
+- **As áreas antigas** voltam a funcionar nos primeiros 25% do tempo da praia (hoje, de 9% a 19%).
+- **No mapa em faixas** o jogador anda mais entre as áreas; os preços das áreas 5 a 10 foram baixados para compensar (seção 8, "Preços").
 - Os valores finais saem do simulador (seção 11) e das métricas do teste fechado.
 
 ### Ganhos com o app fechado
@@ -206,7 +225,7 @@ O bot segue a seta: compra a melhor que já cabe no bolso e, se nada cabe, junta
 - Ganhos com o app fechado (já existe).
 - Recompensa diária com bônus no 7º dia seguido.
 - Notificação local depois de 24 h sem jogar ("Sua barraca juntou R$ X!"). Pedir permissão só depois da Praia 2.
-- Lotes trancados com placa (já existe).
+- Áreas futuras trancadas no lugar delas, com placa (já existe).
 
 ## 11. Técnico
 
@@ -216,7 +235,7 @@ Vite + TypeScript, empacotado com Capacitor para Android.
 
 ```
 src/
-  dados/           lotes, planos de compra por praia, produtos, preços (JSON ou TS puro)
+  dados/           faixas da orla e lugar de cada área, planos de compra por praia, produtos, preços (JSON ou TS puro)
   core/            estado do jogo, economia, clientes, ajudantes, compras (sem canvas)
   core/simulador   bot que joga sozinho para medir o ritmo (tempo até cada compra)
   render/          câmera, cenário, personagens, máquinas, efeitos

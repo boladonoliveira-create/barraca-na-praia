@@ -17,13 +17,11 @@ describe('simulador de economia (praias 1 a 10)', () => {
     expect(simular({ limiteMin: 15 }).praias).toEqual(simular({ limiteMin: 15 }).praias);
   });
 
-  // O total fica em 7,8 h nas sementes 1 a 3: com cada praia dentro da sua faixa, passar de 8 h exige todas perto do
-  // teto ao mesmo tempo (a soma dos meios das faixas é 7,7 h). Ver RELATORIO.md; o teste só não deixa o total cair.
-  // pulado de A1 a A4 da rodada 7: o mapa muda inteiro e o rebalanceamento é o item A5
-  it.skip(`cada praia dentro da meta, nenhuma espera acima de ${ESPERA_MAX} s e as áreas antigas abertas nos primeiros ${ANTIGAS_MAX}%`, () => {
-    expect(foraDaFaixa(r).filter(e => !e.startsWith('Total'))).toEqual([]);
+  // npm test roda só a semente 1; as 3 sementes ficam no npm run sim
+  it(`cada praia dentro da meta, total de ${TOTAL_HORAS[0]} a ${TOTAL_HORAS[1]} h, nenhuma espera acima de ${ESPERA_MAX} s e as áreas antigas abertas nos primeiros ${ANTIGAS_MAX}%`, () => {
+    expect(foraDaFaixa(r)).toEqual([]);
     r.praias.forEach((p, i) => { expect(p.minutos).toBeGreaterThanOrEqual(METAS[i][0]); expect(p.minutos).toBeLessThanOrEqual(METAS[i][1]) });
-    expect(r.total / 60).toBeGreaterThan(TOTAL_HORAS[0] - 0.3); expect(r.total / 60).toBeLessThan(TOTAL_HORAS[1]);
+    expect(r.total / 60).toBeGreaterThanOrEqual(TOTAL_HORAS[0]); expect(r.total / 60).toBeLessThanOrEqual(TOTAL_HORAS[1]);
   });
 
   it('a fama ganha cresce de praia para praia', () => {

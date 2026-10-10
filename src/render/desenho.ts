@@ -268,10 +268,12 @@ function drawEnfeites(a: number) {
 }
 function drawBarraca(si = 0) {
   const d = SHOPS[si], st = g.S[si], c = d.counter; if (!st.open) return;
-  ctx.fillStyle = 'rgba(120,80,30,0.12)'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 20, 104, 12, 0, 0, Math.PI * 2); ctx.fill();
-  rr(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, 10); ctx.fillStyle = '#b8763e'; ctx.fill(); rr(c.x - c.w / 2, c.y - c.h / 2, c.w, 12, 10); ctx.fillStyle = '#d4955a'; ctx.fill();
-  ctx.fillStyle = '#8a5229'; for (let i = 1; i < 6; i++) ctx.fillRect(c.x - c.w / 2 + i * c.w / 6, c.y - 6, 2, 24);
-  ctx.fillStyle = '#fffdf7'; rr(c.x - 62, c.y + 6, 124, 16, 8); ctx.fill(); ctx.fillStyle = '#5b2370'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.name, c.x, c.y + 14);
+  if (si === 0) {
+    ctx.fillStyle = 'rgba(120,80,30,0.12)'; ctx.beginPath(); ctx.ellipse(c.x, c.y + 20, 104, 12, 0, 0, Math.PI * 2); ctx.fill();
+    rr(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, 10); ctx.fillStyle = '#b8763e'; ctx.fill(); rr(c.x - c.w / 2, c.y - c.h / 2, c.w, 12, 10); ctx.fillStyle = '#d4955a'; ctx.fill();
+    ctx.fillStyle = '#8a5229'; for (let i = 1; i < 6; i++) ctx.fillRect(c.x - c.w / 2 + i * c.w / 6, c.y - 6, 2, 24);
+    ctx.fillStyle = '#fffdf7'; rr(c.x - 62, c.y + 6, 124, 16, 8); ctx.fill(); ctx.fillStyle = '#5b2370'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.name, c.x, c.y + 14);
+  } else drawQuiosque(si); // milho e pastel, sucos: quiosque na grama
   for (const t of d.products) {
     const n = st.counter[t].length; for (let i = 0; i < Math.min(n, 18); i++) { const s = g.counterSlot(si, t, i); drawItem(t, s.x, s.y, 0.85) }
     if (g.machines.some(m => m.type === t)) priceTag(t === d.products[0] ? c.x - 50 : c.x + 50, c.y - 30 - Math.min(2, Math.floor(n / 6)) * 7, t);
@@ -461,14 +463,23 @@ function drawEscola() {
   drawShopCash(6);
 }
 
+/** O prédio dos quiosques da grama (Sorveteria, Milho e pastel, Sucos): toldo, balcão e o nome. Só o prédio:
+    os produtos no balcão, as plaquinhas de preço, a zona de entrega e o dinheiro são desenhados por quem chama.
+    Parte B3 (docs/MOLDE-ORLA.md): o acabamento no estilo dos quiosques de orla entra aqui. */
+function drawQuiosque(si: number) {
+  const d = SHOPS[si], c = d.counter, cor = ['', '#4dabf7', '', '#f59f00', '', '', '', '#40c057'][si] || '#b8763e';
+  shadow(c.x, c.y + 24, c.w / 2 + 6);
+  ctx.fillStyle = cor; rr(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, 10); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.75)'; rr(c.x - c.w / 2 + 6, c.y - c.h / 2 + 6, c.w - 12, 20, 6); ctx.fill();
+  const n = Math.max(6, Math.round((c.w + 12) / 18)), tw = (c.w + 12) / n;
+  for (let i = 0; i < n; i++) { ctx.fillStyle = i % 2 ? '#fff' : cor; ctx.beginPath(); const x0 = c.x - c.w / 2 - 6 + i * tw; ctx.moveTo(x0, c.y - c.h / 2 - 26); ctx.lineTo(x0 + tw, c.y - c.h / 2 - 26); ctx.lineTo(x0 + tw, c.y - c.h / 2 - 14); ctx.arc(x0 + tw / 2, c.y - c.h / 2 - 14, tw / 2, 0, Math.PI); ctx.closePath(); ctx.fill() }
+  ctx.font = '800 11px "Baloo 2",sans-serif'; const w = ctx.measureText(d.name).width + 16;
+  ctx.fillStyle = '#fffdf7'; rr(c.x - w / 2, c.y + 8, w, 14, 7); ctx.fill(); ctx.fillStyle = '#3a2316'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.name, c.x, c.y + 15);
+}
 function drawKiosk() {
   const d = SHOPS[1], st = g.S[1], c = d.counter; if (!st.open) return;
-  shadow(c.x, c.y + 24, 56);
-  ctx.fillStyle = '#4dabf7'; rr(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, 10); ctx.fill();
-  ctx.fillStyle = '#d0ebff'; rr(c.x - c.w / 2 + 6, c.y - c.h / 2 + 6, c.w - 12, 20, 6); ctx.fill();
+  drawQuiosque(1);
   const show = Math.min(10, st.stock); for (let i = 0; i < show; i++) drawItem('sorvete', c.x - 36 + (i % 5) * 18, c.y - c.h / 2 + 16 - Math.floor(i / 5) * 4, 0.62);
-  for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? '#fff' : '#ff8fab'; ctx.beginPath(); const x0 = c.x - c.w / 2 - 6 + i * (c.w + 12) / 6; ctx.moveTo(x0, c.y - c.h / 2 - 26); ctx.lineTo(x0 + (c.w + 12) / 6, c.y - c.h / 2 - 26); ctx.lineTo(x0 + (c.w + 12) / 6, c.y - c.h / 2 - 14); ctx.arc(x0 + (c.w + 12) / 12, c.y - c.h / 2 - 14, (c.w + 12) / 12, 0, Math.PI); ctx.closePath(); ctx.fill() }
-  ctx.fillStyle = '#fffdf7'; rr(c.x - 42, c.y + 8, 84, 14, 7); ctx.fill(); ctx.fillStyle = '#1c7ed6'; ctx.font = '800 11px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.name, c.x, c.y + 15);
   const cap = g.freezerCap(), pct = st.stock / cap; ctx.fillStyle = 'rgba(255,255,255,0.9)'; rr(c.x + c.w / 2 + 6, c.y - 18, 8, 36, 4); ctx.fill(); ctx.fillStyle = pct < 0.2 ? '#e03131' : '#4dabf7'; rr(c.x + c.w / 2 + 6, c.y + 18 - 36 * pct, 8, 36 * pct, 4); ctx.fill();
   priceTag(c.x, c.y - c.h / 2 - 38, 'sorvete');
   if (st.stock === 0) { ctx.fillStyle = '#e03131'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText('VAZIO!', c.x, c.y - 2) }
