@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Jogo, padOf, NUM_AREAS } from './jogo.ts';
 import { rng } from './simulador.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, ECONOMIA } from '../dados/planos.ts';
-import { SHOPS, LUGARES, SLOTS, ESCOLA, PALCO, TORNEIO, PRODUCTS, FAIXAS, WORLD_H, WORLD_W, H, livre, type Rect } from '../dados/mapa.ts';
+import { SHOPS, LUGARES, SLOTS, ESCOLA, PALCO, TORNEIO, PRODUCTS, FAIXAS, WORLD_H, WORLD_W, H, AMBULANTE, livre, type Rect } from '../dados/mapa.ts';
 import type { Save } from './jogo.ts';
 
 const DT = 1000 / 60, PARADO = { x: 0, y: 0 };
@@ -331,28 +331,37 @@ describe('ajudantes das áreas 3 e 4', () => {
 });
 
 describe('área 6: ambulantes', () => {
-  it('cheio, o carrinho sai para vender; os vendedores sempre voltam vazios à doca e nunca travam (10 min com o gerente)', () => {
-    const g = mundo([5, 5, 5, 5, 5, 10]); // ambulantes, cardápio, gerente, isopor, mais um vendedor, biscoito...
-    g.lv.cofre5 = 0; // sem cofre, para contar as vendas pela pilha
+  it('caminhão, pilha, bancada, ambulante e dinheiro fecham o ciclo (trabalho manual)', () => {
+    const g = mundo([5, 5, 5, 5, 5, 1]); g.lv.cofre5 = 0; // só a abertura: 1 ambulante, sem ajudante
+    const pilha = g.machines.find(m => m.pilha)!, v = g.vend[0];
+    expect(g.vend).toHaveLength(1); expect(pilha.type).toBe('caixaMate'); expect(pilha.pile).toBe(0);
+    rodar(g, 8000); expect(pilha.pile).toBeGreaterThan(2); // o caminhão chegou e descarregou na calçada
+    expect(v.estado).toBe('doca'); expect(v.carga).toHaveLength(0); // sem estoque na bancada, o ambulante espera
+    Object.assign(g.player, { x: pilha.x, y: pilha.y + 50 }); rodar(g, 600); // pega as caixas
+    expect(g.player.stack.filter(t => t === 'caixaMate').length).toBe(3);
+    Object.assign(g.player, SHOPS[5].drop); rodar(g, 600); // larga na bancada
+    expect(g.player.stack).toHaveLength(0); expect(g.S[5].counter.mate.length + v.carga.length).toBe(3 * AMBULANTE.caixa);
+    g.player.x = 1000; g.player.y = 300;
+    let saiu = false; rodar(g, 120000, () => { saiu ||= v.estado === 'rota' });
+    expect(saiu).toBe(true); expect(g.S[5].cashValue).toBeGreaterThan(0); // voltou e deixou o dinheiro na bancada
+  });
+
+  it('os ambulantes sempre voltam e nunca travam; andam pela areia, nunca na rua (10 min com o ajudante do caminhão)', () => {
+    const g = mundo([5, 5, 5, 5, 5, 10]); g.lv.cofre5 = 0;
     expect(g.vend.length).toBe(3); expect(g.helpers.some(h => h.shop === 5)).toBe(true);
-    const viagens = g.vend.map(() => 0), naRua = g.vend.map(() => 0), antes = g.vend.map(v => v.estado);
-    let vendas = 0, ultimo = 0;
+    const viagens = g.vend.map(() => 0), fora = g.vend.map(() => 0), antes = g.vend.map(v => v.estado);
+    let pagamentos = 0, ultimo = 0;
     rodar(g, 600000, () => {
-      const c = g.S[5].cashValue; if (c > ultimo) vendas++; ultimo = c;
+      const c = g.S[5].cashValue; if (c > ultimo) pagamentos++; ultimo = c;
       g.vend.forEach((v, i) => {
-        if (antes[i] === 'volta' && v.estado === 'doca') { viagens[i]++; expect(v.carga).toHaveLength(0) }
-        naRua[i] = v.estado === 'doca' ? 0 : naRua[i] + DT; expect(naRua[i]).toBeLessThan(90000);
+        if (antes[i] === 'volta' && v.estado === 'doca') { viagens[i]++; expect(v.carga).toHaveLength(0); expect(v.dinheiro).toBe(0) }
+        fora[i] = v.estado === 'doca' ? 0 : fora[i] + DT; expect(fora[i]).toBeLessThan(120000);
+        expect(v.y).toBeLessThan(FAIXAS.rua.y0); expect(v.x).toBeGreaterThan(0); expect(v.x).toBeLessThan(WORLD_W);
         antes[i] = v.estado;
       });
     });
-    for (const n of viagens) expect(n).toBeGreaterThan(5);
-    expect(vendas).toBeGreaterThan(100);
-  });
-
-  it('os vendedores andam só na faixa dos clientes, longe de onde o jogador anda', () => {
-    const g = mundo([5, 5, 5, 5, 5, 10]); let max = 0;
-    rodar(g, 120000, () => { for (const v of g.vend) if (v.estado === 'rota') max = Math.max(max, v.y) });
-    expect(max).toBeLessThan(326); // WALL_Y: o jogador fica abaixo disso
+    for (const n of viagens) expect(n).toBeGreaterThan(4);
+    expect(pagamentos).toBeGreaterThan(15);
   });
 });
 

@@ -42,11 +42,11 @@ export const TRILHAS: PlanStep[][] = [
     ['build', 'quadra', 'Quadra de futevôlei', 'fence4'], ['up', 'arquibancada', 'Arquibancada', 'arquib'], ['up', 'rede', 'Rede nova', 'rede'], ['up', 'torneio', 'Torneio da tarde', 'torneio'],
     ['up', 'arquibancada', 'Arquibancada maior', 'arquib'], ['up', 'rede', 'Rede de campeonato', 'rede'], ['up', 'torneio', 'Torneio da tarde 2', 'torneio'], ['up', 'arquibancada', 'Arquibancada maior 2', 'arquib'],
   ],
-  [ // 6. Ambulantes (venda automática): o jogador abastece os carrinhos; o gerente automatiza
-    ['build', 'ambulantes', 'Ambulantes', 'fence5'], ['up', 'cardapioA', '#B', 'cardapioA'], ['up', 'gerente', 'Gerente', 'equipeA'], ['up', 'isopor', 'Isopor maior', 'isopor'],
-    ['up', 'carrinhos', 'Mais um vendedor', 'carrinhos'], ['build', 'biscoito', 'Biscoito de polvilho', 'cardapioA'], ['up', 'carrinhoRapido', 'Carrinho mais rápido', 'rapidoA'], ['up', 'cofre5', 'Cofre automático', 'cofre5'],
-    ['up', 'cardapioA', '#B', 'cardapioA'], ['up', 'carrinhos', 'Mais um vendedor 2', 'carrinhos'], ['up', 'isopor', 'Isopor maior 2', 'isopor'], ['up', 'carrinhoRapido', 'Carrinho mais rápido 2', 'rapidoA'],
-    ['up', 'carrinhos', 'Mais um vendedor 3', 'carrinhos'],
+  [ // 6. Ambulantes (venda automática): o jogador leva as caixas do caminhão à bancada; o ajudante do caminhão automatiza
+    ['build', 'ambulantes', 'Ambulantes', 'fence5'], ['up', 'cardapioA', '#B', 'cardapioA'], ['up', 'gerente', 'Ajudante do caminhão', 'equipeA'], ['up', 'isopor', 'Isopor maior', 'isopor'],
+    ['up', 'carrinhos', 'Mais um ambulante', 'carrinhos'], ['build', 'biscoito', 'Biscoito de polvilho', 'cardapioA'], ['up', 'carrinhoRapido', 'Carrinho mais rápido', 'rapidoA'], ['up', 'cofre5', 'Cofre automático', 'cofre5'],
+    ['up', 'cardapioA', '#B', 'cardapioA'], ['up', 'carrinhos', 'Mais um ambulante 2', 'carrinhos'], ['up', 'isopor', 'Isopor maior 2', 'isopor'], ['up', 'carrinhoRapido', 'Carrinho mais rápido 2', 'rapidoA'],
+    ['up', 'carrinhos', 'Mais um ambulante 3', 'carrinhos'],
   ],
   [ // 7. Escolinha de surf (serviço com fila): o jogador leva as pranchas molhadas à arara; o instrutor automatiza
     ['build', 'escola', 'Escolinha de surf', 'fence6'], ['up', 'pranchas', 'Mais pranchas', 'pranchas'], ['up', 'instrutor', 'Instrutor', 'instrutor'], ['up', 'arara', 'Arara maior', 'arara'],

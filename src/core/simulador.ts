@@ -55,7 +55,7 @@ function canDeliver(g: Jogo, t: Item) {
   const si = PRODUCTS[t].shop, st = g.S[si];
   if (si < 0) return g.machines.some(m => m.needs === t && g.espaco(m) > 0); // cru: vai para a panela
   if (!st.open) return false;
-  if (SHOPS[si].kind === 'ambulante') { const v = g.carregando(); return !!v && v.carga.length < g.isoporCap() } // só com carrinho parado
+  if (SHOPS[si].kind === 'ambulante') return g.cabeNaBancada(t); // a caixa vai para a bancada, se couber
   if (t === 'prancha') return g.naArara() < g.araraCap();
   return t === 'caixa' ? st.stock < g.freezerCap() : st.counter[t].length < COUNTER_CAP;
 }

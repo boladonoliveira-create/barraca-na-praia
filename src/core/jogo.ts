@@ -12,7 +12,8 @@ export interface Pt { x: number; y: number }
 export interface Walker extends Pt { walk: number; face: number }
 export interface Carrier extends Walker { stack: Item[]; tT: number }
 /** needs: panela/fritadeira (Praia 4) — só cozinha o que recebe cru (loaded), em lote. */
-export interface Machine extends Pt { type: Item; pile: number; cap: number; t: number; needs?: Item; loaded?: number }
+/** pilha: pilha de caixas no chão (o caminhão enche; não produz sozinha e não bloqueia o caminho). */
+export interface Machine extends Pt { type: Item; pile: number; cap: number; t: number; needs?: Item; loaded?: number; pilha?: boolean }
 export interface Helper extends Carrier { shop: number; cap: number; mode: 'pick' | 'drop'; type: Item | null; target: Machine | null; wait: number; shirt: string; tarefa?: Tarefa | null }
 type Tarefa = 'entregar' | 'carregar' | 'pegar' | 'cru' | 'esperar';
 export interface Umbrella extends Pt { seats: (Customer | null)[] }
@@ -29,9 +30,11 @@ export interface Chuveiro extends Pt { user: Customer | null; t: number }
 export interface Cadeira extends Pt { user: Customer | null; suja: boolean }
 export interface Servico { agua: number; enchT: number; spawnT: number; spawnC: number; chuveiros: Chuveiro[]; fila: Customer[]; cadeiras: Cadeira[] }
 const novoServico = (): Servico => ({ agua: 0, enchT: 0, spawnT: 800, spawnC: 1500, chuveiros: [], fila: [], cadeiras: [] });
-/** Área 6: vendedor com o carrinho. doca: parado esperando carga (o 1º parado é o que está sendo abastecido);
-    sobe: indo para a faixa de cima; rota: vendendo, vai e volta pela faixa; volta: vazio, voltando para a doca. */
-export interface Vendedor extends Walker { carga: Item[]; estado: 'doca' | 'sobe' | 'rota' | 'volta'; dir: number; vendaT: number }
+/** Área 6: ambulante com o carrinho. doca: parado na bancada (o 1º parado enche o carrinho com o estoque dela);
+    rota: andando pela areia entre as pessoas, vendendo; volta: vazio, voltando para deixar o dinheiro na bancada. */
+export interface Vendedor extends Walker { carga: Item[]; estado: 'doca' | 'rota' | 'volta'; vendaT: number; esperaT: number; dinheiro: number; alvo: Pt | null }
+/** O caminhão de mercadoria na baia da rua. */
+export interface Caminhao { estado: 'fora' | 'chegando' | 'parado' | 'saindo'; x: number; t: number; entregues: number }
 /** Área 7: prancha. seca/secando: na arara; aluno: com o aluno; molhada: largada na areia (spot = índice em ESCOLA.molhadas); mao: na pilha de alguém. */
 export interface Prancha extends Pt { estado: 'seca' | 'secando' | 'aluno' | 'molhada' | 'mao'; t: number; aluno: Customer | null; spot: number }
 export interface Escola { pranchas: Prancha[]; fila: Customer[]; spawnT: number }
@@ -79,6 +82,7 @@ export class Jogo {
   boostUntil = 0; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; camY = 0; testMode = false;
   sv: Servico = novoServico(); vend: Vendedor[] = []; esc: Escola = { pranchas: [], fila: [], spawnT: 800 };
   /** Palco: ms até o próximo show e ms que faltam do show (0 = sem show). Torneio: troféus (para sempre) e a partida. */
+  caminhao: Caminhao = { estado: 'fora', x: 0, t: 0, entregues: 0 };
   palco = { t: 0, show: 0 }; trofeus = 0; partida = { etapa: 0, ms: 0 };
   pendente = 0; lastBuyAt = 0; // pendente: ganho offline mostrado no cartão e ainda não pego (vai no save)
   player: Carrier = { x: 200, y: 560, stack: [], walk: 0, face: 1, tT: 0 };
@@ -127,8 +131,10 @@ export class Jogo {
   /** Borda direita do último lote aberto (lote i abre com a loja i). */
   /* Área 6 */
   isoporCap() { return AMBULANTE.isoporBase + AMBULANTE.isoporPorNivel * this.L('isopor') }
-  /** O carrinho que está sendo abastecido: o primeiro parado na doca (ou nenhum, se todos estão na rua). */
+  /** O ambulante que está enchendo o carrinho: o primeiro parado na bancada (ou nenhum, se todos estão na areia). */
   carregando() { return this.vend.find(v => v.estado === 'doca') }
+  /** Cabe mais uma caixa deste tipo na bancada? */
+  cabeNaBancada(t: Item) { const u = t === 'caixaBisc' ? 'biscoito' : 'mate'; return (this.S[5].counter[u]?.length || 0) + AMBULANTE.caixa <= AMBULANTE.bancadaCap }
   /* Área 7 */
   araraCap() { return ESCOLA.araraBase + ESCOLA.araraPorNivel * this.L('arara') }
   naArara() { return this.esc.pranchas.filter(b => b.estado === 'seca' || b.estado === 'secando').length }
@@ -182,12 +188,13 @@ export class Jogo {
 
   /* ---------- Mundo ---------- */
   freshShops() { this.S = SHOPS.map((d, i) => ({ open: i === 0, counter: Object.fromEntries(d.products.map(p => [p, []])), stock: 0, queue: [], cashValue: 0, cashBills: 0, spawnT: 800 })) }
+  addPilha(type: Item) { const p = AMBULANTE.pilhas[type]; this.machines.push({ type, x: p.x, y: p.y, pile: 0, cap: AMBULANTE.pilhaCap, t: 0, pilha: true }) }
   addMachine(type: Item, x: number, y: number) { this.machines.push({ type, x, y, pile: 0, cap: type === 'caixa' ? 4 : 10, t: 0 }) }
   addCooker(type: Item, x: number, y: number) { this.machines.push({ type, x, y, pile: 0, cap: PREPARO.saidaMax, t: 0, needs: RECEITAS[type]!.cru, loaded: 0 }) }
   syncCadeiras() { const n = Math.min(SERVICO.cadeiras.length, SERVICO.cadeirasBase + SERVICO.cadeirasPorNivel * this.L('cadeiras')); while (this.sv.cadeiras.length < n) this.sv.cadeiras.push({ ...SERVICO.cadeiras[this.sv.cadeiras.length], user: null, suja: false }) }
   syncVendedores() {
     const n = Math.min(AMBULANTE.vagas.length, 1 + this.L('carrinhos'));
-    while (this.vend.length < n) { const v = AMBULANTE.vagas[this.vend.length]; this.vend.push({ x: v.x, y: v.y, walk: 0, face: -1, carga: [], estado: 'doca', dir: -1, vendaT: 0 }) }
+    while (this.vend.length < n) { const v = AMBULANTE.vagas[this.vend.length]; this.vend.push({ x: v.x, y: v.y, walk: 0, face: -1, carga: [], estado: 'doca', vendaT: 0, esperaT: 0, dinheiro: 0, alvo: null }) }
   }
   syncPranchas() {
     const n = Math.min(ESCOLA.maxPranchas, ESCOLA.pranchasBase + this.L('pranchas'));
@@ -203,7 +210,7 @@ export class Jogo {
   }
   resetWorld() {
     // começo rápido (a partir da Praia 3): as áreas que já foram novidade de uma praia anterior
-    this.trilhas = Array.from({ length: NUM_AREAS }, (_, a) => makeTrilha(a, this.beach, this.beach >= 2 && a < this.beach)); this.nivel = Array(NUM_AREAS).fill(0); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.sv = novoServico(); this.vend = []; this.esc = { pranchas: [], fila: [], spawnT: 800 }; this.palco = { t: 0, show: 0 }; this.partida = { etapa: 0, ms: 0 };
+    this.trilhas = Array.from({ length: NUM_AREAS }, (_, a) => makeTrilha(a, this.beach, this.beach >= 2 && a < this.beach)); this.nivel = Array(NUM_AREAS).fill(0); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.sv = novoServico(); this.vend = []; this.caminhao = { estado: 'fora', x: 0, t: 0, entregues: 0 }; this.esc = { pranchas: [], fila: [], spawnT: 800 }; this.palco = { t: 0, show: 0 }; this.partida = { etapa: 0, ms: 0 };
     this.money = 0; this.shown = 0; this.camX = 0; this.camY = 0; this.freshShops();
     this.addMachine('acai', 110, 470); this.player.x = 200; this.player.y = 560; this.player.stack = [];
   }
@@ -222,8 +229,8 @@ export class Jogo {
       if (s.id === 'pastel') { this.addMachine('pastelCru', 945, 852); this.addCooker('pastel', 1455, 852) }
       if (s.id === 'panela2') this.addCooker('milho', 1540, 852);
       if (s.id === 'quadra') this.S[4].open = true;
-      if (s.id === 'ambulantes') { this.S[5].open = true; this.addMachine('mate', 2265, 925); this.syncVendedores() }
-      if (s.id === 'biscoito') this.addMachine('biscoito', 2560, 925);
+      if (s.id === 'ambulantes') { this.S[5].open = true; this.addPilha('caixaMate'); this.syncVendedores(); this.caminhao = { estado: 'fora', x: 0, t: 800, entregues: 0 } }
+      if (s.id === 'biscoito') this.addPilha('caixaBisc');
       if (s.id === 'escola') { this.S[6].open = true; this.syncPranchas() }
       if (s.id === 'sucos') { this.S[7].open = true; this.addMachine('laranja', 1660, 852); this.addCooker('sucoLaranja', 2000, 852) }
       if (s.id === 'liqui2') { this.addMachine('acaiBanana', 2170, 852); this.addCooker('sucoAcai', 2085, 852) }
@@ -355,7 +362,7 @@ export class Jogo {
   canCarry(a: Carrier, type: Item) {
     const isP = a === this.player, cap = isP ? this.playerCap() : (a as Helper).cap;
     if (a.stack.length >= cap) return false;
-    if (type === 'caixa' || type === 'prancha') return a.stack.filter(t => t === type).length < (isP ? BOX_MAX_CARRY : cap);
+    if (type === 'caixa' || type === 'prancha' || type === 'caixaMate' || type === 'caixaBisc') return a.stack.filter(t => t === type).length < (isP ? BOX_MAX_CARRY : cap);
     return true;
   }
   stepTransfer(a: Carrier, dt: number, onlyType?: Item | null) {
@@ -378,13 +385,13 @@ export class Jogo {
         a.tT = 0; a.stack.splice(idx, 1); st.stock = Math.min(this.freezerCap(), st.stock + BOX_SORVETES); this.fly('caixa', a.x, a.y - 30, d.counter.x, d.counter.y, 220);
         if (P) this.io.tone(520, 0.1, 'triangle', 0.06, 1.4); return true;
       }
-      if (d.kind === 'ambulante') { // abastece o carrinho parado; cheio, ele sai para vender
-        const v = this.carregando(), cap = this.isoporCap(); if (!v || v.carga.length >= cap) continue;
-        let idx = -1; for (let i = a.stack.length - 1; i >= 0; i--) if (PRODUCTS[a.stack[i]].shop === si) { idx = i; break }
+      if (d.kind === 'ambulante') { // a caixa vira estoque da bancada (6 unidades)
+        let idx = -1; for (let i = a.stack.length - 1; i >= 0; i--) { const t = a.stack[i]; if ((t === 'caixaMate' || t === 'caixaBisc') && this.cabeNaBancada(t)) { idx = i; break } }
         if (idx < 0) continue;
-        a.tT = 0; const it = a.stack.splice(idx, 1)[0]; v.carga.push(it); this.fly(it, a.x, a.y - 30 - (idx + 1) * 9, v.x, v.y - 20, 220);
-        if (v.carga.length >= cap) { v.estado = 'sobe'; v.dir = -1; this.popups.push({ x: v.x, y: v.y - 50, txt: 'Saiu para vender!', life: 1.4, col: '#2f9e44', size: 14 }) }
-        if (P) this.io.tone(700 - a.stack.length * 25, 0.05, 'triangle', 0.05, 0.9); return true;
+        a.tT = 0; const it = a.stack.splice(idx, 1)[0], u: Item = it === 'caixaBisc' ? 'biscoito' : 'mate';
+        for (let k = 0; k < AMBULANTE.caixa; k++) st.counter[u].push(u);
+        this.fly(it, a.x, a.y - 30 - (idx + 1) * 9, d.counter.x, d.counter.y, 220);
+        if (P) this.io.tone(520, 0.1, 'triangle', 0.06, 1.4); return true;
       }
       if (d.kind === 'escola') { // pendura a prancha molhada na arara, se tiver lugar
         const idx = a.stack.lastIndexOf('prancha'), b = this.esc.pranchas.find(x => x.estado === 'mao'); if (idx < 0 || !b || this.naArara() >= this.araraCap()) continue;
@@ -414,9 +421,9 @@ export class Jogo {
   helperThink(h: Helper) {
     const d = SHOPS[h.shop], st = this.S[h.shop];
     if (d.kind === 'kiosk') { const dep = this.machines.find(m => m.type === 'caixa'); if (dep && st.stock < this.freezerCap() - 3) { h.type = 'caixa'; h.target = dep } else { h.type = null; h.target = null } return }
-    if (d.kind === 'ambulante') { // gerente: abastece enquanto houver carrinho parado; busca na máquina mais cheia
-      const ms = this.machines.filter(m => PRODUCTS[m.type].shop === h.shop), v = this.carregando();
-      if (!v || !ms.length) { h.type = null; h.target = null; return }
+    if (d.kind === 'ambulante') { // ajudante do caminhão: leva para a bancada a caixa da pilha mais alta que ainda cabe nela
+      const ms = this.machines.filter(m => m.pilha && m.pile > 0 && this.cabeNaBancada(m.type));
+      if (!ms.length) { h.type = null; h.target = null; return }
       h.target = ms.reduce((a, b) => b.pile > a.pile ? b : a); h.type = h.target.type; return;
     }
     let best: Item | null = null, bs = -1;
@@ -439,7 +446,7 @@ export class Jogo {
     const sp = 3.6 * (1 + 0.12 * this.L('chinelo')); p.x += ix * sp * f; p.y += iy * sp * f;
     if (il > 0.05) { p.walk += 0.3 * f; if (Math.abs(ix) > 0.1) p.face = ix > 0 ? 1 : -1; this.moved += sp * f * Math.min(1, il) }
     p.x = Math.max(16, Math.min(WORLD_W - 16, p.x)); p.y = Math.max(ANDA.y0, Math.min(ANDA.y1, p.y));
-    for (const m of this.machines) { const hw = 34, hh = 26, dx = p.x - m.x, dy = p.y - m.y; if (Math.abs(dx) < hw && Math.abs(dy) < hh) { const px = hw - Math.abs(dx), py = hh - Math.abs(dy); if (px < py) p.x += px * Math.sign(dx || 1); else p.y += py * Math.sign(dy || 1) } }
+    for (const m of this.machines) { if (m.pilha) continue; const hw = 34, hh = 26, dx = p.x - m.x, dy = p.y - m.y; if (Math.abs(dx) < hw && Math.abs(dy) < hh) { const px = hw - Math.abs(dx), py = hh - Math.abs(dy); if (px < py) p.x += px * Math.sign(dx || 1); else p.y += py * Math.sign(dy || 1) } }
     this.stepTransfer(p, dt); this.pegarPranchas(p);
 
     // dinheiro vai sozinho para o jogador perto da pilha ou no "Entregar"
@@ -473,6 +480,7 @@ export class Jogo {
     }
 
     for (const m of this.machines) {
+      if (m.pilha) continue; // a pilha de caixas só cresce com o caminhão
       if (m.needs) { if (m.loaded) { m.t += dt; if (m.t >= this.cookMs(m)) { m.t = 0; m.pile += m.loaded; m.loaded = 0 } } continue }
       if (m.pile < m.cap) { m.t += dt; if (m.t >= this.rateOf(m.type)) { m.t = 0; m.pile++ } }
     }
@@ -601,26 +609,56 @@ export class Jogo {
 
   /* ---------- Área 6: ambulantes ---------- */
   updateAmbulantes(dt: number, f: number) {
-    const A = AMBULANTE, sp = A.velocidade * (1 + A.rapidoPorNivel * this.L('carrinhoRapido')), doca = A.vagas[0];
+    const A = AMBULANTE, C = A.caminhao, cm = this.caminhao, st = this.S[5], doca = A.vagas[0];
+    const sp = A.velocidade * (1 + A.rapidoPorNivel * this.L('carrinhoRapido'));
+    // o caminhão: chega pela rua, para na baia, deixa as caixas nas pilhas da calçada e vai embora
+    if (cm.estado === 'fora') { if ((cm.t -= dt) <= 0) { cm.estado = 'chegando'; cm.x = C.x + 420 } }
+    else if (cm.estado === 'chegando') { cm.x -= 4 * f; if (cm.x <= C.x) { cm.x = C.x; cm.estado = 'parado'; cm.t = 0; cm.entregues = 0 } }
+    else if (cm.estado === 'parado') {
+      if ((cm.t += dt) >= C.descargaMs) {
+        cm.t = 0; const ps = this.machines.filter(m => m.pilha && m.pile < m.cap).sort((a, b) => a.pile - b.pile);
+        if (ps.length && cm.entregues < C.carga) { const m = ps[0]; m.pile++; cm.entregues++; this.fly(m.type, cm.x - 30, C.y - 30, m.x, m.y + 50, 300) }
+        else cm.estado = 'saindo';
+      }
+    } else { cm.x -= 4 * f; if (cm.x < C.x - 520) { cm.estado = 'fora'; cm.t = C.intervaloMs } }
+    // os ambulantes
     let k = 0;
     for (const v of this.vend) {
-      if (v.estado === 'doca') { const vg = A.vagas[k++]; moveTo(v, vg.x, vg.y, sp * 1.5, f); continue } // a fila da doca anda
-      if (v.estado === 'sobe') { if (moveTo(v, v.x, A.rotaY, sp, f)) v.estado = 'rota'; continue }
-      if (v.estado === 'volta') {
-        if (Math.abs(v.x - doca.x) > 1) moveTo(v, doca.x, A.rotaY, sp, f); else if (moveTo(v, doca.x, doca.y, sp, f)) v.estado = 'doca';
+      if (v.estado === 'doca') {
+        const vg = A.vagas[k++]; moveTo(v, vg.x, vg.y, sp * 1.5, f);
+        if (v !== this.carregando()) continue;
+        v.esperaT += dt; const cap = this.isoporCap();
+        if (v.carga.length < cap && v.esperaT > 120) { // enche o carrinho com o estoque da bancada, um por vez
+          const t = (['mate', 'biscoito'] as Item[]).filter(u => st.counter[u].length).sort((a, b) => st.counter[b].length - st.counter[a].length)[0];
+          if (t) { st.counter[t].pop(); v.carga.push(t); v.esperaT = 0 }
+        }
+        // sai cheio, ou com o que tiver se a bancada ficou vazia
+        if (v.carga.length >= cap || (v.carga.length && v.esperaT > 2500)) { v.estado = 'rota'; v.alvo = null; this.popups.push({ x: v.x, y: v.y - 50, txt: 'Saiu para vender!', life: 1.4, col: '#2f9e44', size: 14 }) }
         continue;
       }
-      // rota: vai até a ponta esquerda e volta até a última área aberta, vendendo para quem passa
-      if (moveTo(v, v.dir < 0 ? A.rotaX0 : WORLD_W - 40, A.rotaY, sp, f)) v.dir = -v.dir;
+      if (v.estado === 'volta') { // deixa o dinheiro na bancada (ou no cofre)
+        if (moveTo(v, doca.x, doca.y, sp, f)) { this.pagarAmbulante(v); v.estado = 'doca'; v.esperaT = 0 }
+        continue;
+      }
+      // rota: anda entre as pessoas, de um ponto qualquer da areia a outro, vendendo para quem estiver perto
+      if (!v.alvo || moveTo(v, v.alvo.x, v.alvo.y, sp, f)) v.alvo = { x: 30 + this.rand() * (WORLD_W - 60), y: A.areia.y0 + this.rand() * (A.areia.y1 - A.areia.y0) };
       v.vendaT -= dt;
       if (v.vendaT <= 0 && v.carga.length) {
         v.vendaT = A.vendaMs / this.publico() * (0.75 + this.rand() * 0.5);
-        const it = v.carga.pop()!, perto = this.customers.find(c => Math.abs(c.x - v.x) < 90 && Math.abs(c.y - v.y) < 90);
-        this.fly(it, v.x, v.y - 20, perto ? perto.x : v.x + 30 * v.dir, perto ? perto.y - 26 : A.rotaY - 60, 260);
-        this.receber(5, this.price(it), v.x, v.y);
+        const it = v.carga.pop()!, perto = this.pertoDe(v);
+        this.fly(it, v.x, v.y - 20, perto ? perto.x : v.x + 30, perto ? perto.y - 26 : v.y - 50, 260);
+        v.dinheiro += this.price(it) * (this.boostOn() ? 2 : 1);
       }
       if (!v.carga.length) v.estado = 'volta';
     }
+  }
+  /** Quem está perto do ambulante para comprar: um cliente ou um banhista a menos de 90. */
+  pertoDe(v: Pt): Pt | null { return this.customers.find(c => Math.abs(c.x - v.x) < 90 && Math.abs(c.y - v.y) < 90) || null }
+  /** O ambulante voltou: o dinheiro da volta vai para a pilha da bancada ou, com o cofre, direto para o caixa. */
+  pagarAmbulante(v: Vendedor) {
+    const d = v.dinheiro, st = this.S[5], c = SHOPS[5].cash; if (!d) return;
+    v.dinheiro = 0; this.ganho += d; this.fly('bill', v.x, v.y - 20, c.x, c.y, 320);
+    if (this.L('cofre5')) this.money += d; else { st.cashValue += d; st.cashBills += 1 }
   }
 
   /* ---------- Área 9: palco de pagode ---------- */

@@ -1,5 +1,5 @@
 /* Câmera, cenário, personagens, máquinas e efeitos. Só lê o estado do núcleo. */
-import { W, H, WORLD_W, WORLD_H, SHORE, WALL_Y, PLAY_BOTTOM, LUGARES, FAIXAS, SHOPS, SLOTS, COUNTER_CAP, CASH_MAGNET, SERVICO, ESCOLA, TORNEIO, type Item, type Rect } from '../dados/mapa.ts';
+import { W, H, WORLD_W, WORLD_H, SHORE, WALL_Y, PLAY_BOTTOM, LUGARES, FAIXAS, SHOPS, SLOTS, COUNTER_CAP, CASH_MAGNET, SERVICO, ESCOLA, TORNEIO, AMBULANTE, type Item, type Rect } from '../dados/mapa.ts';
 import { fmt } from '../core/economia.ts';
 import { NIVEL_ABRE, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
@@ -71,6 +71,11 @@ function drawItem(kind: Kind, x: number, y: number, s = 1) {
     ctx.fillStyle = '#ffe8cc'; rr(-7, -8, 14, 16, 3); ctx.fill(); ctx.strokeStyle = '#e8590c'; ctx.lineWidth = 1; ctx.stroke();
     ctx.fillStyle = '#e8590c'; ctx.fillRect(-7, -8, 14, 3);
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8; for (const [bx, by] of [[-3, 0], [3, 1], [0, 5]]) { ctx.beginPath(); ctx.arc(bx, by, 2.2, 0, Math.PI * 2); ctx.stroke() }
+  } else if (kind === 'caixaMate' || kind === 'caixaBisc') {
+    // caixa de papelão com a etiqueta do produto
+    ctx.fillStyle = '#c8955a'; rr(-9, -8, 18, 15, 2); ctx.fill(); ctx.fillStyle = '#a87742'; ctx.fillRect(-9, -3, 18, 2);
+    ctx.fillStyle = kind === 'caixaMate' ? '#c8772e' : '#fff4e6'; rr(-5, 0, 10, 6, 1); ctx.fill();
+    if (kind === 'caixaBisc') { ctx.strokeStyle = '#e8590c'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(0, 3, 1.8, 0, Math.PI * 2); ctx.stroke() }
   } else if (kind === 'laranja') {
     ctx.fillStyle = '#fd7e14'; circ(0, 0, 6.5); ctx.fill(); ctx.fillStyle = '#ffa94d'; circ(-2, -2, 2.5); ctx.fill(); ctx.fillStyle = '#2f9e44'; ctx.beginPath(); ctx.ellipse(2, -7, 3, 1.4, -0.5, 0, Math.PI * 2); ctx.fill();
   } else if (kind === 'acaiBanana') {
@@ -145,6 +150,12 @@ function drawPerson(x: number, y: number, o: PersonLook) {
 function drawStack(a: Carrier) { for (let i = 0; i < a.stack.length; i++) drawItem(a.stack[i], a.x, a.y - 44 - i * (a.stack[i] === 'caixa' ? 13 : 9), 1) }
 
 function drawMachine(m: Machine) {
+  if (m.pilha) { // pilha de caixas que o caminhão deixou na calçada
+    const z = zoneOf(m); rr(z.x - z.w / 2, z.y - z.h / 2, z.w, z.h, 8); ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.fill(); ctx.strokeStyle = 'rgba(91,35,112,0.35)'; ctx.lineWidth = 2; ctx.stroke();
+    for (let i = 0; i < m.pile; i++) drawItem(m.type, z.x - 24 + (i % 4) * 16, z.y + 6 - Math.floor(i / 4) * 13, 1);
+    ctx.fillStyle = '#3a2316'; ctx.font = '800 10px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(m.type === 'caixaMate' ? 'CAIXAS DE MATE' : 'CAIXAS DE BISCOITO', z.x, z.y - z.h / 2 - 8); return;
+  }
   const r = g.rateOf(m.type); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   if (m.type === 'acai') {
     shadow(m.x, m.y + 22, 34); rr(m.x - 31, m.y - 24, 62, 46, 10); ctx.fillStyle = '#7b3a92'; ctx.fill(); rr(m.x - 31, m.y - 24, 62, 14, 10); ctx.fillStyle = '#9b59b6'; ctx.fill();
@@ -379,14 +390,26 @@ function drawCarrinho(x: number, y: number, carga: number, cap: number) {
 }
 function drawAmbulantes() {
   const d = SHOPS[5]; if (!g.aberta(5)) return;
-  const c = d.counter, v0 = g.carregando(), cap = g.isoporCap();
-  // depósito: barraca de lona com o nome
+  const c = d.counter, st = g.S[5], bisc = g.machines.some(m => m.type === 'caixaBisc');
+  drawCaminhao();
+  // bancada: barraca de lona com o nome e o estoque
   shadow(c.x, c.y + 24, 80); ctx.fillStyle = '#e67700'; rr(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, 8); ctx.fill();
   for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? '#fff' : '#fab005'; ctx.fillRect(c.x - c.w / 2 + i * c.w / 8, c.y - c.h / 2 - 12, c.w / 8, 12) }
   ctx.fillStyle = '#fffdf7'; rr(c.x - 50, c.y - 6, 100, 16, 8); ctx.fill(); ctx.fillStyle = '#e8590c'; ctx.font = '800 11px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.name, c.x, c.y + 2);
-  drawDropZone(d.drop, v0 ? 'ABASTECER ' + v0.carga.length + '/' + cap : 'CARRINHOS NA RUA');
-  priceTag(c.x - 40, c.y - c.h / 2 - 26, 'mate'); if (g.machines.some(m => m.type === 'biscoito')) priceTag(c.x + 40, c.y - c.h / 2 - 26, 'biscoito');
+  drawDropZone(d.drop, 'CAIXAS AQUI');
+  ctx.fillStyle = '#3a2316'; ctx.font = '800 10px "Baloo 2",sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('mate ' + st.counter.mate.length + (bisc ? ' · biscoito ' + st.counter.biscoito.length : ''), c.x, c.y - c.h / 2 - 18);
+  priceTag(c.x - 40, c.y - c.h / 2 - 36, 'mate'); if (bisc) priceTag(c.x + 40, c.y - c.h / 2 - 36, 'biscoito');
   drawShopCash(5);
+}
+/** O caminhão de mercadoria na baia da rua (só visual: quem enche as pilhas é o núcleo). */
+function drawCaminhao() {
+  const cm = g.caminhao, y = AMBULANTE.caminhao.y; if (cm.estado === 'fora') return;
+  const x = cm.x; shadow(x, y + 22, 60);
+  ctx.fillStyle = '#f8f9fa'; rr(x - 50, y - 26, 72, 44, 4); ctx.fill(); ctx.strokeStyle = '#adb5bd'; ctx.lineWidth = 1.5; ctx.stroke(); // baú
+  ctx.fillStyle = '#1c7ed6'; rr(x + 22, y - 14, 30, 32, 5); ctx.fill(); ctx.fillStyle = '#d0ebff'; rr(x + 30, y - 10, 18, 12, 3); ctx.fill(); // cabine
+  ctx.fillStyle = '#e8590c'; ctx.font = '800 9px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('MATE E BISCOITO', x - 14, y - 4);
+  ctx.fillStyle = '#212529'; for (const wx of [x - 34, x + 6, x + 38]) { circ(wx, y + 20, 7); ctx.fill() }
 }
 function drawVendedor(v: Vendedor) {
   drawCarrinho(v.x + v.face * 18, v.y - 4, v.carga.length, g.isoporCap());

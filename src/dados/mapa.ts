@@ -16,7 +16,7 @@ export type Faixa = keyof typeof FAIXAS;
 export const faixaDe = (y: number): Faixa => (Object.keys(FAIXAS) as Faixa[]).find(f => y < FAIXAS[f].y1) ?? 'rua';
 /** Até onde o jogador pode andar na vertical (o centro dele). */
 export const ANDA = { y0: SHORE + 34, y1: FAIXAS.calcadao.y1 - 12 };
-export type Item = 'acai' | 'coco' | 'sorvete' | 'caixa' | 'milho' | 'pastel' | 'milhoCru' | 'pastelCru' | 'mate' | 'biscoito' | 'prancha' | 'laranja' | 'acaiBanana' | 'sucoLaranja' | 'sucoAcai';
+export type Item = 'acai' | 'coco' | 'sorvete' | 'caixa' | 'milho' | 'pastel' | 'milhoCru' | 'pastelCru' | 'mate' | 'biscoito' | 'prancha' | 'laranja' | 'acaiBanana' | 'sucoLaranja' | 'sucoAcai' | 'caixaMate' | 'caixaBisc';
 
 /** Onde fica cada área (a área i é LUGARES[i]). rect: o lugar dela na faixa (é o quadrado trancado antes de abrir);
     zona: onde ficam as coisas dela (balcão, máquinas, quadros), para nenhum enfeite cobrir; as zonas não se sobrepõem
@@ -29,9 +29,9 @@ export const LUGARES: Lugar[] = [
   { faixa: 'areia', rect: R(660, 455, 1050, 815), zona: R(660, 440, 1050, 815), titulo: 'CHUVEIRÃO E CADEIRAS' },
   { faixa: 'grama', rect: R(905, 828, 1580, 912), zona: R(905, 828, 1580, 1040), titulo: 'MILHO E PASTEL' },
   { faixa: 'areia', rect: R(2130, 485, 2500, 815), zona: R(2130, 489, 2500, 815), titulo: 'QUADRA DE FUTEVÔLEI' },
-  { faixa: 'calcadao', rect: R(2180, 925, 2595, 1055), zona: R(2215, 828, 2600, 1060), titulo: 'AMBULANTES' },
+  { faixa: 'calcadao', rect: R(2180, 925, 2595, 1055), zona: R(2180, 828, 2600, 1060), titulo: 'AMBULANTES' },
   { faixa: 'areia', rect: R(1460, 150, 1840, 495), zona: R(1460, 150, 1840, 488), titulo: 'ESCOLINHA DE SURF' },
-  { faixa: 'grama', rect: R(1620, 828, 2210, 912), zona: R(1620, 828, 2210, 1040), titulo: 'SUCOS E VITAMINAS' },
+  { faixa: 'grama', rect: R(1620, 828, 2210, 912), zona: R(1620, 828, 2178, 1040), titulo: 'SUCOS E VITAMINAS' },
   { faixa: 'areia', rect: R(1120, 290, 1400, 625), zona: R(1110, 280, 1410, 630), titulo: 'PALCO DE PAGODE' },
   // o torneio usa a quadra (que ganha arquibancada): o lugar dele é o mesmo da área 5
   { faixa: 'areia', rect: R(2130, 485, 2500, 815), zona: R(2130, 489, 2500, 815), titulo: 'TORNEIO DE FUTEVÔLEI' },
@@ -57,6 +57,8 @@ export const PRODUCTS: Record<Item, { price: number; rate: number; shop: number 
   acaiBanana: { price: 0, rate: 850, shop: -1 },
   sucoLaranja: { price: 90, rate: 0, shop: 7 },
   sucoAcai: { price: 120, rate: 0, shop: 7 },
+  caixaMate: { price: 0, rate: 0, shop: 5 }, // caixas que o caminhão deixa na calçada: vão para a bancada
+  caixaBisc: { price: 0, rate: 0, shop: 5 },
 };
 export const BOX_SORVETES = 6, BOX_MAX_CARRY = 3;
 
@@ -105,11 +107,15 @@ export const PALCO = { intervaloMs: 240000, intervaloMenos: 25000, intervaloMin:
     bonusTrofeu de público para sempre (nesta e nas próximas praias). Arquibancada e patrocínio somam público como a quadra. */
 export const TORNEIO = { etapas: ['Classificatória', 'Semifinal', 'Final'], partidaMs: [40000, 55000, 70000], bonusTrofeu: 0.15, arquibT: 0.08, patrocinio: 0.06 };
 
-/** Área 6: os carrinhos de isopor. O jogador abastece o carrinho parado na vaga; cheio, ele sai com um vendedor pela
-    faixa de cima da areia (a dos clientes, onde o jogador não anda), vende sozinho e volta vazio. */
+/** Área 6: o caminhão chega à baia da rua e deixa caixas de mate e de biscoito em pilhas na calçada; o jogador (ou o
+    ajudante do caminhão) leva as caixas até a bancada; cada ambulante enche o carrinho na bancada, anda pela areia entre
+    as pessoas vendendo, volta vazio e deixa o dinheiro na bancada (ou no cofre). */
 export const AMBULANTE = {
-  vagas: [{ x: 2440, y: 1000 }, { x: 2385, y: 1035 }, { x: 2495, y: 1035 }, { x: 2330, y: 1035 }, { x: 2550, y: 1035 }, { x: 2275, y: 1035 }],
-  rotaY: 196, rotaX0: 40, // anda até x = 40 e volta, vendendo
+  vagas: [{ x: 2440, y: 918 }, { x: 2385, y: 912 }, { x: 2495, y: 912 }, { x: 2330, y: 912 }, { x: 2550, y: 912 }, { x: 2275, y: 912 }],
+  pilhas: { caixaMate: { x: 2300, y: 980 }, caixaBisc: { x: 2560, y: 980 } } as Record<string, { x: number; y: number }>, pilhaCap: 8,
+  caixa: 6, bancadaCap: 36, // unidades por caixa; unidades de cada produto que cabem na bancada
+  caminhao: { x: 2440, y: 1100, intervaloMs: 14000, descargaMs: 450, carga: 6 }, // a cada intervaloMs, deixa até `carga` caixas
+  areia: { y0: 190, y1: 790 }, // por onde os ambulantes andam vendendo
   isoporBase: 6, isoporPorNivel: 3, // itens por carrinho: isoporBase + isoporPorNivel × "isopor"
   velocidade: 1.7, rapidoPorNivel: 0.25, // carrinho mais rápido: velocidade × (1 + rapidoPorNivel × "carrinhoRapido")
   vendaMs: 1300, // uma venda a cada vendaMs ÷ público, enquanto anda
@@ -169,8 +175,8 @@ export const SLOTS: Record<string, { x: number; y: number }> = {
   // Quadra (areia, perto da grama)
   fence4: { x: 2315, y: 520 }, torneio: { x: 2315, y: 520 }, arquib: { x: 2235, y: 770 }, rede: { x: 2395, y: 770 },
   // Ambulantes (bancada no calçadão; quadros na grama acima dela)
-  fence5: { x: 2440, y: 1015 }, cardapioA: { x: 2290, y: 860 }, carrinhos: { x: 2375, y: 860 }, isopor: { x: 2460, y: 860 }, equipeA: { x: 2545, y: 860 },
-  rapidoA: { x: 2550, y: 1015 }, cofre5: { x: 2540, y: 935 },
+  fence5: { x: 2440, y: 1012 }, cardapioA: { x: 2290, y: 860 }, carrinhos: { x: 2375, y: 860 }, isopor: { x: 2460, y: 860 }, equipeA: { x: 2545, y: 860 },
+  rapidoA: { x: 2220, y: 1015 }, cofre5: { x: 2555, y: 935 },
   // Escolinha de surf (beira da água)
   fence6: { x: 1650, y: 330 }, instrutor: { x: 1500, y: 462 }, pranchas: { x: 1585, y: 462 }, arara: { x: 1670, y: 462 }, aulaUp: { x: 1755, y: 462 }, cofre6: { x: 1800, y: 220 },
   // Sucos e vitaminas (quiosque na grama)
