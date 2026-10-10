@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Jogo, padOf, NUM_AREAS } from './jogo.ts';
 import { rng } from './simulador.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, ECONOMIA } from '../dados/planos.ts';
-import { SHOPS, LOTS, SLOTS, ESCOLA, FAIXA, PALCO, TORNEIO, PRODUCTS } from '../dados/mapa.ts';
+import { SHOPS, LOTS, SLOTS, ESCOLA, FAIXA, PALCO, TORNEIO, PRODUCTS, FAIXAS, WORLD_H, H, livre } from '../dados/mapa.ts';
 import type { Save } from './jogo.ts';
 
 const DT = 1000 / 60, PARADO = { x: 0, y: 0 };
@@ -443,6 +443,22 @@ describe('área 10: torneio', () => {
   it('depois da Praia 10 o quadro de nova praia diz "Praia 11 · em breve"', () => {
     const g = naPraia(10); for (let a = 0; a < NUM_AREAS; a++) subir(g, a, a < 9 ? NIVEL_ABRE : NIVEL_NOVA_PRAIA);
     expect(g.novaPraiaAberta()).toBe(true); expect(g.proximaExiste()).toBe(false); expect(g.goalText()).toBe('Praia 11 · em breve');
+  });
+});
+
+describe('orla em faixas', () => {
+  it('o jogador anda até o fim da calçada e não entra na rua; a câmera desce junto', () => {
+    const g = novo(); g.player.x = 200; g.player.y = 600;
+    for (let t = 0; t < 8000; t += DT) { g.now += DT; g.update(DT, { x: 0, y: 1 }) }
+    expect(g.player.y).toBeLessThan(FAIXAS.rua.y0); expect(g.player.y).toBeGreaterThan(FAIXAS.calcadao.y0);
+    expect(g.camY).toBeGreaterThan(0); expect(g.camY).toBeLessThanOrEqual(WORLD_H - H);
+  });
+
+  it('livre(x, y): não deixa enfeite em balcão, quadro, mar fundo ou rua', () => {
+    expect(livre(SHOPS[0].counter.x, SHOPS[0].counter.y)).toBe(false);
+    expect(livre(SLOTS.maq2.x, SLOTS.maq2.y)).toBe(false);
+    expect(livre(200, 40)).toBe(false); expect(livre(200, FAIXAS.rua.y0 + 30)).toBe(false);
+    expect(livre(200, FAIXAS.grama.y0 + 50)).toBe(true);
   });
 });
 

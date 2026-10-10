@@ -1,5 +1,5 @@
 /* Câmera, cenário, personagens, máquinas e efeitos. Só lê o estado do núcleo. */
-import { W, H, WORLD_W, SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SLOTS, COUNTER_CAP, CASH_MAGNET, SERVICO, ESCOLA, TORNEIO, type Item, type Lot, type Rect } from '../dados/mapa.ts';
+import { W, H, WORLD_W, WORLD_H, SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SLOTS, COUNTER_CAP, CASH_MAGNET, SERVICO, ESCOLA, TORNEIO, type Item, type Lot, type Rect } from '../dados/mapa.ts';
 import { fmt } from '../core/economia.ts';
 import { NIVEL_ABRE, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
@@ -473,7 +473,12 @@ function placaLote(lot: Lot, i: number, x0: number) {
 }
 function arrowAt(x: number, y: number, col?: string) { const b = reduceMotion ? 0 : Math.sin(g.now / 180) * 5; ctx.fillStyle = col || '#ff4d6d'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y + b); ctx.lineTo(x - 11, y - 16 + b); ctx.lineTo(x - 4, y - 16 + b); ctx.lineTo(x - 4, y - 30 + b); ctx.lineTo(x + 4, y - 30 + b); ctx.lineTo(x + 4, y - 16 + b); ctx.lineTo(x + 11, y - 16 + b); ctx.closePath(); ctx.stroke(); ctx.fill() }
 function arrowUp(x: number, y: number) { ctx.save(); ctx.translate(x, y); ctx.scale(1, -1); arrowAt(0, 0); ctx.restore() }
-function sideArrow(dir: number, y: number) { const x = dir > 0 ? W - 22 : 22, b = reduceMotion ? 0 : Math.sin(g.now / 180) * 4 * dir; ctx.save(); ctx.translate(x + b, y); ctx.scale(dir, 1); ctx.fillStyle = '#ff4d6d'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-4, -14); ctx.lineTo(-4, -6); ctx.lineTo(-16, -6); ctx.lineTo(-16, 6); ctx.lineTo(-4, 6); ctx.lineTo(-4, 14); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore() }
+/** Seta na borda da tela apontando para um alvo fora dela (sx, sy: posição do alvo na tela). */
+function bordaArrow(sx: number, sy: number) {
+  const cx = W / 2, cy = H / 2, ang = Math.atan2(sy - cy, sx - cx), m = 26;
+  const t = Math.min((W / 2 - m) / Math.max(1e-6, Math.abs(Math.cos(ang))), (H / 2 - m - 30) / Math.max(1e-6, Math.abs(Math.sin(ang))));
+  const b = reduceMotion ? 0 : Math.sin(g.now / 180) * 4;
+  ctx.save(); ctx.translate(cx + Math.cos(ang) * (t + b), cy + Math.sin(ang) * (t + b)); ctx.rotate(ang); ctx.fillStyle = '#ff4d6d'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-4, -14); ctx.lineTo(-4, -6); ctx.lineTo(-16, -6); ctx.lineTo(-16, 6); ctx.lineTo(-4, 6); ctx.lineTo(-4, 14); ctx.closePath(); ctx.stroke(); ctx.fill(); ctx.restore() }
 
 /** Onde a seta do tutorial aponta agora (ou null). */
 function tutorialTarget(): { t: Rect | { x: number; y: number; h: number } | null; up: boolean } {
@@ -494,10 +499,10 @@ function tutorialTarget(): { t: Rect | { x: number; y: number; h: number } | nul
 }
 
 export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy: Joy) {
-  ctx = c; g = jogo; const camX = g.camX, p = g.player;
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.setTransform(k, 0, 0, k, -camX * k, 0);
+  ctx = c; g = jogo; const camX = g.camX, camY = g.camY, p = g.player;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.setTransform(k, 0, 0, k, -camX * k, -camY * k);
   const P = PRAIAS[Math.min(g.beach, PRAIAS.length - 1)], x0 = camX - 20, x1 = camX + W + 20;
-  desenharCenario(ctx, P, { x0, x1, t: reduceMotion ? 0 : g.now, cam: camX }, H);
+  desenharCenario(ctx, P, { x0, x1, t: reduceMotion ? 0 : g.now, cam: camX }, WORLD_H);
   for (const s of specks) { if (s.x < x0 || s.x > x1) continue; ctx.fillStyle = s.c; circ(s.x, s.y, s.r); ctx.fill() }
   ctx.fillStyle = 'rgba(255,255,255,0.22)'; rr(10, WALL_Y + 4, 380, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill();
   LOTS.forEach((l, i) => { if (i && g.S[i]?.open) { rr(l.x0 + 10, WALL_Y + 4, l.x1 - l.x0 - 20, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill() } });
@@ -536,18 +541,18 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   for (const fl of g.flyers) { if (fl.t < 0) continue; const t = Math.min(1, fl.t / fl.dur), e = 1 - Math.pow(1 - t, 2), x = fl.x0 + (fl.x1 - fl.x0) * e, y = fl.y0 + (fl.y1 - fl.y0) * e - Math.sin(t * Math.PI) * 30; drawItem(fl.kind, x, y, 1) }
   for (const s of g.sparks) { ctx.globalAlpha = Math.max(0, s.life); ctx.fillStyle = s.col; circ(s.x, s.y, 3 * s.life + 1); ctx.fill() } ctx.globalAlpha = 1;
 
-  let side = 0, sideY = 0;
+  let borda: { x: number; y: number } | null = null;
   if (g.state === 'play') {
     const { t, up } = tutorialTarget();
-    if (t) { const sx = t.x - camX; if (sx < 10) { side = -1; sideY = t.y } else if (sx > W - 10) { side = 1; sideY = t.y } else if (up) arrowUp(t.x, t.y + t.h / 2 + 6); else arrowAt(t.x, t.y - (t.h || 60) / 2 - 6) }
+    if (t) { const sx = t.x - camX, sy = t.y - camY; if (sx < 10 || sx > W - 10 || sy < 50 || sy > H - 30) borda = { x: sx, y: sy }; else if (up) arrowUp(t.x, t.y + t.h / 2 + 6); else arrowAt(t.x, t.y - (t.h || 60) / 2 - 6) }
   }
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  luz(ctx, P, x0, x1, H);
+  luz(ctx, P, x0, x1, WORLD_H);
   for (const pp of g.popups) { ctx.globalAlpha = Math.min(1, pp.life * 1.5); ctx.font = '800 ' + pp.size + 'px "Baloo 2",sans-serif'; ctx.lineWidth = 4; ctx.strokeStyle = '#fff'; ctx.strokeText(pp.txt, pp.x, pp.y); ctx.fillStyle = pp.col; ctx.fillText(pp.txt, pp.x, pp.y) } ctx.globalAlpha = 1;
 
   // camada da tela (sem câmera)
   ctx.setTransform(k, 0, 0, k, 0, 0);
-  if (side) sideArrow(side, Math.min(H - 60, Math.max(WALL_Y, sideY)));
+  if (borda) bordaArrow(borda.x, borda.y);
   if (g.state === 'play' && g.moved < 40 && g.tutorial === 0) { ctx.fillStyle = 'rgba(58,35,22,0.75)'; rr(W / 2 - 120, H - 70, 240, 36, 18); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '800 14px "Nunito",sans-serif'; ctx.fillText('Arraste o dedo para andar', W / 2, H - 52) }
   if (g.boostOn()) { ctx.fillStyle = 'rgba(47,158,68,0.9)'; rr(W - 86, 8, 76, 28, 14); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '800 14px "Baloo 2",sans-serif'; ctx.fillText('2x R$', W - 48, 23) }
   if (g.famaTotal > 0) { const txt = '⭐ Fama x' + g.lucro().toFixed(1).replace('.', ','); ctx.font = '800 14px "Baloo 2",sans-serif'; const w = ctx.measureText(txt).width + 20; ctx.fillStyle = 'rgba(255,194,61,0.95)'; rr(10, 8, w, 28, 14); ctx.fill(); ctx.fillStyle = '#3a2316'; ctx.fillText(txt, 10 + w / 2, 23) }

@@ -1,8 +1,21 @@
-/* Mapa: uma praia, vários lotes. Coordenadas do mundo em unidades do canvas lógico (400 x 760). */
-export const W = 400, H = 760, WORLD_W = 2900;
+/* Mapa: uma orla em faixas, do mar até a rua. Coordenadas do mundo em unidades do canvas lógico (a tela é 400 x 760). */
+export const W = 400, H = 760, WORLD_W = 2900, WORLD_H = 1140;
 export const SHORE = 118, WALL_Y = 326, PLAY_BOTTOM = 742;
 
 export interface Rect { x: number; y: number; w: number; h: number }
+
+/** As faixas da orla, de cima para baixo (y0 a y1). O jogador anda da areia até o fim da calçada; a rua é só visual. */
+export const FAIXAS = {
+  mar: { y0: 0, y1: SHORE },
+  areia: { y0: SHORE, y1: 820 },
+  grama: { y0: 820, y1: 920 },
+  calcadao: { y0: 920, y1: 1060 }, // ciclovia em cima (920 a 950), bancos e calçada embaixo
+  rua: { y0: 1060, y1: WORLD_H },
+};
+export type Faixa = keyof typeof FAIXAS;
+export const faixaDe = (y: number): Faixa => (Object.keys(FAIXAS) as Faixa[]).find(f => y < FAIXAS[f].y1) ?? 'rua';
+/** Até onde o jogador pode andar na vertical (o centro dele). */
+export const ANDA = { y0: WALL_Y + 12, y1: FAIXAS.calcadao.y1 - 12 };
 /** faixa: lote dentro da faixa grande de areia da Praia 7 (sem cerca e sem silhueta; só a placa, quando é da praia atual). */
 export interface Lot { x0: number; x1: number; title?: string; praia?: number; kind?: string; faixa?: boolean }
 export type Item = 'acai' | 'coco' | 'sorvete' | 'caixa' | 'milho' | 'pastel' | 'milhoCru' | 'pastelCru' | 'mate' | 'biscoito' | 'prancha' | 'laranja' | 'acaiBanana' | 'sucoLaranja' | 'sucoAcai';
@@ -165,3 +178,16 @@ export const UMBRELLA_POS = [{ x: 64, y: 226 }, { x: 336, y: 226 }, { x: 316, y:
 export const PHRASES = ['Valeu, chefe!', 'Capricha!', 'Bom demais!', 'Tá caro, hein!', 'Que delícia!', 'Volto amanhã!', 'Top!', 'Gelado demais!', 'Mais um!'];
 export const SHIRTS = ['#ff6b6b', '#4dabf7', '#ffd43b', '#69db7c', '#f783ac', '#ff922b', '#9775fa', '#38d9a9'];
 export const SKINS = ['#f1c6a0', '#d9a37a', '#a8714c', '#7a4b2e', '#e8b48e'];
+
+/** Onde dá para desenhar enfeite sem atrapalhar: dentro da orla (fora do mar fundo e da rua) e longe de balcões,
+    zonas de entrega, quadros de compra e da fila na frente dos balcões. */
+export function livre(x: number, y: number, folga = 12) {
+  if (x < 0 || x > WORLD_W || y < SHORE + 6 || y > FAIXAS.calcadao.y1) return false;
+  const dentro = (r: Rect, mx = 0, my = 0) => Math.abs(x - r.x) < r.w / 2 + folga + mx && Math.abs(y - r.y) < r.h / 2 + folga + my;
+  for (const d of SHOPS) {
+    if (dentro(d.counter) || dentro(d.drop) || dentro({ ...d.cash, w: 40, h: 40 })) return false;
+    if (d.kind === 'counter' || d.kind === 'kiosk') { const top = d.counter.y - d.counter.h / 2; if (dentro({ x: d.cx, y: top - 70, w: 60, h: 140 })) return false } // fila
+  }
+  for (const k in SLOTS) if (dentro({ ...SLOTS[k], w: 72, h: 60 })) return false;
+  return true;
+}

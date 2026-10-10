@@ -1,6 +1,6 @@
 /* Cenário de cada praia: céu, mar, ondas e os enfeites de fundo (PRAIAS[b].enfeites). Só desenha; regras em docs/MOLDE-CENARIOS.md.
    Tudo em coordenadas do mundo, entre x0 e x1 (a parte visível). Sem Math.random: a posição vem de hash(i). */
-import { SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SERVICO, ESCOLA } from '../dados/mapa.ts';
+import { SHORE, WALL_Y, PLAY_BOTTOM, LOTS, SHOPS, SERVICO, ESCOLA, FAIXAS } from '../dados/mapa.ts';
 import type { Praia } from '../dados/praias.ts';
 
 /** O céu vai de 0 a HORIZONTE; o mar, de HORIZONTE até a areia (SHORE). Enfeite fica sempre acima de SHORE - 6. */
@@ -582,7 +582,21 @@ export function desenharCenario(c: CanvasRenderingContext2D, P: Praia, e: Vista,
   const beira = (x: number) => SHORE + Math.sin(x / 38 + t / 900) * 5;
   c.fillStyle = P.areia; c.beginPath(); c.moveTo(x0, H); for (let x = Math.floor(x0 / 8) * 8; x <= x1; x += 8) c.lineTo(x, beira(x)); c.lineTo(x1, H); c.closePath(); c.fill();
   c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineWidth = 4; c.beginPath(); for (let x = Math.floor(x0 / 8) * 8; x <= x1; x += 8) x === Math.floor(x0 / 8) * 8 ? c.moveTo(x, beira(x)) : c.lineTo(x, beira(x)); c.stroke();
+  orla(c, e);
   for (const id of P.enfeitesAreia) ENFEITES_AREIA[id]?.(c, e, P); // decoração da areia: por baixo de tudo o que é do jogo
+}
+
+/** Grama, calçadão (ciclovia e calçada) e rua, por baixo da areia. Desenho simples: o acabamento é da parte B (MOLDE-ORLA). */
+function orla(c: CanvasRenderingContext2D, e: Vista) {
+  const { x0, x1 } = e, F = FAIXAS, w = x1 - x0;
+  c.fillStyle = '#8cc56b'; c.fillRect(x0, F.grama.y0, w, F.grama.y1 - F.grama.y0);
+  c.fillStyle = '#6fae4f'; c.fillRect(x0, F.grama.y0, w, 4);
+  c.fillStyle = '#c7442f'; c.fillRect(x0, F.calcadao.y0, w, 30); // ciclovia
+  c.fillStyle = '#fff'; for (let x = Math.floor(x0 / 40) * 40; x < x1; x += 40) c.fillRect(x, F.calcadao.y0 + 14, 20, 2);
+  c.fillStyle = '#ece6da'; c.fillRect(x0, F.calcadao.y0 + 30, w, F.calcadao.y1 - F.calcadao.y0 - 30); // calçada
+  c.fillStyle = '#9aa0a6'; c.fillRect(x0, F.rua.y0, w, 6); // meio-fio
+  c.fillStyle = '#495057'; c.fillRect(x0, F.rua.y0 + 6, w, F.rua.y1 - F.rua.y0 - 6);
+  c.fillStyle = '#ffd43b'; for (let x = Math.floor(x0 / 60) * 60; x < x1; x += 60) c.fillRect(x, (F.rua.y0 + F.rua.y1) / 2, 30, 3);
 }
 
 /** Luz da hora do dia, por cima de tudo (menos da interface): a tarde esquenta um pouco; o pôr do sol, bem mais. */

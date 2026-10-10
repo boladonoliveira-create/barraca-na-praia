@@ -1,7 +1,7 @@
 /* Núcleo do jogo: estado, economia, clientes, ajudantes e compras. Sem canvas e sem DOM. */
 import {
   SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, LOTS, SERVICO, PREPARO, RECEITAS, ATRACAO, PALCO, TORNEIO,
-  AMBULANTE, ESCOLA, FAIXA, PHRASES, SHIRTS, SKINS, W, WALL_Y, PLAY_BOTTOM, type Item, type Rect,
+  AMBULANTE, ESCOLA, FAIXA, PHRASES, SHIRTS, SKINS, W, H, WORLD_H, ANDA, type Item, type Rect,
 } from '../dados/mapa.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, MARCOS, ECONOMIA, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
@@ -62,6 +62,8 @@ export interface Io {
 }
 const NO_IO: Io = { tone() {}, fanfare() {}, buzz() {}, save() {}, goal() {}, viagem() {}, compra() {}, campeao() {} };
 
+/** Câmera vertical: segue o jogador quando ele passa desta distância do pé da tela. */
+export const CAM_FOLGA = 60;
 export const zoneOf = (m: Pt): Rect => ({ x: m.x, y: m.y + 50, w: 80, h: 44 });
 export const inZone = (a: Pt, z: Rect) => Math.abs(a.x - z.x) < z.w / 2 && Math.abs(a.y - z.y) < z.h / 2;
 export const padOf = (slot: string): Rect => ({ ...SLOTS[slot], w: 72, h: 60 });
@@ -74,7 +76,7 @@ export function moveTo(a: Walker, tx: number, ty: number, sp: number, f: number)
 export class Jogo {
   money = 0; shown = 0; lv: Record<string, number> = {}; beach = 0; famaTotal = 0; famas: number[] = []; ganho = 0; tempo = 0; trilhas: Step[][] = []; nivel: number[] = []; paid: Record<string, number> = {};
   machines: Machine[] = []; customers: Customer[] = []; flyers: Flyer[] = []; popups: Popup[] = []; sparks: Spark[] = []; helpers: Helper[] = []; umbrellas: Umbrella[] = []; S: ShopState[] = [];
-  boostUntil = 0; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; testMode = false;
+  boostUntil = 0; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; camY = 0; testMode = false;
   sv: Servico = novoServico(); vend: Vendedor[] = []; esc: Escola = { pranchas: [], fila: [], spawnT: 800 };
   /** Palco: ms até o próximo show e ms que faltam do show (0 = sem show). Torneio: troféus (para sempre) e a partida. */
   palco = { t: 0, show: 0 }; trofeus = 0; partida = { etapa: 0, ms: 0 };
@@ -203,7 +205,7 @@ export class Jogo {
   resetWorld() {
     // começo rápido (a partir da Praia 3): as áreas que já foram novidade de uma praia anterior
     this.trilhas = Array.from({ length: NUM_AREAS }, (_, a) => makeTrilha(a, this.beach, this.beach >= 2 && a < this.beach)); this.nivel = Array(NUM_AREAS).fill(0); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.sv = novoServico(); this.vend = []; this.esc = { pranchas: [], fila: [], spawnT: 800 }; this.palco = { t: 0, show: 0 }; this.partida = { etapa: 0, ms: 0 };
-    this.money = 0; this.shown = 0; this.camX = 0; this.freshShops();
+    this.money = 0; this.shown = 0; this.camX = 0; this.camY = 0; this.freshShops();
     this.addMachine('acai', 110, 470); this.player.x = 200; this.player.y = 560; this.player.stack = [];
   }
 
@@ -437,7 +439,7 @@ export class Jogo {
     let ix = input.x, iy = input.y; const il = Math.hypot(ix, iy); if (il > 1) { ix /= il; iy /= il }
     const sp = 3.6 * (1 + 0.12 * this.L('chinelo')); p.x += ix * sp * f; p.y += iy * sp * f;
     if (il > 0.05) { p.walk += 0.3 * f; if (Math.abs(ix) > 0.1) p.face = ix > 0 ? 1 : -1; this.moved += sp * f * Math.min(1, il) }
-    p.x = Math.max(16, Math.min(this.openEdge() - 12, p.x)); p.y = Math.max(WALL_Y + 12, Math.min(PLAY_BOTTOM, p.y));
+    p.x = Math.max(16, Math.min(this.openEdge() - 12, p.x)); p.y = Math.max(ANDA.y0, Math.min(ANDA.y1, p.y));
     for (const m of this.machines) { const hw = 34, hh = 26, dx = p.x - m.x, dy = p.y - m.y; if (Math.abs(dx) < hw && Math.abs(dy) < hh) { const px = hw - Math.abs(dx), py = hh - Math.abs(dy); if (px < py) p.x += px * Math.sign(dx || 1); else p.y += py * Math.sign(dy || 1) } }
     this.stepTransfer(p, dt); this.pegarPranchas(p);
 
@@ -534,6 +536,8 @@ export class Jogo {
     this.customers = this.customers.filter(c => !c.gone);
 
     const camMax = Math.max(0, this.openEdge() - W + 140); const target = Math.max(0, Math.min(camMax, p.x - W / 2)); this.camX += (target - this.camX) * Math.min(1, 0.12 * f);
+    // na vertical, a câmera só desce quando o jogador chega perto do pé da tela (a areia de cima fica como sempre foi)
+    const alvoY = Math.max(0, Math.min(WORLD_H - H, p.y - (H - CAM_FOLGA))); this.camY += (alvoY - this.camY) * Math.min(1, 0.12 * f);
   }
 
   /* ---------- Praia 3: chuveirão e cadeiras ---------- */
