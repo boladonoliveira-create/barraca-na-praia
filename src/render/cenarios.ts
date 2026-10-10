@@ -368,8 +368,99 @@ const cocos: Enfeite = (c, e) => {
   });
 };
 
+/** Canhão antigo: peça de forte apontada para o mar, em pontos fixos livres (um por tela). */
+const CANHOES = [560, 1380, 2200];
+const canhao: Enfeite = (c, e) => {
+  const y = AREIA.beira.y1;
+  CANHOES.forEach((cx0, i) => {
+    if (cx0 < e.x0 - 40 || cx0 > e.x1 + 40 || !livreNaBeira(cx0 - 16) || !livreNaBeira(cx0 + 24)) return;
+    sombra(c, cx0, y + 1, 16);
+    c.fillStyle = '#7a5230'; c.beginPath(); c.moveTo(cx0 - 13, y); c.lineTo(cx0 + 11, y); c.lineTo(cx0 + 9, y - 6); c.lineTo(cx0 - 11, y - 6); c.closePath(); c.fill(); // carreta
+    c.fillStyle = '#3b3f45'; c.fillRect(cx0 - 9, y - 6, 20, 6); // berço
+    c.fillStyle = '#4e3418';
+    c.beginPath(); c.moveTo(cx0 - 4, y - 3); c.arc(cx0 - 8, y - 3, 3.4, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.moveTo(cx0 + 10, y - 3); c.arc(cx0 + 6, y - 3, 3.4, 0, Math.PI * 2); c.fill(); // rodas
+    const ang = -0.5 + (hash(i) - 0.5) * 0.28;
+    c.save(); c.translate(cx0 - 6, y - 9); c.rotate(ang);
+    c.fillStyle = '#2f3338'; c.fillRect(0, -3.5, 22, 7); c.fillStyle = '#242a2e'; c.fillRect(19, -4.5, 4, 9); c.restore(); // barril e boca
+  });
+};
+
+/** Pedras do forte: blocos grandes e musgosos na beira. */
+const pedrasForte: Enfeite = (c, e) => {
+  const B = AREIA.beira;
+  cada(e, 140, (x, i) => {
+    if (hash(i + 5) < 0.35) return;
+    const px = x + 25 + hash(i) * 80, py = B.y1 - hash(i + 2) * 4, w = 9 + hash(i + 3) * 8; if (!livreNaBeira(px)) return;
+    sombra(c, px, B.y1 + 1, w * 1.1);
+    c.fillStyle = '#8b8f94'; c.fillRect(px - w, py - w * 0.7, w * 2, w * 0.7);
+    c.fillStyle = '#6f7a5a'; c.fillRect(px - w, py - w * 0.78, w * 2, w * 0.16);
+  });
+};
+
+/** Brilho: pontinhos de ouro na areia molhada, piscando devagar. */
+const brilho: Enfeite = (c, e) => {
+  const B = AREIA.beira;
+  cada(e, 55, (x, i) => {
+    const px = x + hash(i) * 40, py = B.y0 + 2 + hash(i + 1) * 11;
+    const pulso = (Math.sin(e.t / 320 + i * 1.7) + 1) / 2; if (pulso < 0.35) return;
+    const r = 1.4 + pulso * 1.6;
+    c.globalAlpha = 0.3 + pulso * 0.7; c.fillStyle = '#fff3b0';
+    c.beginPath(); c.moveTo(px, py - r); c.lineTo(px + r * 0.5, py); c.lineTo(px, py + r); c.lineTo(px - r * 0.5, py); c.closePath(); c.fill();
+    c.globalAlpha = 1;
+  });
+};
+
+/** Estrelas-do-mar: na areia molhada, giradas. */
+const estrelas: Enfeite = (c, e) => {
+  const B = AREIA.beira;
+  cada(e, 115, (x, i) => {
+    if (hash(i + 2) < 0.4) return;
+    const px = x + 20 + hash(i) * 80, py = B.y1 - 3 - hash(i + 1) * 5; if (!livreNaBeira(px)) return;
+    const r = 4 + hash(i + 3) * 2;
+    c.save(); c.translate(px, py); c.rotate(hash(i + 4) * Math.PI * 2);
+    c.fillStyle = ['#ffb3c1', '#ffd6a5'][((i % 2) + 2) % 2];
+    c.beginPath();
+    for (let k = 0; k < 10; k++) { const rr = k % 2 ? r * 0.45 : r, a = (k / 10) * Math.PI * 2; const fx = Math.cos(a) * rr, fy = Math.sin(a) * rr; k ? c.lineTo(fx, fy) : c.moveTo(fx, fy) }
+    c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.6)'; c.beginPath(); c.arc(0, 0, r * 0.22, 0, Math.PI * 2); c.fill();
+    c.restore();
+  });
+};
+
+/** Pranchas fincadas na areia molhada. A faixa grande vazia da Praia Brava (x 2000..2600) fica de fora. */
+const PRANCHAS_AREIA = [520, 900, 1250, 1620, 2320, 2760];
+const pranchasAreia: Enfeite = (c, e) => {
+  const y = AREIA.beira.y1;
+  PRANCHAS_AREIA.forEach((px0, i) => {
+    if (px0 < e.x0 - 30 || px0 > e.x1 + 30) return;
+    if (px0 > 1990 && px0 < 2610) return;
+    if (!livreNaBeira(px0)) return;
+    const px = px0 + (hash(i) - 0.5) * 20;
+    sombra(c, px, y, 6);
+    c.save(); c.translate(px, y); c.rotate((hash(i + 1) - 0.5) * 0.5);
+    c.fillStyle = ['#ff8787', '#74c0fc', '#ffd43b', '#95e1a0'][((i % 4) + 4) % 4];
+    c.beginPath(); c.ellipse(0, -16, 5, 17, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.75)'; c.fillRect(-0.8, -30, 1.6, 28);
+    c.restore();
+  });
+};
+
+/** Marcas de pé: pegadas bem claras no rodapé e na beira. */
+const marcasPe: Enfeite = (c, e) => {
+  const B = AREIA.beira, R = AREIA.rodape;
+  c.fillStyle = 'rgba(180,150,100,0.4)';
+  cada(e, 34, (x, i) => {
+    const py = hash(i) < 0.6 ? R.y0 + hash(i + 1) * 9 : B.y0 + hash(i + 1) * (B.y1 - B.y0);
+    const px = x + hash(i + 2) * 20;
+    c.save(); c.translate(px, py); c.rotate(hash(i + 3) < 0.5 ? -0.25 : 0.25);
+    c.beginPath(); c.ellipse(0, 0, 2.1, 3.4, 0, 0, Math.PI * 2); c.fill();
+    c.restore();
+  });
+};
+
 /** Todos os enfeites da areia, pelo id usado em PRAIAS[b].enfeitesAreia. */
-export const ENFEITES_AREIA: Record<string, Enfeite> = { conchas, castelinho, guardaSois, cangas, pedrasAreia, redes, coqueirosAreia, cocos };
+export const ENFEITES_AREIA: Record<string, Enfeite> = { conchas, castelinho, guardaSois, cangas, pedrasAreia, redes, coqueirosAreia, cocos, canhao, pedrasForte, brilho, estrelas, pranchasAreia, marcasPe };
 
 /* ---------- Cenário ---------- */
 
