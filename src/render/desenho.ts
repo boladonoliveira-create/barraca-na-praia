@@ -526,13 +526,37 @@ function drawEscola() {
     Parte B3 (docs/MOLDE-ORLA.md): o acabamento no estilo dos quiosques de orla entra aqui. */
 function drawQuiosque(si: number) {
   const d = SHOPS[si], c = d.counter, cor = ['', '#4dabf7', '', '#f59f00', '', '', '', '#40c057'][si] || '#b8763e';
-  shadow(c.x, c.y + 24, c.w / 2 + 6);
-  ctx.fillStyle = cor; rr(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h, 10); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.75)'; rr(c.x - c.w / 2 + 6, c.y - c.h / 2 + 6, c.w - 12, 20, 6); ctx.fill();
-  const n = Math.max(6, Math.round((c.w + 12) / 18)), tw = (c.w + 12) / n;
-  for (let i = 0; i < n; i++) { ctx.fillStyle = i % 2 ? '#fff' : cor; ctx.beginPath(); const x0 = c.x - c.w / 2 - 6 + i * tw; ctx.moveTo(x0, c.y - c.h / 2 - 26); ctx.lineTo(x0 + tw, c.y - c.h / 2 - 26); ctx.lineTo(x0 + tw, c.y - c.h / 2 - 14); ctx.arc(x0 + tw / 2, c.y - c.h / 2 - 14, tw / 2, 0, Math.PI); ctx.closePath(); ctx.fill() }
+  const x0 = c.x - c.w / 2, x1 = c.x + c.w / 2, yt = c.y - c.h / 2, yb = c.y + c.h / 2;
+  const telha = si === 3, rw = c.w + 24, ry = yt - 24; // cabe no balcão + 12 para os lados e menos de 30 para cima
+  shadow(c.x, yb + 8, c.w / 2 + 10);
+  // cobertura: lona esticada ou telhado de telha
+  if (telha) {
+    ctx.fillStyle = '#b5651d'; rr(c.x - rw / 2, ry, rw, 14, 4); ctx.fill();
+    ctx.fillStyle = '#d98c3f'; const nt = Math.round(rw / 12); for (let i = 0; i < nt; i++) ctx.fillRect(c.x - rw / 2 + 2 + i * (rw / nt), ry + 3, rw / nt - 4, 8);
+  } else {
+    ctx.fillStyle = cor; rr(c.x - rw / 2, ry, rw, 14, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)'; rr(c.x - rw / 2 + 3, ry + 3, rw - 6, 5, 2); ctx.fill();
+  }
+  // toldo listrado (sanefa) na frente
+  const n = Math.max(6, Math.round(rw / 16)), tw = rw / n;
+  for (let i = 0; i < n; i++) { ctx.fillStyle = i % 2 ? '#fff' : cor; ctx.beginPath(); const px = c.x - rw / 2 + i * tw; ctx.moveTo(px, ry + 14); ctx.lineTo(px + tw, ry + 14); ctx.lineTo(px + tw, ry + 22); ctx.arc(px + tw / 2, ry + 22, tw / 2, 0, Math.PI); ctx.closePath(); ctx.fill() }
+  // postes nas quinas
+  ctx.fillStyle = '#8d5a2b'; ctx.fillRect(x0 + 2, ry + 12, 4, yb - (ry + 12)); ctx.fillRect(x1 - 6, ry + 12, 4, yb - (ry + 12));
+  // balcão de madeira com tampo claro e ripas
+  ctx.fillStyle = '#a26b2f'; rr(x0, yt, c.w, c.h, 6); ctx.fill();
+  const ripas = Math.max(2, Math.round(c.w / 16)); for (let i = 1; i < ripas; i++) { ctx.fillStyle = '#8a5a2b'; ctx.fillRect(x0 + i * (c.w / ripas), yt + 8, 2, c.h - 8) }
+  ctx.fillStyle = '#e8d5b0'; rr(x0 - 3, yt, c.w + 6, 8, 3); ctx.fill();
+  // banquinhos altos na frente (do lado da areia, onde fica a fila)
+  const qn = c.w > 150 ? 4 : 3;
+  for (let i = 0; i < qn; i++) {
+    const bx = x0 + (i + 0.5) * c.w / qn;
+    ctx.fillStyle = '#6b4a2a'; ctx.fillRect(bx - 1.5, yt - 9, 3, 9);
+    ctx.fillStyle = '#c98a4a'; rr(bx - 5, yt - 13, 10, 4, 2); ctx.fill();
+  }
+  // placa com o nome
   ctx.font = '800 11px "Baloo 2",sans-serif'; const w = ctx.measureText(d.name).width + 16;
-  ctx.fillStyle = '#fffdf7'; rr(c.x - w / 2, c.y + 8, w, 14, 7); ctx.fill(); ctx.fillStyle = '#3a2316'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.name, c.x, c.y + 15);
+  ctx.fillStyle = '#fffdf7'; rr(c.x - w / 2, c.y + 4, w, 14, 7); ctx.fill(); ctx.strokeStyle = 'rgba(138,106,82,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#3a2316'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(d.name, c.x, c.y + 11);
 }
 function drawKiosk() {
   const d = SHOPS[1], st = g.S[1], c = d.counter; if (!st.open) return;
