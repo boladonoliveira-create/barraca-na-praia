@@ -119,7 +119,7 @@ function alvo(g: Jogo): Rect | Pt {
   if (drop) return drop.drop;
   if (!full && ms.length) {
     // máquina mais cheia; o produto que a fila pede e acabou no balcão vem antes
-    const score = (t: Item) => { const st = g.S[PRODUCTS[t].shop]; return st && t !== 'caixa' && !st.counter[t].length && st.queue.slice(0, 4).some(c => c.want === t) ? 100 : 0 };
+    const score = (t: Item) => { const st = g.S[PRODUCTS[t].shop]; return st && st.counter[t] && !st.counter[t].length && st.queue.slice(0, 4).some(c => c.want === t) ? 100 : 0 };
     return zoneOf(ms.reduce((a, b) => b.pile + score(b.type) > a.pile + score(a.type) ? b : a));
   }
   const it = p.stack.find(t => canDeliver(g, t)) ?? p.stack[0];
