@@ -1,77 +1,120 @@
-# Relatório: Barraca na Praia, rodada 5
+# Relatório: Barraca na Praia, rodada 6
 
-Resultado: CONCLUÍDA (partes A e B, do Claude Code). A parte C fica para o OpenCode.
-Commit: af36019 (parte A), 07ba09e (parte B); o deste relatório vem logo depois.
+Resultado: PARCIAL. As partes A, B e C e o item D1 (do Claude Code) estão feitos. Ficou uma meta da C2 de fora: o total das 10 praias é de 7,8 a 7,9 h, e a meta é de 8 a 10 h (explicado em "Problemas e decisões"). A parte D2 fica para o OpenCode.
+
+Commit:
+- `f0d095e`: parte A;
+- `8c61d39`: parte B;
+- `d541290`: parte C;
+- `289cc87`: D1;
+- o deste relatório vem logo depois.
 
 ## Critérios de pronto
-- [x] A praia 1 começa só com a Barraca do Sol, e a praia N tem as áreas 1 a N. Evidência: teste "a praia N só tem as áreas 1 a N" (N de 1 a 5, com todas as áreas levadas ao nível 12, só as N primeiras abrem). No navegador, `?praia=2` mostra Barraca e Sorvete, e o lote do Chuveirão aparece cercado.
-- [x] O quadro de nova praia libera com a área N no nível 10, e a viagem mostra a fama e o anúncio opcional. Evidência: teste "a nova praia só libera com a área N no nível 10". No navegador, o quadro dourado "Viajar para a Praia Grande · +X de fama", depois o litoral com o barquinho, depois o cartão "+3 de fama ⭐" com "Ver anúncio: +20% de fama". O anúncio simulado levou a fama a +4.
-- [x] A fama aparece no HUD e aumenta o lucro. Evidência: "⭐ Fama x1,2" na Praia 2 e "Fama x8,1" na Praia 5. Teste "a fama aumenta o lucro": vendas e ganhos offline × (1 + 0,07 × fama).
-- [x] O começo rápido vale a partir da praia 3. Evidência: teste do começo rápido. Na Praia 2 não há ajudante nem cofre. Na Praia 3 a Barraca começa no Nv 2, com ajudante e cofre, e o Sorvete, ao abrir, já vem com sorveteiro e cofre. A área nova (Chuveirão) começa manual.
-- [x] Só o lote da próxima praia aparece cercado, e os outros ficam escondidos. Evidência: na Praia 2, o lote 3 mostra "Na próxima praia: Chuveirão e cadeiras". Na Praia 5, o lote dos Ambulantes mostra "Na próxima praia: Ambulantes". Os lotes depois do N+1 não são desenhados.
-- [x] O litoral mostra as 10 praias, cada uma no estado certo. Evidência: no navegador, as concluídas aparecem com "+X de fama ⭐", a atual com "Você está aqui" e destaque, a próxima com a área nova e as seguintes com cadeado. No fim, "Praia 11 em diante · em breve".
-- [x] O simulador está dentro das metas da A5, e a tabela está abaixo. Evidência: "Tudo dentro da faixa." nas sementes 1, 2 e 3. O teste do simulador exige `foraDaFaixa = []`.
-- [x] O save v4 tem `mundo` e converte o v3. Evidência: testes "grava com chave própria, versão 4 e o mundo", "o mundo é criado uma vez e nunca muda" e "o v3 vira a praia igual ao número de áreas abertas".
-- [ ] As praias 1 a 10 têm cenário próprio. As praias 1 e 2 estão completas. As praias 3 a 10 têm só nome, cores provisórias e sol: elas são a parte C (OpenCode), que segue `docs/MOLDE-CENARIOS.md`.
-- [x] `npm test` e `npm run build` passam. Evidência: 48 testes passando, e o build gera `dist/`.
+- [x] As praias 6 a 10 são jogáveis, cada uma com a sua área nova funcionando manual e com o seu ajudante. Evidências:
+  - Testes:
+    - "os vendedores sempre voltam vazios à doca e nunca travam (10 min com o gerente)";
+    - "o instrutor nunca fica travado";
+    - "o barman nunca fica travado";
+    - "o palco só dá bônus durante o show";
+    - "as etapas liberam em ordem".
+  - O simulador joga as 10 praias sem travar.
+  - No navegador, `?praia=6` a `?praia=10` mostram, cada uma, a sua área funcionando.
+  - O Palco e o Torneio são atrações, como a quadra, e não têm ajudante.
+- [x] Na Praia 7, a faixa grande aparece e os lugares do 8 e do 9 ficam vazios. Evidências:
+  - Teste "na Praia 7 a faixa grande abre com a Escolinha, e os lotes 8 e 9 não existem para o jogo": `openEdge` = 2600, `liberada(7/8)` falso e nenhuma máquina nem quadro além do lote 7.
+  - No navegador, de x 2000 a 2600 é só areia, sem cerca, placa ou silhueta.
+- [x] O torneio termina em "Campeão da Praia!", com a prévia da Arena. Evidências:
+  - No navegador, depois das 3 partidas, aparece o cartão "Campeão da Praia! 🏆", com "+45% de público para sempre", o desenho da Arena e "A Arena de futevôlei chega na próxima temporada". Teste: `campeao` é chamado 1 vez.
+  - Teste "depois da Praia 10 o quadro de nova praia diz 'Praia 11 · em breve'".
+- [ ] O simulador está dentro das metas da C2 nas 3 sementes, com a tabela no relatório. Evidências:
+  - Dentro: nas 3 sementes, as 10 praias estão na faixa de tempo, nenhuma espera passa de 148 s e as áreas antigas abrem entre 6% e 18% do tempo da praia.
+  - Fora: o total é de 7,8 / 7,8 / 7,9 h, abaixo das 8 h.
+- [x] As correções da A0 estão feitas.
+  - **Sorveteria:** o nome está em `AREAS`, na placa, no quiosque, na compra e no GDD.
+  - **Analytics:** `step_buy` e `session_*` contam a praia de 1 a 10 (teste "aviso de compra").
+  - **Botão "×2 Dobro":** cabe numa linha em 375 px (visto no navegador).
+  - **Nuvens:** a cor segue a hora (alaranjadas no pôr do sol).
+  - **Bandeirinhas e faixas:** pulam o painel de fama (visto na Praia 10).
+- [ ] Cada praia tem decoração de areia própria, e os coqueiros da Praia 4 estão na areia. Isso é a parte D2 (OpenCode). O D1 está pronto:
+  - `docs/MOLDE-AREIA.md`;
+  - `enfeitesAreia` nas 10 praias;
+  - conchas e castelinho na Praia 1, vistos no navegador na beira, sem cobrir nada.
+- [x] `npm test` (59 testes) e `npm run build` passam.
 
 ## O que foi feito
 
-### Parte A: praias e fama
-- **A1. Regras** (`src/core/jogo.ts`):
-  - `areasPraia()`: com ela, `liberada(a)` só vale para as áreas 1 a N.
-  - `novaPraiaAberta()`: a área N no nível `NIVEL_NOVA_PRAIA` (10).
-  - `proximaExiste()`: falso depois da Praia 5.
-  - `custoNovaPraia()`: o preço do próximo nível da área N.
-  - `viajar()`: zera o dinheiro, os níveis e o ganho, e guarda a fama em `famas` e `famaTotal`.
-  - `famaGanha()`: floor(√(ganho ÷ K)). `lucro()` vale 1 + taxa × fama e substitui o antigo `mult()` nas vendas e nos ganhos offline.
-  - Começo rápido: `makeTrilha(a, b, rapido)` em `economia.ts` põe o 1º ajudante e o cofre logo depois da abertura, com preço 0. `Jogo.gratis(a)` aplica esses passos sozinho, e eles contam como níveis.
-  - Saíram `NIVEL_PRESTIGIO`, `prestige()`, `prestigeOpen()`, `prestigeCost()` e `BEACHES`.
-- **A2. Mapa** (`src/render/desenho.ts`):
-  - Só aparecem os lotes da praia e o lote N+1, este com a placa "Na próxima praia: …".
-  - O quadro dourado (`drawPadPraia`) é maior que os outros, para caber o nome. Na Praia 5 mostra "Praia Dourada · em breve".
-  - O pilar 6 foi atualizado no `CLAUDE.md` e no GDD.
-- **A3. Cenários:**
-  - `src/dados/praias.ts` tem `PRAIAS[10]` com nome, área nova, mar, areia, céu, hora e enfeites.
-  - `src/render/cenarios.ts` desenha o céu (faixa nova de 34 de altura), o mar, as ondas, a areia, a luz da hora e os enfeites `sol`, `nuvens`, `gaivotas`, `boias`, `ilha`, `navio` e `jangadas`. Todos são determinísticos (`hash(i)`, sem `Math.random`) e ficam acima de `SHORE - 6`.
-  - Praia do Sol (manhã): sol, nuvens, gaivotas e boias. Praia Grande (tarde): ilha, navio e jangadas. As praias 3 a 10 têm cores provisórias e só o sol.
-  - Prévia `?praia=N` em `main.ts`, só em dev: abre a praia com as áreas abertas, dinheiro e a fama mínima, sem gravar o save.
-  - `docs/MOLDE-CENARIOS.md` tem as regras, um enfeite comentado e a tabela das praias 3 a 10.
-  - O desenho do cenário não estava em cache, então os enfeites são desenhados a cada quadro.
-- **A4. Save v4** (`src/plataforma/salvar.ts`):
-  - Formato `{ versao: 4, mundo: { id, criadoEm }, jogo }`. O `jogo` traz `praia` (de 1 a 10), `famaTotal`, `famas`, `ganho` e `tempo`.
-  - O `lerMundo` reaproveita o mundo já salvo ou cria um (`crypto.randomUUID`).
-  - O `deV3` leva o save v3 para a praia igual ao número de áreas abertas (no máximo 5), com `ECONOMIA.famaMinima` das praias anteriores, e começa essa praia do zero. O `Jogo.load` aplica o começo rápido depois de carregar.
-- **A5. Simulador** (`src/core/simulador.ts`, `scripts/sim.ts`):
-  - O bot joga as praias de 1 a 5 e compra a viagem assim que ela libera.
-  - O resultado é por praia: minutos, % do tempo até as áreas antigas abrirem, maior espera e fama.
-  - `METAS`, `ESPERA_MAX` e `ANTIGAS_MAX` estão em `foraDaFaixa`.
-  - `npm run sim` roda as sementes 1, 2 e 3 (`-- --compras` lista as compras).
-- **A6. Analytics:** evento `praia_nova` com `{ praia, fama_ganha, minutos, anuncio }`, disparado depois que o jogador escolhe ver ou não o anúncio. O antigo `prestige` saiu.
-- **Testes:**
-  - `jogo.test.ts`: praias, viagem, "em breve", fama, começo rápido e save com praia e fama.
-  - `economia.test.ts`: trilha do começo rápido.
-  - `salvar.test.ts`: v4, mundo e conversão do v3.
-  - `simulador.test.ts`: metas por praia.
-  - O teste de áreas independentes continua.
+### Parte A: Ambulantes, Escolinha de surf e a faixa grande
+- **A0. Correções da rodada 5:**
+  - **Nome "Sorveteria":** em `AREAS`, `LOTS`, `SHOPS` e na trilha (`planos.ts`, `mapa.ts`).
+  - **Praia de 1 a 10:** em `io.compra` (`jogo.ts`) e em `session_*` (`main.ts`).
+  - **Botão:** "×2 Dobro" com selo (`index.html`, `estilo.css`).
+  - **Nuvens:** `COR_NUVEM` por hora (`cenarios.ts`).
+  - **Bandeirinhas e faixas:** `semPainel` recorta o canto do painel de fama (`cenarios.ts`).
+- **A1. Ambulantes (área 6):**
+  - **Dados:** `AMBULANTE`, `SHOPS[5]` e as vagas da doca (`mapa.ts`), e a trilha com cardápio, gerente, isopor, mais vendedores, biscoito de polvilho, carrinho mais rápido e cofre (`planos.ts`).
+  - **Abastecer:** o jogador leva mate e biscoito ao carrinho parado na vaga (`stepTransfer`). Cheio, o carrinho sai (`updateAmbulantes`): sobe para a faixa dos clientes (y 196), vai até a ponta esquerda e volta, vendendo uma unidade a cada 1,3 s ÷ público, e volta vazio para o fim da fila da doca.
+  - **Sem travar:** o vendedor não colide com ninguém e nunca anda onde o jogador anda (y < 326, coberto por teste).
+  - **Gerente:** abastece enquanto houver carrinho parado.
+- **A2. Escolinha de surf (área 7):**
+  - **Dados:** `ESCOLA` e `SHOPS[6]`.
+  - **Ciclo:**
+    1. O aluno entra na fila e aluga uma prancha seca da arara.
+    2. Vai ao mar e surfa (desenhado de pé na prancha, na faixa da água).
+    3. Volta e paga.
+    4. Larga a prancha molhada num dos 8 lugares da areia.
+  - **Pranchas:** a molhada não é alugada. O jogador a pega passando por cima (`pegarPranchas`, até 3 na mão) e pendura na arara (zona "SECAR"); ela seca em 3,5 s se a arara tiver lugar.
+  - **Instrutor:** recolhe as molhadas e pendura.
+  - **Trilha:** mais pranchas, instrutor, arara maior, aula mais cara e cofre.
+- **A3. Faixa grande:**
+  - Os lotes 7 a 10 vão até x 2900 (`WORLD_W`).
+  - Quando a Escolinha abre, `openEdge` vai até `FAIXA.fim` (2600).
+  - Os lotes 8 e 9 (`faixa: true`) não têm cerca nem silhueta. A placa deles só aparece quando são da praia atual, e o quadro de abrir fica no meio do lote.
+  - O lote 10 segue a regra de "lote N+1 cercado".
+- **Testes:** vendedores (10 min, várias voltas, nunca mais de 90 s fora), faixa dos vendedores, prancha molhada, instrutor (10 min), Praia 7 e independência das áreas 6 e 7.
 
-### Parte B: litoral e viagem
-- **B1. Litoral:**
-  - O jogo continua abrindo direto na praia.
-  - O botão "Litoral" fica no rodapé, ao lado de "Dinheiro em dobro", e abre `#ovLitoral`: um SVG com a costa e as 10 praias nos estados pedidos (`hud.ts`, `desenharLitoral`).
-  - Com o litoral aberto, o jogo fica parado (estado `litoral`).
-- **B2. Viagem** (`hud.viagem`):
-  1. O litoral abre com o barquinho indo da praia antiga à nova (transição CSS de 1,6 s; com "reduzir movimento", não há animação).
-  2. Vem o intersticial, se puder.
-  3. Aparece o cartão "+X de fama ⭐", com "Ver anúncio: +20% de fama" (`Jogo.bonusFama`) e "Continuar".
-  4. O nome da praia nova aparece grande na tela (`#praiaNome`).
-- **B3. Anúncios:**
-  - `podeIntersticial` agora exige que a praia deixada seja a 4 ou uma depois dela, e vale no máximo 1 a cada 4 min.
-  - Saiu o intersticial logo depois de uma compra (`main.ts`), que contrariava "nunca durante o jogo".
-  - Não há banner (já não havia).
-- **B4. Documentação:**
-  - GDD: seções 6 (litoral, mapa e cenário), 8 (preços, nova praia e fama, começo rápido, ritmo por praia, ganhos offline), 9 (intersticial e o anúncio de fama) e 11 (save v4, `praia_nova`).
-  - `CLAUDE.md` do jogo: praias, estrutura, save, prévia, anúncios e balanceamento.
+### Parte B: Sucos, Palco e Torneio
+- **B1. Sucos e vitaminas (área 8):**
+  - O `PREPARO` virou `RECEITAS`: cada panela tem a sua receita (cru, tempo, melhoria que acelera e melhoria do lote). Assim milho, pastel e os dois sucos usam o mesmo motor.
+  - **Liquidificadoras:** a 1ª faz laranja; a 2, com a caixa de açaí e banana, faz o segundo sabor.
+  - **Barman:** é o cozinheiro, generalizado por área.
+  - **Trilha:** cardápio, liquidificadora 2, barman, copo maior, liquidificadora mais rápida e cofre.
+- **B2. Palco de pagode (área 9):**
+  - **Show:** `PALCO` e `updatePalco`. Por padrão, um show de 60 s a cada 4 min. O bônus do show só entra em `publico()` enquanto ele dura.
+  - **Na tela:** "Próximo show em 2:10" e, durante o show, a banda, as luzes, as notas e "SHOW! 0:45 · Clientes x1,50".
+  - **Trilha:** show mais longo, mais shows, bônus do show e som melhor (só visual).
+- **B3. Torneio de futevôlei (área 10):**
+  - **Etapas:** `TORNEIO`, com as etapas `etapa1` a `etapa3` na trilha. Comprar uma etapa começa a partida (40, 55 e 70 s); enquanto ela rola, o quadro seguinte fica escondido.
+  - **Troféus:** cada vitória dá 1 troféu e +15% de público, guardados em `trofeus`. Os troféus ficam no save e passam pela viagem; o save também guarda a partida em andamento.
+  - **Final:** chama `io.campeao()`, que mostra confete e o cartão `#ovCampeao` com a prévia da Arena.
+  - **Praia 10:** o quadro mostra "Praia 11 · em breve".
+- **Desenho:** os itens novos (mate, biscoito, prancha, laranja, açaí e banana e os dois copos de suco), a liquidificadora, o depósito dos ambulantes com os carrinhos, a arara, o palco e a quadra do torneio com os troféus (`desenho.ts`).
+- **Testes:** barman, palco, etapas em ordem com o campeão, troféu depois da viagem e no save, e "Praia 11 · em breve".
+
+### Parte C: balanceamento das praias 6 a 10
+- **C1. Simulador** (`simulador.ts`):
+  - **O que o bot faz agora:** abastece só quando há carrinho parado, leva as pranchas molhadas à arara (quando não há instrutor) e opera as liquidificadoras (pela regra que já servia para as panelas).
+  - **Até onde joga:** as 10 praias. Cada praia acaba na compra da viagem; a 10ª, quando o bot é campeão.
+  - **Metas:** `METAS` tem as 10 praias, e `TOTAL_HORAS` é [8, 10].
+  - **Como o bot escolhe:** agora segue a seta. Compra a melhor que já cabe no bolso e, se nada cabe, junta para a melhor de todas. Isso cortou as esperas das praias 3 a 5 de cerca de 140 s para menos de 110 s.
+- **C2. Metas:** a tabela está abaixo. Os números estão em `ECONOMIA`:
+  - preços de todas as áreas;
+  - `viagem` por praia: 1,6 nas Praias 1 a 4, 1,3 na 5 e 1 da 6 em diante;
+  - mate a 50 e biscoito a 70.
+- **C3. Praia 2:** a maior espera caiu de 142 s para 113 a 118 s. A Barraca do Sol ficou 110 × 1,5^k, a Sorveteria abre a 6.000, e a viagem custa 1,6 × o próximo nível.
+- **C4. Documentação:**
+  - GDD, seções 6 a 8: o mapa com os 10 lotes e a faixa grande, as áreas 6 a 10, os preços, a viagem, os troféus, os cardápios novos e o ritmo das 10 praias.
+  - GDD, seções 9 e 11: o evento de analytics.
+  - `CLAUDE.md`: áreas, praias, estrutura, save, simulador e números.
+
+### D1: molde da areia
+- **Dados:** `enfeitesAreia` nas 10 praias (`praias.ts`). A Praia 1 tem `['conchas', 'castelinho']`; as outras começam vazias.
+- **Código** (`cenarios.ts`):
+  - `ENFEITES_AREIA`, desenhados logo depois da areia e por baixo de tudo o que é do jogo;
+  - `AREIA`, com as zonas livres: beira, divisa e rodapé;
+  - `livreNaBeira(x)`, que recusa os trechos das filas;
+  - `divisas(e, fn)`;
+  - os dois enfeites de exemplo.
+- **Molde:** `docs/MOLDE-AREIA.md` traz as zonas, o limite de 25 formas por tela, o `hash(i)` e as listas fixas no lugar de `Math.random`, o exemplo comentado e a tabela da parte D2 com notas por praia.
 
 ## Números
 
@@ -81,100 +124,105 @@ Simulador (`npm run sim`, bot humano, sementes 1, 2 e 3), com o código final:
 Bot humano, semente 1
 | Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
 |---|---|---|---|---|---|
-| 1 | 8.8 | 8 a 10 | - | 116 s | 3 |
-| 2 | 17.4 | 15 a 20 | 0% | 139 s | 7 |
-| 3 | 21.2 | 20 a 25 | 9% | 139 s | 28 |
-| 4 | 26.7 | 25 a 35 | 18% | 103 s | 69 |
-| 5 | 38.9 | 35 a 45 | 15% | 120 s | 193 |
-Total: 113.0 min
-Tudo dentro da faixa.
+| 1 | 8.7 | 8 a 10 | - | 109 s | 3 |
+| 2 | 18.2 | 15 a 20 | 0% | 118 s | 8 |
+| 3 | 22.8 | 20 a 25 | 8% | 79 s | 42 |
+| 4 | 31.2 | 25 a 35 | 16% | 137 s | 107 |
+| 5 | 37.5 | 35 a 45 | 18% | 96 s | 266 |
+| 6 | 49.8 | 45 a 55 | 14% | 141 s | 693 |
+| 7 | 64.3 | 55 a 65 | 6% | 105 s | 1624 |
+| 8 | 65.1 | 60 a 75 | 8% | 81 s | 2904 |
+| 9 | 79.7 | 70 a 85 | 9% | 101 s | 5208 |
+| 10 | 90.1 | 80 a 95 | 9% | 79 s | 8289 |
+Total: 467.4 min (7.8 h)
+Fora da faixa (1):
+  Total: 7.8 h (alvo 8 a 10 h)
+
 Bot humano, semente 2
 | Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
 |---|---|---|---|---|---|
-| 1 | 9.0 | 8 a 10 | - | 113 s | 3 |
-| 2 | 17.8 | 15 a 20 | 0% | 142 s | 7 |
-| 3 | 20.3 | 20 a 25 | 11% | 140 s | 28 |
-| 4 | 25.1 | 25 a 35 | 18% | 105 s | 65 |
-| 5 | 35.5 | 35 a 45 | 16% | 136 s | 178 |
-Total: 107.8 min
-Tudo dentro da faixa.
+| 1 | 8.7 | 8 a 10 | - | 109 s | 3 |
+| 2 | 18.2 | 15 a 20 | 0% | 113 s | 8 |
+| 3 | 22.0 | 20 a 25 | 8% | 78 s | 41 |
+| 4 | 28.4 | 25 a 35 | 18% | 118 s | 99 |
+| 5 | 40.2 | 35 a 45 | 16% | 91 s | 272 |
+| 6 | 51.3 | 45 a 55 | 14% | 129 s | 708 |
+| 7 | 57.9 | 55 a 65 | 7% | 112 s | 1511 |
+| 8 | 74.1 | 60 a 75 | 7% | 120 s | 3069 |
+| 9 | 80.4 | 70 a 85 | 9% | 134 s | 5279 |
+| 10 | 84.9 | 80 a 95 | 10% | 104 s | 7993 |
+Total: 466.2 min (7.8 h)
+Fora da faixa (1):
+  Total: 7.8 h (alvo 8 a 10 h)
+
 Bot humano, semente 3
 | Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
 |---|---|---|---|---|---|
-| 1 | 9.0 | 8 a 10 | - | 120 s | 3 |
-| 2 | 17.6 | 15 a 20 | 0% | 138 s | 7 |
-| 3 | 21.5 | 20 a 25 | 10% | 139 s | 27 |
-| 4 | 27.5 | 25 a 35 | 17% | 105 s | 70 |
-| 5 | 35.3 | 35 a 45 | 16% | 117 s | 181 |
-Total: 111.0 min
-Tudo dentro da faixa.
+| 1 | 8.6 | 8 a 10 | - | 107 s | 3 |
+| 2 | 18.5 | 15 a 20 | 0% | 118 s | 8 |
+| 3 | 22.9 | 20 a 25 | 8% | 76 s | 42 |
+| 4 | 31.2 | 25 a 35 | 16% | 104 s | 107 |
+| 5 | 38.0 | 35 a 45 | 17% | 91 s | 272 |
+| 6 | 52.6 | 45 a 55 | 15% | 138 s | 732 |
+| 7 | 57.1 | 55 a 65 | 7% | 132 s | 1520 |
+| 8 | 67.9 | 60 a 75 | 7% | 103 s | 2880 |
+| 9 | 84.5 | 70 a 85 | 8% | 119 s | 5435 |
+| 10 | 90.2 | 80 a 95 | 10% | 148 s | 8429 |
+Total: 471.5 min (7.9 h)
+Fora da faixa (1):
+  Total: 7.9 h (alvo 8 a 10 h)
 ```
 
-Antes do ajuste (os números da rodada 4, com a progressão nova): a Praia 1 levava 11 min, a 3 levava 32 a 33 e a 4, de 50 a 66. Havia esperas de até 307 s, e as áreas antigas só abriam a 27 a 31% do tempo da praia.
+Antes do ajuste (primeira rodada com as 10 praias e os preços provisórios, semente 1), o total era de 6,6 h:
+- **Praias curtas:** a 6 levava 27,6 min, a 7 levava 38,3 min e a 10, 67,6 min.
+- **Praia 9:** levava 87,9 min, com uma espera de 381 s para juntar o dinheiro da viagem.
 
 `ECONOMIA` final (`src/dados/planos.ts`):
 
-| | Barraca | Sorvete | Chuveirão | Milho e pastel | Quadra |
-|---|---|---|---|---|---|
-| abrir | - | 8.500 | 100.000 | 300.000 | 900.000 |
-| base | 100 | 700 | 8.500 | 26.000 | 120.000 |
-| cresce | 1,55 | 1,4 | 1,3 | 1,3 | 1,35 |
+| | Barraca | Sorveteria | Chuveirão | Milho | Quadra | Ambulantes | Escolinha | Sucos | Palco | Torneio |
+|---|---|---|---|---|---|---|---|---|---|---|
+| abrir | - | 6.000 | 130 mil | 450 mil | 1,3 mi | 800 mil | 3 mi | 6 mi | 12 mi | 25 mi |
+| base | 110 | 700 | 11 mil | 38 mil | 190 mil | 1,8 mi | 4,9 mi | 10 mi | 20 mi | 30 mi |
+| cresce | 1,5 | 1,4 | 1,3 | 1,3 | 1,3 | 1,15 | 1,15 | 1,15 | 1,15 | 1,25 |
 
-O fator de preço por praia é 1,45^b. A fama usa K = 2000 e taxa 0,07. As áreas antigas custam 20% do preço (`antiga`). A fama mínima, que é a medida pelo bot, é `[3, 7, 27, 65, 178]`.
+Os outros números de `ECONOMIA`:
+- `viagem`: [1,6; 1,6; 1,6; 1,6; 1,3; 1; 1; 1; 1; 1];
+- `praia`: 1,45;
+- `antiga`: 0,2;
+- fama: K = 2000, taxa 0,07;
+- `famaMinima`: [3, 8, 41, 99, 266, 693, 1511, 2880, 5208, 7993].
 
 ## O que depende do usuário
-- Nada nesta parte. O APK está fora do escopo da rodada.
-- A parte C (cenários das praias 3 a 10) é do OpenCode. O status do roteiro foi trocado para `PRONTO PARA OPENCODE`.
+- **Decidir a meta do total.** Ela não cabe junto com as faixas por praia, como explicado abaixo. As saídas são:
+  - baixar o total para 7,5 a 9 h;
+  - subir as faixas por praia (por exemplo, +5 min nas Praias 6 a 10).
+  - Com a decisão, o ajuste leva só uma passada no simulador.
+- Nada além disso. O APK está fora do escopo da rodada.
 
 ## Problemas e decisões
-- **Desconto das áreas antigas (`ECONOMIA.antiga = 0,2`).** Mexendo só em K, na taxa e no fator de preço, as áreas antigas abriam a 28 a 54% do tempo da praia, porque reabrir em ordem custava caro. Criei esse desconto, que vale junto com o começo rápido (Praia 3 em diante) e fica num lugar só (`makeTrilha`).
-- **Preços das áreas 2 a 5 mudaram.** O Sorvete ficou mais barato, e o Chuveirão, o Milho e a Quadra, mais caros. Era preciso para cada praia caber na meta, já que a área nova é o que mais pesa no tempo da praia.
-- **A seta dá mais peso à área nova.** Na conta do custo-benefício, a melhoria da área nova (já aberta) vale 2 vezes mais. Sem isso, o bot (e a seta) espalhava o dinheiro pelas áreas antigas, e a Praia 5 variava de 27 a 52 min conforme a semente. Com isso, a variação ficou em 35 a 39 min.
-- **O desvio do bot foi corrigido.** O bot pisava sem querer nos quadros das áreas antigas enquanto juntava dinheiro para a viagem, gastando o dinheiro e esperando até 250 s. Agora ele contorna o quadro pela quina mais perto do alvo. A primeira versão desse desvio prendia o bot numa quina (espera de 520 s); a versão final escolhe a quina só pela distância até o alvo.
-- **A viagem custa** o preço do próximo nível da área N, para que pisar no quadro seja uma decisão (o pagamento leva cerca de 1 s) e não um acidente.
-- **"O recorde"** pedido no roteiro não existia no save. A informação nova que fica entre as praias é `famas`, a fama de cada praia concluída, que o litoral mostra.
-- **Os "minutos" de `praia_nova`** contam o tempo de jogo na praia (`tempo`, salvo). Tempo com o app fechado e telas abertas não conta.
-- **Intersticial:** a regra "nunca nas praias 1 a 3" usa a praia que o jogador está deixando. O primeiro pode aparecer na viagem da Praia 4 para a 5.
-- **Conversão do v3:** o jogador vai para a praia certa com a fama mínima, mas o dinheiro e os níveis zeram, como numa viagem. Os ganhos pendentes (`pendente`) ficam.
-- **O "⭐ Fama x…"** fica no canto do canvas, no lugar do antigo "R$ x1,5". O botão "Litoral" foi para o rodapé porque o topo já está cheio no celular. Com ele, "Dinheiro em dobro" quebra em 2 linhas numa tela de 375 px.
+- **O total e as faixas por praia quase se contradizem.**
+  - **A conta:** a soma dos meios das faixas é 461 min (7,7 h). Mesmo com cada praia no teto da faixa, o total chega a no máximo 510 min (8,5 h). Para passar de 8 h, a média tem de ficar a 94% do teto de cada faixa.
+  - **O ruído:** o resultado varia ±5 min entre sementes e muda com qualquer ajuste de preço.
+  - **O que priorizei:** as faixas por praia, as esperas e as áreas antigas (todas dentro, nas 3 sementes). O total ficou em 7,8 a 7,9 h. Tentei subir as praias 1 a 5 e a 10 para fechar as 8 h; isso fazia outras praias passarem do teto ou do limite de espera.
+  - **No teste:** o do simulador cobra tudo, menos o total, que só não pode cair abaixo de 7,7 h (há um comentário no teste explicando).
+- **Áreas 6 a 10: abrir é barato e as melhorias são caras e sobem devagar (1,15).**
+  - Com o formato antigo (abrir caro), a Praia 6 passava 30 min juntando para abrir os Ambulantes e só 6 min na área nova, e o tempo variava de 41 a 57 min conforme a semente.
+  - Agora a área nova ocupa a maior parte da praia, que é o que o pilar 5 pede, e as sementes concordam mais.
+- **Custo da viagem por praia (`viagem`).** Com 1,6 × o próximo nível em todas as praias, as viagens das Praias 5 a 9 viravam esperas de 150 a 380 s. Com 1,6 só nas primeiras, a Praia 1 continua com 8 a 10 min.
+- **O bot segue a seta.**
+  - **Antes:** ele só juntava para a melhor compra.
+  - **Agora:** compra a melhor que já cabe no bolso, como a seta sugere. É mais parecido com um jogador e encurtou as esperas.
+  - **Descartado:** o meio-termo de juntar e comprar só as miudezas piorou as esperas.
+- **O fim da praia acontece na compra da viagem também na última praia simulada.** Antes, a simulação parava quando o quadro aparecia. Assim, o tempo de cada praia inclui juntar para a viagem, como para o jogador.
+- **Palco e Torneio não têm ajudante.** São atrações, como a quadra: o jogador não faz trabalho manual nelas, só compra. Por isso não precisam de automação.
+- **Vendas dos ambulantes:**
+  - **Como contam:** o vendedor vende uma unidade a cada intervalo enquanto anda. O item voa até o cliente mais perto (se houver um a menos de 90) ou para o mar (banhista).
+  - **Por quê:** as vendas não dependem de um cliente estar no caminho, e assim o carrinho nunca fica preso cheio.
+- **Sensibilidade:** pequenas mudanças de preço mudam bastante o resultado, porque o bot faz escolhas diferentes e a fama acumula de praia para praia. Anotei isso no `CLAUDE.md`. Cada ajuste pede as 3 sementes de novo (cerca de 1 min cada; `npm test` leva cerca de 55 s).
+- **Pedido do usuário:** salvei na memória do Claude Code que nesta pasta eu só mexo no Barraca na Praia.
 
 ## Sugestões
-- **Analytics:** `step_buy` e `session_*` mandam a praia começando do 0, e `praia_nova` manda a praia começando do 1 (como pede o roteiro). Vale unificar antes de ligar o Firebase.
-- **Nomes:** o nome da área 2 é "Sorvete" no jogo (`AREAS`) e "Sorveteria" no litoral (tabela do roteiro). Vale escolher um só.
-- **Praia 2:** a espera antes da Barraca nv 10 fica em 138 a 142 s, perto do limite de 150. Se o teste fechado mostrar tédio ali, baixe `cresce[0]`.
-- **Simulador:** a métrica das áreas antigas mede quando elas abrem. Se "voltar a funcionar" tiver de incluir o nível 5, dá para medir isso também.
-
-## Parte C (OpenCode)
-
-Cenários das praias 3 a 10, seguindo `docs/MOLDE-CENARIOS.md`. Só `src/dados/praias.ts` e `src/render/cenarios.ts` foram mexidos.
-
-### Commits
-- `31b3efa` Parte C: cenários das praias 3 e 4 (farol, pedras e coqueiros).
-- `86f44cd` Parte C: cenários das praias 5 e 6 (muralha do forte e barquinhos).
-- `c2e4130` Parte C: cenários das praias 7 e 8 (ondas grandes, pranchas e veleiros).
-- `06fc75d` Parte C: cenários das praias 9 e 10 (reflexo do sol, bandeirinhas e faixas).
-- Este commit: relatório da parte C e status do roteiro para AGUARDANDO REVISÃO.
-
-`npm test` (48 testes) e `npm run build` passaram antes de cada um dos quatro commits.
-
-### O que foi feito
-- **Enfeites novos** (`src/render/cenarios.ts`), todos determinísticos (`hash(i)`, sem `Math.random`), com movimento por `e.t` e dentro da faixa permitida (acima de `SHORE - 6`, com as pranchas descendo até `SHORE + 4`):
-  - `farol` (torre listrada, uma por mundo, com a luz piscando) e `pedras` (rochas na beira da água) — Praia 3.
-  - `coqueiros` (coqueiros curvados pelo vento, repetidos a cada 130) — Praia 4.
-  - `muralha` (pedra e ameias do forte correndo pelo horizonte) — Praia 5.
-  - `barquinhos` (barcos coloridos balançando na água) — Praia 6.
-  - `ondasGrandes` (cristas brancas mais altas no mar) e `pranchas` (pranchas fincadas na beira) — Praia 7.
-  - `veleiros` (barcos à vela atravessando a baía devagar) — Praia 8.
-  - `reflexo` (brilho do sol tremulando na água, na mesma coluna do enfeite `sol`) — Praia 9.
-  - `bandeirinhas` (cordão de bandeirinhas entre postes no céu) e `faixas` (painéis coloridos de campeonato no horizonte) — Praia 10.
-- **Praias 3 a 10** (`src/dados/praias.ts`): cores definitivas (mar, areia e céu pela hora do dia), hora conforme a tabela do molde e a lista de enfeites de cada uma. Cada praia ficou com pelo menos 3 enfeites e pelo menos 1 novo, como pede o molde. Saíram as cores provisórias e o `['sol']`.
-
-### O que ficou fraco ou não deu
-- **Não deu para conferir no navegador.** Não tenho acesso a browser nesta sessão, então a checagem do `?praia=N` foi feita por leitura: confirmei que todo enfeite fica no céu (`y < 34`) ou no mar (`34..112`) e que as pranchas (Praia 7) são as únicas que encostam na areia, até `SHORE + 4`. Vale abrir cada praia no dev e olhar a composição.
-- **Nuvens brancas no pôr do sol (Praia 9).** O enfeite `nuvens` é branco fixo; contra o céu laranja pode ficar destoante. Se incomodar, dá para tingir as nuvens por hora.
-- **Bandeirinhas e faixas (Praia 10)** ficam no alto do céu, na faixa que o painel "Fama" cobre no canto de cima da tela. Não são informação importante, mas podem aparecer atrás do painel.
-- **Densidade dos enfeites** foi estimada contando as formas por tela (limite de ~30 por enfeite do molde). Ficou dentro do limite, mas sem ver rodando não confirmei a sensação visual (ex.: os coqueiros a cada 130 unidades).
-
-### Dúvidas
-- O mar da Praia 4 (`#0e7d8c`/`#3ac7c0`) ficou esverdeado para combinar com os coqueiros. Se a intenção era um mar mais azul só com os coqueiros no horizonte, é uma troca rápida.
-- O `reflexo` da Praia 9 só faz sentido colado ao `sol`; ele assume que a hora é `porDoSol`. Se alguém puser `reflexo` numa praia de manhã ou à tarde, ele vai parecer um brilho solto no mar. Posso condicionar a `P.hora` se preferirem.
+- **Simulador mais estável:** vale reduzir a variância. Uma ideia é limitar a profundidade das áreas antigas numa praia, porque melhorias de nível 30 ou mais delas causam as esperas mais longas. Outra é dar à seta um peso maior para a área nova.
+- **Testes mais rápidos:** o teste do simulador ficou lento (cerca de 50 s). Dá para rodar só uma semente no `npm test` e as 3 no `npm run sim`.
+- **Placa dos lotes 8 e 9:** dentro da faixa grande, ela flutua na areia sem cerca. Pode ganhar uma estaca, para não parecer solta.
+- **Tutorial:** ainda não aponta para as pranchas molhadas nem para o carrinho vazio. Uma seta quando a fila da escolinha para por falta de prancha ajudaria.
