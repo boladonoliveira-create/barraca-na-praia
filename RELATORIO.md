@@ -191,3 +191,38 @@ A `famaMinima` passou a ser [3, 8, 40, 95, 219, 480, 1067, 1964, 3704, 6263].
 - **Tutorial:** pôr setas para as caixas do caminhão e para as pranchas molhadas na primeira vez.
 - **Desempenho no celular:** conferir com ~40 banhistas desenhados por tela (eles são desenhados a cada quadro).
 - **Quiosque do Milho e pastel:** se a faixa ficar comprida demais na tela, dá para empilhar as panelas em duas fileiras na grama.
+
+## Parte B (OpenCode)
+
+Resultado: CONCLUÍDA (itens B1 a B6, cada um num commit). Todos só no desenho, menos o B6, que mexe no `fmt` do núcleo.
+
+Commits:
+- `d6e5092`: B1;
+- `7cfbc67`: B2;
+- `1f14893`: B3;
+- `cfebde2`: B4;
+- `11b9ac8`: B5;
+- `2e7f2f3`: B6.
+
+### O que foi feito
+- **B1. Orla** (`src/render/cenarios.ts`, função `orla`): grama, ciclovia, calçada de pedra portuguesa (padrão em xadrez), rua com faixa central e cacarecos nas margens. Enfeites fixos com `livre(x, y)`: canteiros, coqueiros na grama, bancos e postes na calçada, bikes na ciclovia e carros parados na rua. Tudo por `hash`/`cada` (posições fixas) e animação por `e.t` (para com "reduzir movimento").
+- **B2. Banhistas** (`src/render/desenho.ts`, `drawBanhista` + helpers `guardaSolCanga` e `castelinhoBanhista`): canga colorida com a pessoa deitada de bruços ou de barriga para cima (pelo `b.cor`), às vezes com guarda-sol e cadeira ao lado; criança com baldinho, pá e castelinho de areia; frescobol com a dupla, as raquetes e a bolinha indo e voltando (desenhada pelo `b.lado > 0`); nadador só com cabeça, braços batendo e marola; gente andando com chapéu, boné, óculos ou bolsa de praia. Roupas, cabelo e shorts variam por `b.cor`; criança continua a 70%.
+- **B3. Quiosques** (`src/render/desenho.ts`, `drawQuiosque`): cobertura de lona (Sorveteria e Sucos) ou telha (Milho e pastel), toldo listrado, postes, balcão de madeira com tampo claro e ripas, 2 a 4 banquinhos altos do lado da areia (onde fica a fila) e o nome numa placa. Fica dentro do retângulo do balcão + 12 para os lados e 24 para cima. Não mexi nos produtos, nas plaquinhas, na zona de entrega nem no dinheiro.
+- **B4. Palco** (`src/render/desenho.ts`, `drawPalco` + helpers `palcoInstr` e `palcoMusico`): os 8 músicos sempre no palco — 3 em pé (cavaquinho, pandeiro e vocal no microfone), 3 sentados à mesa (surdo, violão e tantã) e 1 de cada lado (repique e banjo) — com instrumentos reconhecíveis. Camarote num lado, com cercadinho e quiosque de bebidas. Durante o show, luzes, notas musicais e uma multidão na frente (y 455 a 500) com pulinho por `g.now`. Mantive a placa "PALCO DE PAGODE" e as etiquetas de show/próximo show, e tudo ficou dentro da zona e acima dos quadros de compra.
+- **B5. Placas trancadas** (`src/render/desenho.ts`, `drawTrancado`): quadrado tracejado com o chão mais escuro e o tracejado na cor da faixa (areia, grama, calçadão ou rua); placa de madeira com estaca, veios e cadeado. A lógica do texto ficou igual (futura: "TRANCADO · área · Praia N"; praia atual: o que falta ou "Pronta para abrir!"), e o torneio continua só com a placa ao lado da quadra.
+- **B6. Números curtos** (`src/core/economia.ts`, `fmt` + `src/core/economia.test.ts`): passa a valer mil, mi e bi; uma casa decimal até 100 (12,5 mil; 3,2 mi) e sem casa a partir de 100 (123 mil; 320 mi); sem ",0" (12 mil). Acrescentei os casos da tabela do molde ao teste (sem mexer nos que já existiam).
+
+### Verificação
+- `npm test`: 67 testes passando (o teste de `fmt` ganhou os casos de mil, mi e bi).
+- `npm run build`: passa.
+- Rodei os dois antes de cada commit. Não mexi em testes existentes, não instalei pacotes, não mudei configs nem o `android/`, e não rodei `npm run balancear -- --calibrar`.
+
+### O que ficou fraco ou não deu
+- **Conferência visual:** não tenho navegador aqui. Conferi tudo pelos limites de cada item, pelos retângulos das áreas (`LUGARES`) e pela `livre(x, y)`, mas o acabamento (sobreposições finas, cores no celular) merece um olhar no `?praia=N`.
+- **Densidade do palco:** cabem duas fileiras de músicos numa caixa de 110 de altura; deixei os de trás sentados e mais altos (y menor) para dar profundidade. Pode ficar apertado se o "som melhor" aumentar muito as caixas.
+- **Multidão do palco:** desenho 16 pessoas por quadro durante o show; somei aos banhistas que já eram desenhados. Vale conferir no celular, como já estava na lista de sugestões.
+- **Banquinhos dos quiosques:** ficam acima do balcão (lado da areia, onde fica a fila). Como os clientes são desenhados depois, eles passam na frente dos banquinhos.
+
+### Dúvidas
+- **Formato da placa trancada:** o molde pede "Trancado · área · Praia N". Mantive em três linhas (rótulo "TRANCADO", nome da área e "Praia N"), como já estava, para caber na tábua de 152 de largura. Se quiser tudo numa linha, é só pedir.
+- **`fmt` entre 1.000 e 9.999:** mantive o número inteiro (o corte para "mil" continua em 10.000), como no código antigo. O molde só mostra 950, 12.500, 3.200.000 e 1.100.000.000.
