@@ -1,6 +1,6 @@
 /* Cenário de cada praia: céu, mar, ondas e os enfeites de fundo (PRAIAS[b].enfeites). Só desenha; regras em docs/MOLDE-CENARIOS.md.
    Tudo em coordenadas do mundo, entre x0 e x1 (a parte visível). Sem Math.random: a posição vem de hash(i). */
-import { SHORE, WALL_Y, PLAY_BOTTOM, LUGARES, DIVISAS, SHOPS, SERVICO, ESCOLA, FAIXAS, WORLD_H } from '../dados/mapa.ts';
+import { SHORE, WALL_Y, PLAY_BOTTOM, LUGARES, DIVISAS, SHOPS, SERVICO, ESCOLA, FAIXAS, WORLD_H, livre } from '../dados/mapa.ts';
 import type { Praia } from '../dados/praias.ts';
 
 /** O céu vai de 0 a HORIZONTE; o mar, de HORIZONTE até a areia (SHORE). Enfeite fica sempre acima de SHORE - 6. */
@@ -591,17 +591,129 @@ export function desenharCenario(c: CanvasRenderingContext2D, P: Praia, e: Vista,
   c.restore();
 }
 
-/** Grama, calçadão (ciclovia e calçada) e rua, por baixo da areia. Desenho simples: o acabamento é da parte B (MOLDE-ORLA). */
+/* ---------- Orla (docs/MOLDE-ORLA.md, item B1) ---------- */
+
+/** Canteiro de flores: terra e florezinhas; fica livre por `livre` antes de chamar. */
+function canteiro(c: CanvasRenderingContext2D, x: number, y: number, i: number) {
+  c.fillStyle = '#b0603a'; c.beginPath(); c.ellipse(x, y + 3, 16, 6, 0, 0, Math.PI * 2); c.fill();
+  for (const [fx, fy] of [[-11, -1], [-5, -4], [1, -2], [7, -4], [12, -1]]) {
+    const cor = ['#ff8787', '#ffd43b', '#f783ac'][(((i + Math.round(fx)) % 3) + 3) % 3];
+    c.fillStyle = '#2f8f3e'; c.fillRect(x + fx - 0.5, y + fy, 1, 4);
+    c.fillStyle = cor; c.beginPath(); c.arc(x + fx, y + fy - 1, 2.3, 0, Math.PI * 2); c.fill();
+  }
+}
+
+/** Coqueiro na grama: tronco curvado e copa em direção à areia, com sombra. */
+function coqueiroGrama(c: CanvasRenderingContext2D, x: number, y: number, i: number, t: number) {
+  const alt = 34 + hash(i) * 16, dobra = 4 + hash(i + 1) * 6, sway = Math.sin(t / 1200 + i) * 1.4;
+  c.fillStyle = 'rgba(120,80,30,0.18)'; c.beginPath(); c.ellipse(x, y + 2, 10, 3.5, 0, 0, Math.PI * 2); c.fill();
+  const topX = x + dobra + sway, topY = y - alt + sway;
+  c.strokeStyle = '#8d5a2b'; c.lineWidth = 3; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + 1, y - alt / 2, topX, topY); c.stroke();
+  c.fillStyle = '#2f8f3e';
+  for (const a of [-2.6, -2.0, -1.4, -0.8]) { c.beginPath(); c.ellipse(topX + Math.cos(a) * 7, topY + Math.sin(a) * 4, 8, 2.2, a, 0, Math.PI * 2); c.fill() }
+  c.fillStyle = '#4c9a2a'; c.beginPath(); c.ellipse(topX, topY + 1, 5, 2, 0, 0, Math.PI * 2); c.fill();
+}
+
+/** Gramado (820 a 920): tom variado, canteiros e coqueiros só onde `livre` deixa (a grama tem os quiosques e as máquinas). */
+function grama(c: CanvasRenderingContext2D, e: Vista) {
+  const { x0, x1 } = e, F = FAIXAS.grama, w = x1 - x0;
+  c.fillStyle = '#8cc56b'; c.fillRect(x0, F.y0, w, F.y1 - F.y0);
+  cada(e, 60, (x, i) => { // manchas de tom
+    const mx = x + hash(i) * 60, my = F.y0 + 8 + hash(i + 3) * (F.y1 - F.y0 - 18), r = 10 + hash(i + 7) * 16;
+    c.fillStyle = hash(i + 11) < 0.5 ? 'rgba(111,174,79,0.35)' : 'rgba(160,214,120,0.35)';
+    c.beginPath(); c.ellipse(mx, my, r, r * 0.5, 0, 0, Math.PI * 2); c.fill();
+  });
+  cada(e, 200, (x, i) => { // canteiros e coqueiros (só onde não atrapalha)
+    if (hash(i + 5) < 0.45) return;
+    const px = x + 30 + hash(i) * 80;
+    if (!livre(px, F.y1 - 10) || !livre(px, F.y0 + 6)) return;
+    if (hash(i + 2) < 0.5) canteiro(c, px, F.y1 - 12, i); else coqueiroGrama(c, px, F.y1 - 6, i, e.t);
+  });
+  c.fillStyle = '#6fae4f'; c.fillRect(x0, F.y0, w, 4); // borda de cima
+}
+
+/** Bicicletinha branca pintada na ciclovia. */
+function bike(c: CanvasRenderingContext2D, x: number, y: number, dir: number) {
+  c.save(); c.translate(x, y); c.scale(dir, 1);
+  c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineWidth = 1.4; c.lineCap = 'round';
+  c.beginPath(); c.arc(-6, 0, 4.5, 0, Math.PI * 2); c.stroke(); c.beginPath(); c.arc(7, 0, 4.5, 0, Math.PI * 2); c.stroke();
+  c.beginPath(); c.moveTo(-6, 0); c.lineTo(-1, -6); c.lineTo(5, -6); c.lineTo(7, 0); c.moveTo(-1, -6); c.lineTo(2, 0); c.lineTo(7, 0); c.moveTo(5, -6); c.lineTo(6, -9); c.stroke();
+  c.restore();
+}
+
+/** Ciclovia (920 a 950): vermelha, faixa branca tracejada no meio e uma bicicleta a cada 400. */
+function ciclovia(c: CanvasRenderingContext2D, e: Vista) {
+  const { x0, x1 } = e, F = FAIXAS.calcadao, y0 = F.y0, w = x1 - x0;
+  c.fillStyle = '#c7442f'; c.fillRect(x0, y0, w, 30);
+  c.fillStyle = '#fff'; for (let x = Math.floor(x0 / 40) * 40; x < x1; x += 40) c.fillRect(x, y0 + 14, 20, 2);
+  cada(e, 400, (x, i) => bike(c, x + 120 + hash(i) * 120, y0 + 15, hash(i + 4) < 0.5 ? 1 : -1));
+}
+
+/** Banco de madeira com pés de ferro. */
+function banco(c: CanvasRenderingContext2D, x: number, y: number) {
+  c.fillStyle = 'rgba(120,80,30,0.18)'; c.beginPath(); c.ellipse(x, y + 4, 16, 3, 0, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#495057'; c.fillRect(x - 14, y - 2, 3, 8); c.fillRect(x + 11, y - 2, 3, 8);
+  c.fillStyle = '#a26b2f'; c.fillRect(x - 16, y - 6, 32, 4); c.fillRect(x - 16, y - 12, 32, 3);
+  c.fillStyle = '#8a5a2b'; c.fillRect(x - 16, y - 10, 3, 7); c.fillRect(x + 13, y - 10, 3, 7);
+}
+
+/** Poste de luz com a lâmpada clara. */
+function poste(c: CanvasRenderingContext2D, x: number, y: number) {
+  c.fillStyle = 'rgba(120,80,30,0.18)'; c.beginPath(); c.ellipse(x, y + 3, 8, 2.5, 0, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = '#495057'; c.lineWidth = 3; c.lineCap = 'round'; c.beginPath(); c.moveTo(x, y + 2); c.lineTo(x, y - 38); c.stroke();
+  c.fillStyle = '#495057'; c.beginPath(); c.arc(x, y - 38, 3, 0, Math.PI * 2); c.fill();
+  c.fillStyle = '#fff3bf'; c.beginPath(); c.arc(x, y - 43, 4.5, 0, Math.PI * 2); c.fill();
+  c.strokeStyle = '#495057'; c.lineWidth = 1.5; c.beginPath(); c.arc(x, y - 43, 5.5, Math.PI * 1.1, Math.PI * 1.9); c.stroke();
+}
+
+/** Calçada (950 a 1060): pedra portuguesa ondulada em preto e branco, com bancos e postes só onde `livre` deixa. */
+function calcada(c: CanvasRenderingContext2D, e: Vista) {
+  const { x0, x1 } = e, F = FAIXAS.calcadao, y0 = F.y0 + 30, y1 = F.y1, w = x1 - x0;
+  c.fillStyle = '#ece6da'; c.fillRect(x0, y0, w, y1 - y0);
+  c.strokeStyle = '#2b2b2b'; c.lineWidth = 7; c.lineCap = 'round'; // ondas largas em faixas horizontais
+  const passo = 22, xa = Math.floor(x0 / 12) * 12;
+  for (let r = 0; y0 + 11 + r * passo < y1; r++) {
+    const yy = y0 + 11 + r * passo; c.beginPath();
+    for (let x = xa; x <= x1; x += 12) { const py = yy + Math.sin(x / 70 + r * 0.9) * 4; x === xa ? c.moveTo(x, py) : c.lineTo(x, py) }
+    c.stroke();
+  }
+  cada(e, 260, (x, i) => { // bancos e postes, longe dos quadros de compra (y 1005)
+    const px = x + 40 + hash(i) * 120, py = y0 + 40;
+    if (!livre(px, py, 16)) return;
+    if (hash(i + 3) < 0.5) banco(c, px, py); else poste(c, px, py);
+  });
+}
+
+/** Carro passando na rua (só visual). */
+function carro(c: CanvasRenderingContext2D, x: number, y: number, dir: number, h: number) {
+  const cor = ['#e03131', '#1c7ed6', '#f59f00', '#2f9e44', '#f8f9fa', '#495057'][Math.floor(h * 6) % 6];
+  c.save(); c.translate(x, y); c.scale(dir, 1);
+  c.fillStyle = 'rgba(0,0,0,0.18)'; c.beginPath(); c.ellipse(0, 9, 24, 3.5, 0, 0, Math.PI * 2); c.fill();
+  c.fillStyle = cor; c.beginPath();
+  c.moveTo(-22, 6); c.lineTo(-22, -2); c.lineTo(-12, -2); c.lineTo(-7, -9); c.lineTo(9, -9); c.lineTo(14, -2); c.lineTo(22, -2); c.lineTo(22, 6); c.closePath(); c.fill();
+  c.fillStyle = '#d0ebff'; c.beginPath(); c.moveTo(-6, -8); c.lineTo(8, -8); c.lineTo(11, -2); c.lineTo(-9, -2); c.closePath(); c.fill(); // vidros
+  c.fillStyle = '#212529'; c.beginPath(); c.arc(-13, 6, 4, 0, Math.PI * 2); c.fill(); c.beginPath(); c.arc(13, 6, 4, 0, Math.PI * 2); c.fill(); // rodas
+  c.restore();
+}
+
+/** Rua (1060 a 1140): meio-fio, asfalto com faixa amarela e, de vez em quando, um carro atravessando a tela. */
+function rua(c: CanvasRenderingContext2D, e: Vista) {
+  const { x0, x1 } = e, F = FAIXAS.rua, y0 = F.y0, y1 = F.y1, w = x1 - x0;
+  c.fillStyle = '#9aa0a6'; c.fillRect(x0, y0, w, 6); // meio-fio
+  c.fillStyle = '#495057'; c.fillRect(x0, y0 + 6, w, y1 - y0 - 6); // asfalto
+  c.fillStyle = '#ffd43b'; const ym = (y0 + y1) / 2 + 6; for (let x = Math.floor(x0 / 60) * 60; x < x1; x += 60) c.fillRect(x, ym, 30, 3);
+  const P = 11000, idx = Math.floor(e.t / P), fase = e.t - idx * P; // um carro a cada ~11 s
+  if (fase < 3500) {
+    const u = fase / 3500, dir = hash(idx) < 0.5 ? 1 : -1;
+    const cx = dir > 0 ? x0 - 60 + u * (w + 120) : x1 + 60 - u * (w + 120);
+    if (cx <= 2300 || cx >= 2580) carro(c, cx, dir > 0 ? y0 + 26 : y0 + 56, dir, hash(idx + 5)); // fora da baia do caminhão
+  }
+}
+
+/** Grama, calçadão (ciclovia e calçada) e rua, por baixo da areia. Acabamento da parte B (docs/MOLDE-ORLA.md, item B1). */
 function orla(c: CanvasRenderingContext2D, e: Vista) {
-  const { x0, x1 } = e, F = FAIXAS, w = x1 - x0;
-  c.fillStyle = '#8cc56b'; c.fillRect(x0, F.grama.y0, w, F.grama.y1 - F.grama.y0);
-  c.fillStyle = '#6fae4f'; c.fillRect(x0, F.grama.y0, w, 4);
-  c.fillStyle = '#c7442f'; c.fillRect(x0, F.calcadao.y0, w, 30); // ciclovia
-  c.fillStyle = '#fff'; for (let x = Math.floor(x0 / 40) * 40; x < x1; x += 40) c.fillRect(x, F.calcadao.y0 + 14, 20, 2);
-  c.fillStyle = '#ece6da'; c.fillRect(x0, F.calcadao.y0 + 30, w, F.calcadao.y1 - F.calcadao.y0 - 30); // calçada
-  c.fillStyle = '#9aa0a6'; c.fillRect(x0, F.rua.y0, w, 6); // meio-fio
-  c.fillStyle = '#495057'; c.fillRect(x0, F.rua.y0 + 6, w, F.rua.y1 - F.rua.y0 - 6);
-  c.fillStyle = '#ffd43b'; for (let x = Math.floor(x0 / 60) * 60; x < x1; x += 60) c.fillRect(x, (F.rua.y0 + F.rua.y1) / 2, 30, 3);
+  grama(c, e); ciclovia(c, e); calcada(c, e); rua(c, e);
 }
 
 /** Luz da hora do dia, por cima de tudo (menos da interface): a tarde esquenta um pouco; o pôr do sol, bem mais. */
