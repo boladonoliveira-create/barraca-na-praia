@@ -21,9 +21,10 @@ export const PRAIAS: Praia[] = [
     enfeites: ['sol', 'nuvens', 'gaivotas', 'boias'] },
   { nome: 'Praia Grande', area: 'Sorveteria', mar: ['#155f9e', '#3aa0d8'], areia: '#f3dcaa', ceu: ['#6ec3f5', '#d6efff'], hora: 'tarde',
     enfeites: ['sol', 'nuvens', 'ilha', 'navio', 'jangadas'] },
-  // Praias 3 a 10: só nome e cores provisórias; o cenário segue docs/MOLDE-CENARIOS.md (parte C)
-  { nome: 'Praia do Farol', area: 'Chuveirão e cadeiras', mar: ['#0d7a6a', '#2fc4a4'], areia: '#f1e0b8', ceu: ['#9ad9ff', '#e8f8ff'], hora: 'manha', enfeites: ['sol'] },
-  { nome: 'Praia dos Coqueiros', area: 'Milho e pastel', mar: ['#0a6d84', '#26d0ce'], areia: '#f4e1ae', ceu: ['#8fd3ff', '#e0f5ff'], hora: 'manha', enfeites: ['sol'] },
+  { nome: 'Praia do Farol', area: 'Chuveirão e cadeiras', mar: ['#0f7f99', '#35c6d0'], areia: '#f6e3b4', ceu: ['#8fd8ff', '#e8f8ff'], hora: 'manha',
+    enfeites: ['sol', 'nuvens', 'farol', 'pedras', 'gaivotas', 'boias'] },
+  { nome: 'Praia dos Coqueiros', area: 'Milho e pastel', mar: ['#0e7d8c', '#3ac7c0'], areia: '#f6e3b4', ceu: ['#93dbff', '#e9f8ff'], hora: 'manha',
+    enfeites: ['sol', 'nuvens', 'coqueiros', 'gaivotas'] },
   { nome: 'Praia do Forte', area: 'Quadra de futevôlei', mar: ['#1d5f8c', '#48a6cf'], areia: '#efd9a6', ceu: ['#7cc4ef', '#dcefff'], hora: 'tarde', enfeites: ['sol'] },
   { nome: 'Praia Dourada', area: 'Ambulantes', mar: ['#1c5a8a', '#5fb7d6'], areia: '#f7d98c', ceu: ['#7fc6f0', '#f6efd6'], hora: 'tarde', enfeites: ['sol'] },
   { nome: 'Praia Brava', area: 'Escolinha de surf', mar: ['#0b4f78', '#2b8fbf'], areia: '#eed8a8', ceu: ['#78bfe9', '#d9eefc'], hora: 'tarde', enfeites: ['sol'] },

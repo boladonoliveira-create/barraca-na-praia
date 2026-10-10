@@ -92,8 +92,46 @@ const jangadas: Enfeite = (c, e) => {
   });
 };
 
+/** Farol: torre listrada na ponta, apoiada no horizonte, com a luz piscando de leve. */
+const farol: Enfeite = (c, e) => {
+  cada(e, 1500, (x, i) => {
+    const fx = x + 320 + hash(i) * 180, b = HORIZONTE + 4;
+    c.fillStyle = '#6b7280'; c.beginPath(); c.moveTo(fx - 24, b + 6); c.lineTo(fx - 14, b); c.lineTo(fx + 14, b); c.lineTo(fx + 24, b + 6); c.closePath(); c.fill();
+    c.fillStyle = '#f8f9fa'; c.beginPath(); c.moveTo(fx - 8, b); c.lineTo(fx - 5, b - 24); c.lineTo(fx + 5, b - 24); c.lineTo(fx + 8, b); c.closePath(); c.fill();
+    c.fillStyle = '#e03131'; c.fillRect(fx - 7.4, b - 7, 14.8, 5); c.fillRect(fx - 6.2, b - 17, 12.4, 5);
+    c.fillStyle = '#343a40'; c.fillRect(fx - 5, b - 29, 10, 5);
+    c.fillStyle = '#495057'; c.beginPath(); c.moveTo(fx - 6, b - 29); c.lineTo(fx, b - 34); c.lineTo(fx + 6, b - 29); c.closePath(); c.fill();
+    const a = 0.3 + 0.3 * Math.sin(e.t / 500 + i);
+    c.fillStyle = `rgba(255,224,102,${a})`; circ(c, fx, b - 26, 4);
+  });
+};
+
+/** Pedras: rochas escuras na beira da água, com espuma em volta. */
+const pedras: Enfeite = (c, e) => {
+  cada(e, 300, (x, i) => {
+    if (hash(i + 5) < 0.35) return;
+    const px = x + 40 + hash(i) * 180, py = SHORE - 30 - hash(i + 2) * 10, w = 10 + hash(i + 7) * 10;
+    c.fillStyle = '#8b8f96'; c.beginPath(); c.moveTo(px - w, py + 6); c.lineTo(px - w * 0.5, py - 6); c.lineTo(px + w * 0.4, py - 4); c.lineTo(px + w, py + 7); c.closePath(); c.fill();
+    c.fillStyle = '#6f747c'; c.beginPath(); c.moveTo(px - w * 0.5, py - 6); c.lineTo(px + w * 0.4, py - 4); c.lineTo(px + w * 0.2, py + 6); c.lineTo(px - w, py + 6); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.4)'; c.fillRect(px - w, py + 7, w * 2, 1.5);
+  });
+};
+
+/** Coqueiros: muitos coqueiros no horizonte, curvados pelo vento, balançando de leve. */
+const coqueiros: Enfeite = (c, e) => {
+  cada(e, 130, (x, i) => {
+    const cx = x + 20 + hash(i) * 50, altura = 16 + hash(i + 3) * 10, dobra = 3 + hash(i + 1) * 4;
+    const sway = Math.sin(e.t / 1100 + i) * 1.2;
+    const topY = HORIZONTE - altura + sway, topX = cx + dobra + sway;
+    c.strokeStyle = '#6b4a2a'; c.lineWidth = 2; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(cx, HORIZONTE + 2); c.quadraticCurveTo(cx + 1, HORIZONTE - altura / 2, topX, topY); c.stroke();
+    c.fillStyle = '#2f7a45';
+    for (const a of [-2.5, -1.9, -1.3, -0.7, -0.15]) { c.beginPath(); c.ellipse(topX + Math.cos(a) * 6, topY + Math.sin(a) * 3, 6, 1.8, a, 0, Math.PI * 2); c.fill() }
+  });
+};
+
 /** Todos os enfeites, pelo id usado em PRAIAS[b].enfeites. Enfeite novo: uma função aqui e o id na praia. */
-export const ENFEITES: Record<string, Enfeite> = { sol, nuvens, gaivotas, boias, ilha, navio, jangadas };
+export const ENFEITES: Record<string, Enfeite> = { sol, nuvens, gaivotas, boias, ilha, navio, jangadas, farol, pedras, coqueiros };
 
 /* ---------- Cenário ---------- */
 
