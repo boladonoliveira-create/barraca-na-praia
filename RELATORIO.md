@@ -143,3 +143,38 @@ O fator de preço por praia é 1,45^b. A fama usa K = 2000 e taxa 0,07. As área
 - **Nomes:** o nome da área 2 é "Sorvete" no jogo (`AREAS`) e "Sorveteria" no litoral (tabela do roteiro). Vale escolher um só.
 - **Praia 2:** a espera antes da Barraca nv 10 fica em 138 a 142 s, perto do limite de 150. Se o teste fechado mostrar tédio ali, baixe `cresce[0]`.
 - **Simulador:** a métrica das áreas antigas mede quando elas abrem. Se "voltar a funcionar" tiver de incluir o nível 5, dá para medir isso também.
+
+## Parte C (OpenCode)
+
+Cenários das praias 3 a 10, seguindo `docs/MOLDE-CENARIOS.md`. Só `src/dados/praias.ts` e `src/render/cenarios.ts` foram mexidos.
+
+### Commits
+- `31b3efa` Parte C: cenários das praias 3 e 4 (farol, pedras e coqueiros).
+- `86f44cd` Parte C: cenários das praias 5 e 6 (muralha do forte e barquinhos).
+- `c2e4130` Parte C: cenários das praias 7 e 8 (ondas grandes, pranchas e veleiros).
+- `06fc75d` Parte C: cenários das praias 9 e 10 (reflexo do sol, bandeirinhas e faixas).
+- Este commit: relatório da parte C e status do roteiro para AGUARDANDO REVISÃO.
+
+`npm test` (48 testes) e `npm run build` passaram antes de cada um dos quatro commits.
+
+### O que foi feito
+- **Enfeites novos** (`src/render/cenarios.ts`), todos determinísticos (`hash(i)`, sem `Math.random`), com movimento por `e.t` e dentro da faixa permitida (acima de `SHORE - 6`, com as pranchas descendo até `SHORE + 4`):
+  - `farol` (torre listrada, uma por mundo, com a luz piscando) e `pedras` (rochas na beira da água) — Praia 3.
+  - `coqueiros` (coqueiros curvados pelo vento, repetidos a cada 130) — Praia 4.
+  - `muralha` (pedra e ameias do forte correndo pelo horizonte) — Praia 5.
+  - `barquinhos` (barcos coloridos balançando na água) — Praia 6.
+  - `ondasGrandes` (cristas brancas mais altas no mar) e `pranchas` (pranchas fincadas na beira) — Praia 7.
+  - `veleiros` (barcos à vela atravessando a baía devagar) — Praia 8.
+  - `reflexo` (brilho do sol tremulando na água, na mesma coluna do enfeite `sol`) — Praia 9.
+  - `bandeirinhas` (cordão de bandeirinhas entre postes no céu) e `faixas` (painéis coloridos de campeonato no horizonte) — Praia 10.
+- **Praias 3 a 10** (`src/dados/praias.ts`): cores definitivas (mar, areia e céu pela hora do dia), hora conforme a tabela do molde e a lista de enfeites de cada uma. Cada praia ficou com pelo menos 3 enfeites e pelo menos 1 novo, como pede o molde. Saíram as cores provisórias e o `['sol']`.
+
+### O que ficou fraco ou não deu
+- **Não deu para conferir no navegador.** Não tenho acesso a browser nesta sessão, então a checagem do `?praia=N` foi feita por leitura: confirmei que todo enfeite fica no céu (`y < 34`) ou no mar (`34..112`) e que as pranchas (Praia 7) são as únicas que encostam na areia, até `SHORE + 4`. Vale abrir cada praia no dev e olhar a composição.
+- **Nuvens brancas no pôr do sol (Praia 9).** O enfeite `nuvens` é branco fixo; contra o céu laranja pode ficar destoante. Se incomodar, dá para tingir as nuvens por hora.
+- **Bandeirinhas e faixas (Praia 10)** ficam no alto do céu, na faixa que o painel "Fama" cobre no canto de cima da tela. Não são informação importante, mas podem aparecer atrás do painel.
+- **Densidade dos enfeites** foi estimada contando as formas por tela (limite de ~30 por enfeite do molde). Ficou dentro do limite, mas sem ver rodando não confirmei a sensação visual (ex.: os coqueiros a cada 130 unidades).
+
+### Dúvidas
+- O mar da Praia 4 (`#0e7d8c`/`#3ac7c0`) ficou esverdeado para combinar com os coqueiros. Se a intenção era um mar mais azul só com os coqueiros no horizonte, é uma troca rápida.
+- O `reflexo` da Praia 9 só faz sentido colado ao `sol`; ele assume que a hora é `porDoSol`. Se alguém puser `reflexo` numa praia de manhã ou à tarde, ele vai parecer um brilho solto no mar. Posso condicionar a `P.hora` se preferirem.
