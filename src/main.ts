@@ -9,6 +9,7 @@ import { StatusBar } from '@capacitor/status-bar';
 import { lerSave, gravarSave, lerPrefs, iniciarArmazenamento } from './plataforma/salvar.ts';
 import { iniciarAnuncios } from './plataforma/anuncios.ts';
 import { analytics, iniciarAnalytics } from './plataforma/analytics.ts';
+import { hojeLocal } from './core/diaria.ts';
 import { ECONOMIA, NIVEL_ABRE } from './dados/planos.ts';
 import { ensureAudio, pauseAudio, tone, fanfare, buzz } from './plataforma/som.ts';
 
@@ -89,7 +90,9 @@ if (previa) {
 hud.syncTest(); hud.goal(); g.firstScene();
 hud.showStart(() => {
   analytics.registrar('session_start', { praia: g.beach + 1 });
-  if (offAmount > 0 && !g.testMode) hud.showOffline(offAmount, Date.now() - saved!.last);
+  // primeiro a recompensa diária (se for a primeira abertura do dia), depois o cartão dos ganhos com o app fechado
+  const offline = () => { if (offAmount > 0 && !g.testMode) hud.showOffline(offAmount, Date.now() - saved!.last) };
+  if (previa) offline(); else hud.showDiaria(hojeLocal(), offline);
 });
 requestAnimationFrame(frame);
 

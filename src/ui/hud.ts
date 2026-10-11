@@ -7,6 +7,7 @@ import { gravarPrefs, type Prefs } from '../plataforma/salvar.ts';
 import { ensureAudio, tone, setMuted, setVibra, buzz, praiaNova, pauseAudio } from '../plataforma/som.ts';
 import { podeIntersticial, type Anuncios } from '../plataforma/anuncios.ts';
 import { analytics } from '../plataforma/analytics.ts';
+import { PREMIOS, type Premio } from '../core/diaria.ts';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -99,6 +100,29 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
     $('ovCampeao').hidden = false; praiaNova(); buzz([80, 40, 80, 40, 160]);
     $('campeaoOk').onclick = () => { $('ovCampeao').hidden = true; g.state = prev === 'ad' ? 'play' : prev };
   }
+  /* ---------- Recompensa diária ---------- */
+  const rotulo = (p: Premio) => p.tipo === 'dinheiro' ? 'R$ ' + p.min + ' min' : p.tipo === 'turbo' ? '×' + p.x + ' ' + p.min + ' min' : '+' + Math.round(p.pct * 100) + '% ⭐';
+  /** Primeira abertura do dia: o calendário de 7 dias com o prêmio de hoje. Fecha com 1 toque; depois chama `depois`. */
+  function showDiaria(hoje: string, depois: () => void) {
+    const dia = g.diaDeHoje(hoje); if (!dia) { depois(); return }
+    g.state = 'diaria';
+    $('diariaDias').innerHTML = PREMIOS.map((p, i) => '<li class="' + (i + 1 < dia ? 'feito' : i + 1 === dia ? 'hoje' : '') + '"><b>' + (i + 1) + '</b>' + rotulo(p) + '</li>').join('');
+    $('ovDiaria').hidden = false;
+    const pegar = (dobro: boolean) => {
+      const r = g.pegarDiaria(hoje, dobro); $('ovDiaria').hidden = true; g.state = 'play';
+      if (r) {
+        analytics.registrar('recompensa_diaria', { dia: r.dia, dobrou: dobro });
+        const txt = r.premio.tipo === 'dinheiro' ? '+R$ ' + fmt(r.valor) : r.premio.tipo === 'turbo' ? 'Turbo ×' + r.premio.x + ' por ' + r.valor + ' min!' : '+' + r.valor + ' de fama ⭐';
+        g.popups.push({ x: g.player.x, y: g.player.y - 60, txt, life: 2.2, col: '#2f9e44', size: 20 });
+        if (r.dia === 7) praiaNova(); else tone(988, 0.15, 'triangle', 0.1, 1.2);
+        buzz(40);
+      }
+      depois();
+    };
+    $('diariaPegar').onclick = () => { ensureAudio(); pegar(false) };
+    // se o anúncio fechar antes da recompensa, pega o prêmio normal (sem derrota)
+    $('diariaDobro').onclick = () => { ensureAudio(); showAd('diaria_dobro', () => pegar(true), () => pegar(false)) };
+  }
   function chegar() {
     $('ovBeach').hidden = true; g.state = 'play';
     if (viagemAtual) { const v = viagemAtual; analytics.registrar('praia_nova', { praia: g.beach + 1, fama_ganha: v.fama, minutos: Math.round(v.minutos), anuncio: v.anuncio }); viagemAtual = null }
@@ -134,7 +158,7 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
   // Modo teste (∞): só na versão de desenvolvimento, nunca na da loja
   if (testEnabled) $('testBtn').addEventListener('click', () => { g.testMode = prefs.teste = !g.testMode; gravarPrefs(prefs); if (!g.testMode) { g.money = 0; g.shown = 0 } syncTest() });
   else $('testBtn').hidden = true;
-  $('boost').addEventListener('click', () => { if (g.state !== 'play' || g.boostOn()) return; ensureAudio(); showAd('dinheiro_dobro', () => { g.boostUntil = g.now + 120000; tone(784, 0.2, 'triangle', 0.1, 1.2); buzz(40) }) });
+  $('boost').addEventListener('click', () => { if (g.state !== 'play' || g.boostOn()) return; ensureAudio(); showAd('dinheiro_dobro', () => { g.boostX = 2; g.boostUntil = g.now + 120000; tone(784, 0.2, 'triangle', 0.1, 1.2); buzz(40) }) });
   $('offTake').addEventListener('click', () => { ensureAudio(); $('ovOffline').hidden = true; g.state = 'play'; pegarOffline(1) });
   // se o anúncio fechar antes da recompensa, recebe o valor normal (sem derrota)
   $('offDouble').addEventListener('click', () => { ensureAudio(); $('ovOffline').hidden = true; g.state = 'play'; showAd('dobrar_offline', () => pegarOffline(2), () => pegarOffline(1)) });
@@ -147,5 +171,5 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
   $('litoralFechar').addEventListener('click', () => { $('ovLitoral').hidden = true; if (g.state === 'litoral') g.state = 'play' });
   syncPrefs();
 
-  return { goal, viagem, campeao, showOffline, showStart, frame, syncTest };
+  return { goal, viagem, campeao, showDiaria, showOffline, showStart, frame, syncTest };
 }

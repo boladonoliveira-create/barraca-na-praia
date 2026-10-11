@@ -754,7 +754,7 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   ctx.setTransform(k, 0, 0, k, 0, 0);
   if (borda) bordaArrow(borda.x, borda.y);
   if (g.state === 'play' && g.moved < 40 && g.tutorial === 0) { ctx.fillStyle = 'rgba(58,35,22,0.75)'; rr(W / 2 - 120, H - 70, 240, 36, 18); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '800 14px "Nunito",sans-serif'; ctx.fillText('Arraste o dedo para andar', W / 2, H - 52) }
-  if (g.boostOn()) { ctx.fillStyle = 'rgba(47,158,68,0.9)'; rr(W - 86, 8, 76, 28, 14); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '800 14px "Baloo 2",sans-serif'; ctx.fillText('2x R$', W - 48, 23) }
+  if (g.boostOn()) { ctx.fillStyle = 'rgba(47,158,68,0.9)'; rr(W - 86, 8, 76, 28, 14); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '800 14px "Baloo 2",sans-serif'; ctx.fillText(g.boostX + 'x R$', W - 48, 23) }
   if (g.famaTotal > 0) { const txt = '⭐ Fama x' + g.lucro().toFixed(1).replace('.', ','); ctx.font = '800 14px "Baloo 2",sans-serif'; const w = ctx.measureText(txt).width + 20; ctx.fillStyle = 'rgba(255,194,61,0.95)'; rr(10, 8, w, 28, 14); ctx.fill(); ctx.fillStyle = '#3a2316'; ctx.fillText(txt, 10 + w / 2, 23) }
   if (joy.on) { ctx.globalAlpha = 0.5; ctx.strokeStyle = '#3a2316'; ctx.lineWidth = 3; circ(joy.ox, joy.oy, 48); ctx.stroke(); const dx = joy.x - joy.ox, dy = joy.y - joy.oy, d = Math.hypot(dx, dy), m = Math.min(48, d); ctx.fillStyle = '#3a2316'; circ(joy.ox + (d ? dx / d * m : 0), joy.oy + (d ? dy / d * m : 0), 18); ctx.fill(); ctx.globalAlpha = 1 }
 }

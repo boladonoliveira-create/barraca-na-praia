@@ -47,7 +47,7 @@ docs/MOLDE-ORLA.md      as faixas, os lugares das áreas, livre(x, y), a paleta 
 - **Uma área nova:** a área i é a loja `SHOPS[i]`, o lugar `LUGARES[i]` (o retângulo na faixa e a zona das coisas dela) e a trilha `TRILHAS[i]`. Ela entra como dados em `dados/` (produtos, zonas, trilha, regra de ajudante), não reescrevendo o motor.
 - **Independência:** melhorias de uma área não podem mudar outra. Cada área tem o seu turbo e o seu cardápio, e há teste para isso.
 - **Salvar:**
-  - O progresso fica em `barraca-na-praia:save` como `{ versao: 4, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal`, `famas`, `trofeus`, a partida do torneio em andamento e `niveis` por área. O `mundo` é criado uma vez (nuvem e co-op no futuro).
+  - O progresso fica em `barraca-na-praia:save` como `{ versao: 4, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal`, `famas`, `trofeus`, a partida do torneio em andamento, o calendário da recompensa diária (`diaria`) e `niveis` por área. O `mundo` é criado uma vez (nuvem e co-op no futuro).
   - Se a estrutura do `Save` mudar, suba `SAVE_VERSION` e converta em `lerSave`. O v3 é convertido (`deV3`); antes disso, recomeça do zero.
   - Um save de versão mais nova nunca é sobrescrito.
   - Som, vibração e modo teste ficam em `barraca-na-praia:prefs`.

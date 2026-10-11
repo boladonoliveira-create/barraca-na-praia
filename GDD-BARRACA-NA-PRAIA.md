@@ -223,7 +223,22 @@ O bot segue a seta: compra a melhor que já cabe no bolso e, se nada cabe, junta
 ## 10. Retenção
 
 - Ganhos com o app fechado (já existe).
-- Recompensa diária com bônus no 7º dia seguido.
+- **Recompensa diária** (já existe; `src/core/diaria.ts`). Na primeira abertura de cada dia aparece um calendário de 7 dias:
+
+  | Dia | Prêmio |
+  |---|---|
+  | 1 | Dinheiro: 3 min de lucro da praia atual |
+  | 2 | Turbo ×2 por 5 min |
+  | 3 | Dinheiro: 5 min |
+  | 4 | Turbo ×2 por 10 min |
+  | 5 | Dinheiro: 8 min |
+  | 6 | Turbo ×3 por 5 min |
+  | 7 | +10% da fama da praia atual (no mínimo 1), com confete |
+
+  - **Botões:** "Pegar" e "Pegar em dobro (anúncio)". O dobro dobra o dinheiro, o tempo do turbo ou a fama. O cartão fecha com 1 toque e não volta no mesmo dia.
+  - **Dia seguinte:** avança 1 dia; depois do 7º, recomeça no 1.
+  - **Dia perdido:** volta 1 dia (repete o último que pegou).
+  - **Lucro de 1 minuto:** o que entrou na praia ÷ o tempo jogado nela; no comecinho da praia, no mínimo R$ 60 × fama.
 - Notificação local depois de 24 h sem jogar ("Sua barraca juntou R$ X!"). Pedir permissão só depois da Praia 2.
 - Áreas futuras trancadas no lugar delas, com placa (já existe).
 

@@ -5,6 +5,7 @@ import {
 } from '../dados/mapa.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, MARCOS, ECONOMIA, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
+import { PREMIOS, diaDeHoje, type Diaria, type Premio } from './diaria.ts';
 import { makeTrilha, type Step } from './economia.ts';
 
 export type Kind = Item | 'bill';
@@ -42,12 +43,14 @@ export interface Caminhao { estado: 'fora' | 'chegando' | 'parado' | 'saindo'; x
 /** Área 7: prancha. seca/secando: na arara; aluno: com o aluno; molhada: largada na areia (spot = índice em ESCOLA.molhadas); mao: na pilha de alguém. */
 export interface Prancha extends Pt { estado: 'seca' | 'secando' | 'aluno' | 'molhada' | 'mao'; t: number; aluno: Customer | null; spot: number }
 export interface Escola { pranchas: Prancha[]; fila: Customer[]; spawnT: number }
-export type Estado = 'inicio' | 'play' | 'ad' | 'offline' | 'beach' | 'litoral';
+export type Estado = 'inicio' | 'play' | 'ad' | 'offline' | 'beach' | 'litoral' | 'diaria';
 /** niveis: quantas compras cada área já fez (a trilha é refeita na mesma ordem ao carregar).
     praia: número da praia (1 a 10). famas: fama ganha em cada praia concluída. ganho e tempo: desta praia (dinheiro e ms de jogo). */
 export interface Save {
   money: number; niveis: number[]; paid: Record<string, number>; praia: number; famaTotal: number; famas: number[]; ganho: number; tempo: number;
   last: number; tutorial: number; pendente?: number;
+  /** recompensa diária: a data e o dia do calendário que pegou por último */
+  diaria?: Diaria;
   /** Torneio: troféus ganhos (ficam para sempre) e a partida em andamento (etapa 1 a 3, ms que faltam). */
   trofeus?: number; partida?: { etapa: number; ms: number };
 }
@@ -87,7 +90,7 @@ export function moveTo(a: Walker, tx: number, ty: number, sp: number, f: number)
 export class Jogo {
   money = 0; shown = 0; lv: Record<string, number> = {}; beach = 0; famaTotal = 0; famas: number[] = []; ganho = 0; tempo = 0; trilhas: Step[][] = []; nivel: number[] = []; paid: Record<string, number> = {};
   machines: Machine[] = []; customers: Customer[] = []; flyers: Flyer[] = []; popups: Popup[] = []; sparks: Spark[] = []; helpers: Helper[] = []; umbrellas: Umbrella[] = []; S: ShopState[] = [];
-  boostUntil = 0; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; camY = 0; testMode = false;
+  boostUntil = 0; boostX = 2; diaria: Diaria = { ultimo: null, dia: 0 }; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; camY = 0; testMode = false;
   sv: Servico = novoServico(); vend: Vendedor[] = []; esc: Escola = { pranchas: [], fila: [], spawnT: 800 };
   /** Palco: ms até o próximo show e ms que faltam do show (0 = sem show). Torneio: troféus (para sempre) e a partida. */
   caminhao: Caminhao = { estado: 'fora', x: 0, t: 0, entregues: 0 }; banhistas: Banhista[] = [];
@@ -156,6 +159,22 @@ export class Jogo {
   espaco(m: Machine) { return Math.min(this.lote(m.type) - (m.loaded || 0), m.cap - m.pile - (m.loaded || 0)) }
   cookMs(m: Machine) { const r = RECEITAS[m.type]!; return r.cozinharMs / (1 + 0.3 * this.L(r.rapido || '')) }
   boostOn() { return this.now < this.boostUntil }
+  /** Multiplicador do dinheiro das vendas agora: o turbo (do anúncio ou da recompensa diária) ou 1. */
+  turbo() { return this.boostOn() ? this.boostX : 1 }
+  /** Lucro de 1 minuto na praia atual (o que entrou até agora ÷ o tempo jogado); no comecinho da praia, um mínimo. */
+  lucroPorMin() { return Math.max(60 * this.lucro(), this.tempo > 60000 ? this.ganho / this.tempo * 60000 : 0) }
+  /** O dia da recompensa diária para pegar hoje (1 a 7), ou null. */
+  diaDeHoje(hoje: string) { return diaDeHoje(this.diaria, hoje) }
+  /** Pega a recompensa de hoje (em dobro, com o anúncio). Devolve o dia e o prêmio, ou null se já pegou hoje. */
+  pegarDiaria(hoje: string, dobro: boolean): { dia: number; premio: Premio; valor: number } | null {
+    const dia = this.diaDeHoje(hoje); if (!dia) return null;
+    const premio = PREMIOS[dia - 1], k = dobro ? 2 : 1, p = this.player; let valor = 0;
+    if (premio.tipo === 'dinheiro') { valor = Math.round(this.lucroPorMin() * premio.min * k); this.money += valor }
+    else if (premio.tipo === 'turbo') { valor = premio.min * k; this.boostX = premio.x; this.boostUntil = Math.max(this.now, this.boostUntil) + valor * 60000 }
+    else { valor = Math.max(1, Math.ceil(this.famaGanha() * premio.pct)) * k; this.famaTotal += valor; for (const c of ['#ffc23d', '#ff6b6b', '#4dabf7', '#69db7c']) this.burst(p.x, p.y - 40, c, 24) }
+    this.diaria = { ultimo: hoje, dia }; this.io.save();
+    return { dia, premio, valor };
+  }
   /** Quadro de nova praia: aparece com a área nova desta praia no nível NIVEL_NOVA_PRAIA. */
   novaPraiaAberta() { const a = this.areasPraia() - 1; return this.aberta(a) && this.nivel[a] >= NIVEL_NOVA_PRAIA }
   /** A próxima praia já tem a área dela pronta no jogo (depois da Praia 5 o quadro diz "em breve"). */
@@ -312,13 +331,13 @@ export class Jogo {
   snapshot(last = Date.now()): Save {
     return {
       money: this.testMode ? 0 : Math.floor(this.money), niveis: [...this.nivel], paid: this.paid, praia: this.beach + 1, famaTotal: this.famaTotal, famas: [...this.famas],
-      ganho: Math.floor(this.ganho), tempo: Math.round(this.tempo), last, tutorial: this.tutorial, pendente: this.pendente, trofeus: this.trofeus, partida: { ...this.partida },
+      ganho: Math.floor(this.ganho), tempo: Math.round(this.tempo), last, tutorial: this.tutorial, pendente: this.pendente, diaria: { ...this.diaria }, trofeus: this.trofeus, partida: { ...this.partida },
     };
   }
   /** Carrega o progresso salvo e devolve os ganhos com o app fechado (0 se não houver), somando o que ficou pendente. */
   load(s: Save | null, nowMs = Date.now()) {
     this.beach = s ? Math.max(1, Math.min(PRAIAS.length, s.praia || 1)) - 1 : 0;
-    this.famaTotal = s?.famaTotal || 0; this.trofeus = s?.trofeus || 0; this.famas = s?.famas ? [...s.famas] : []; this.ganho = s?.ganho || 0; this.tempo = s?.tempo || 0;
+    this.famaTotal = s?.famaTotal || 0; this.trofeus = s?.trofeus || 0; this.diaria = s?.diaria ? { ...s.diaria } : { ultimo: null, dia: 0 }; this.famas = s?.famas ? [...s.famas] : []; this.ganho = s?.ganho || 0; this.tempo = s?.tempo || 0;
     this.resetWorld(); if (!s) return 0;
     this.money = s.money || 0; this.shown = this.money; this.tutorial = s.tutorial || 0; this.paid = s.paid || {}; this.pendente = s.pendente || 0;
     (s.niveis || []).forEach((n, a) => { for (let k = 0; k < Math.min(n, 60) && a < this.areasPraia(); k++) this.applyStep(a, true) });
@@ -570,7 +589,7 @@ export class Jogo {
   }
   /** Dinheiro de uma venda: vai para a pilha da área ou, com o cofre automático, direto para o caixa. */
   receber(si: number, valor: number, x: number, y: number) {
-    const st = this.S[si], d = SHOPS[si], v = valor * (this.boostOn() ? 2 : 1);
+    const st = this.S[si], d = SHOPS[si], v = valor * this.turbo();
     this.fly('bill', x, y, d.cash.x, d.cash.y, 320);
     this.ganho += v;
     if (this.L('cofre' + si)) { this.money += v; if (this.tutorial === 2) this.tutorial = 3 } // com cofre não há pilha para recolher
@@ -662,7 +681,7 @@ export class Jogo {
         v.vendaT = A.vendaMs / this.publico() * (0.75 + this.rand() * 0.5);
         const it = v.carga.pop()!, perto = this.pertoDe(v);
         this.fly(it, v.x, v.y - 20, perto ? perto.x : v.x + 30, perto ? perto.y - 26 : v.y - 50, 260);
-        v.dinheiro += this.price(it) * (this.boostOn() ? 2 : 1);
+        v.dinheiro += this.price(it) * this.turbo();
       }
       if (!v.carga.length) v.estado = 'volta';
     }

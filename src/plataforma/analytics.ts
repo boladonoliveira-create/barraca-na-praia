@@ -2,7 +2,7 @@
    A do Firebase entra apenas no app e apenas se android/app/google-services.json existir no build (__FIREBASE__). */
 import { Capacitor } from '@capacitor/core';
 
-export type Evento = 'step_buy' | 'praia_nova' | 'session_start' | 'session_end' | 'ad_offer' | 'ad_watch' | 'offline_claim';
+export type Evento = 'step_buy' | 'praia_nova' | 'recompensa_diaria' | 'session_start' | 'session_end' | 'ad_offer' | 'ad_watch' | 'offline_claim';
 export type Params = Record<string, string | number | boolean>;
 export interface Analytics { registrar(evento: Evento, params?: Params): void }
 
