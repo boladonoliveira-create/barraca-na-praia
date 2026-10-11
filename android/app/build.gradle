@@ -15,7 +15,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
         // ID do app AdMob: vem de admob.config.json (único lugar dos IDs)
         manifestPlaceholders = [admobAppId: admobAppId()]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
