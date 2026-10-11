@@ -14,6 +14,10 @@ import { ECONOMIA, NIVEL_ABRE } from './dados/planos.ts';
 import { ensureAudio, pauseAudio, tone, fanfare, buzz } from './plataforma/som.ts';
 
 const testEnabled = import.meta.env.DEV, nativo = Capacitor.isNativePlatform();
+// material da loja (só em dev): ?loja monta a página de capturas e não sobe o jogo
+if (testEnabled && new URLSearchParams(location.search).has('loja')) {
+  await import('./render/previaLoja.ts');
+} else {
 // no app: tela cheia sem barra de status; o save sai do Preferences para a memória antes de tudo
 if (nativo) StatusBar.hide().catch(() => { /* sem barra */ });
 await iniciarArmazenamento();
@@ -106,3 +110,4 @@ requestAnimationFrame(frame);
   /** Roda o jogo ms milissegundos de uma vez e redesenha (para conferir com a aba em segundo plano). */
   avancar(ms: number) { for (let t = 0; t < ms; t += 16.67) { g.now += 16.67; g.update(16.67, { x: 0, y: 0 }); g.updateFx(16.67) } desenhar(ctx, g, k, joy) },
 };
+}
