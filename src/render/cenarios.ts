@@ -667,17 +667,22 @@ function poste(c: CanvasRenderingContext2D, x: number, y: number) {
   c.strokeStyle = '#495057'; c.lineWidth = 1.5; c.beginPath(); c.arc(x, y - 43, 5.5, Math.PI * 1.1, Math.PI * 1.9); c.stroke();
 }
 
-/** Calçada (950 a 1060): pedra portuguesa ondulada em preto e branco, com bancos e postes só onde `livre` deixa. */
+/** Calçada (950 a 1060): pedra portuguesa em ondas pretas e brancas, largas e paralelas à rua (calçadão de Copacabana).
+    As faixas claras são o fundo; as escuras são desenhadas por cima, todas com a mesma fase, então ficam paralelas. */
 function calcada(c: CanvasRenderingContext2D, e: Vista) {
   const { x0, x1 } = e, F = FAIXAS.calcadao, y0 = F.y0 + 30, y1 = F.y1, w = x1 - x0;
-  c.fillStyle = '#ece6da'; c.fillRect(x0, y0, w, y1 - y0);
-  c.strokeStyle = '#2b2b2b'; c.lineWidth = 7; c.lineCap = 'round'; // ondas largas em faixas horizontais
-  const passo = 22, xa = Math.floor(x0 / 12) * 12;
-  for (let r = 0; y0 + 11 + r * passo < y1; r++) {
-    const yy = y0 + 11 + r * passo; c.beginPath();
-    for (let x = xa; x <= x1; x += 12) { const py = yy + Math.sin(x / 70 + r * 0.9) * 4; x === xa ? c.moveTo(x, py) : c.lineTo(x, py) }
-    c.stroke();
+  c.fillStyle = '#ece6da'; c.fillRect(x0, y0, w, y1 - y0); // fundo claro (pedra branca)
+  const passo = 20, amp = 7, xa = Math.floor(x0 / 12) * 12, onda = (x: number, yy: number) => yy + Math.sin(x / 45) * amp;
+  c.save(); c.beginPath(); c.rect(x0, y0, w, y1 - y0); c.clip(); // recorta as ondas na faixa da calçada
+  c.fillStyle = '#2b2b2b';
+  for (let r = 0; y0 + r * passo < y1; r += 2) { // uma faixa preta a cada duas (as claras ficam do fundo)
+    const topo = y0 + r * passo;
+    c.beginPath();
+    for (let x = xa; x <= x1; x += 12) { const py = onda(x, topo); x === xa ? c.moveTo(x, py) : c.lineTo(x, py) }
+    for (let x = x1; x >= xa; x -= 12) c.lineTo(x, onda(x, topo + passo));
+    c.closePath(); c.fill();
   }
+  c.restore();
   cada(e, 260, (x, i) => { // bancos e postes, longe dos quadros de compra (y 1005)
     const px = x + 40 + hash(i) * 120, py = y0 + 40;
     if (!livre(px, py, 16)) return;
