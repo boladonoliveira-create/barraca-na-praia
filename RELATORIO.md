@@ -154,3 +154,69 @@ Tudo dentro da faixa.
 - **Retomar A4 e A5** assim que o `JAVA_HOME` e a `JOGOS_CHAVE_SENHA` estiverem certos. Os passos estão no roteiro; pela A4, ainda falta conferir `versionCode 1`, `versionName "1.0.0"` e o nome do app no `android/`.
 - **Calendário no litoral:** um selo "recompensa de amanhã" no HUD, para lembrar de voltar (fora do escopo desta rodada).
 - **Recompensa diária e o tutorial:** na primeira abertura, o cartão aparece antes do tutorial. Vale avaliar se no dia 1 ele deveria aparecer só depois da primeira venda.
+
+## Parte B (OpenCode)
+
+Resultado: feita. B1, B2 e B3 entraram. Também regenerei o APK de teste (pedido do usuário), que estava pendente da parte A. O AAB assinado **não** foi gerado, por falta da senha (`JOGOS_CHAVE_SENHA`).
+
+Commits:
+- `5d6264c`: B1 (pedra portuguesa);
+- `d42b7ec`: B2 (página `?loja`);
+- `355d7a0`: B3 (textos e privacidade);
+- `57460a8`: APK de teste (versionName e `.gitignore`);
+- o deste relatório vem logo depois.
+
+### B1. Pedra portuguesa
+- Troquei as listras retas por **ondas largas, pretas sobre fundo claro**, no mesmo sentido paralelo à rua (Copacabana). Faixas com passo de 20, amplitude 7 e onda por `sin(x/45)`, recortadas na calçada; o banco e o poste continuam respeitando `livre()`. Arquivo: `src/render/cenarios.ts` (só a função da calçada).
+- `npm test` (76) e `npm run build` OK.
+
+### B2. Página `?loja`
+- Arquivo novo `src/render/previaLoja.ts` e a entrada em `src/main.ts`, só para `?loja` em dev (o guard usa `import.meta.env.DEV`, então em produção o arquivo nem entra no pacote — conferido no `dist`).
+- Monta o `Jogo` como o `?praia=N` faz e usa o próprio `desenhar` do jogo. Desenha:
+  - **ícone 512 × 512** (barraca com guarda-sol listrado e coco com canudo, mar ao fundo, sem texto) e a **prévia 48 × 48**;
+  - **destaque 1024 × 500** (nome "Barraca na Praia" e a praia cheia);
+  - **6 capturas 1080 × 1920**, cada uma com faixa de título no topo: Monte o seu point (Praia 4 cheia), Contrate ajudantes, Viaje para praias novas, Show de pagode (palco), Seja campeão (torneio) e Jogue só com um dedo (Praia 1 com a seta).
+- Cada imagem tem o botão **"Baixar"** (salva o PNG pelo `toDataURL`). **Não** repliquei o plugin do `vite.config.ts` do Metrô que grava direto em `loja/` (o `AGENTS.md` proíbe mudar configurações), então os PNGs **não** estão versionados: é preciso abrir `?loja` e clicar em "Baixar" para gerar os 8 arquivos.
+- **Conferência (headless, Chromium):** a página abre sem nenhum erro de console/página; os 9 canvases (1 do jogo + 8 do material) saem com o tamanho certo e com conteúdo (512, prévia 48, 1024 × 500 e seis de 1080 × 1920).
+- `npm test` (76) e `npm run build` OK.
+
+### B3. Textos
+- `loja/textos-pt-BR.md`: título, descrição curta e descrição longa **exatamente** como no roteiro, mais a tabela de imagens e o checklist do Play Console no modelo do Metrô (troquei o nome do app e ajustei os pacotes: aqui não tem `share` nem `local-notifications`).
+- `loja/privacidade.md`: modelo do Metrô, trocando o nome do app e os itens do save (dinheiro, nível das áreas, praia, fama, recompensa diária).
+- `npm test` (76) e `npm run build` OK.
+
+### APK de teste (A4, pedido do usuário)
+- **`versionCode 1` e `versionName "1.0.0"`** (mudei o `versionName`, que estava "1.0", como o roteiro A4 pede); nome do app "Barraca na Praia" (já estava certo).
+- Comandos: `npm run build`, `npx cap sync android`, `gradlew assembleDebug`. Resultado copiado para **`dist-android/barraca-na-praia-debug.apk`** (10,8 MB). Confirmei com o `aapt2`: pacote `com.jogosbr.barracanapraia`, versionCode 1, versionName 1.0.0, label "Barraca na Praia".
+- **Java:** o build quebra com o JDK 17 do `JAVA_HOME` ("invalid source release: 21"): o Capacitor 8 pede Java 21+. Usei o `jbr` do Android Studio (`D:\Android\jbr`, OpenJDK 25) só neste build. O `setx` recomendado pela A3 continua valendo (ver "O que depende do usuário").
+- `.gitignore` da raiz ganhou `dist-android` e `android/key.properties` (o roteiro A4/A5 pede isso; o `android/.gitignore` já cobre APK/AAB/jks).
+
+### AAB assinado (A5) — não gerado
+- `JOGOS_CHAVE_SENHA` não existe e a chave `C:\dev jogos\chaves\barraca-upload.jks` também não. Como não há senha, não criei a chave, nem `android/key.properties`, nem a configuração `release` no `build.gradle`. Segui a regra do roteiro ("se a senha não existir, pule e explique").
+
+### Critérios de pronto (parte B)
+- [x] A calçada tem as ondas pretas e brancas (B1).
+- [x] `?loja` gera o ícone, a imagem de destaque e as 6 capturas (B2); os textos e a privacidade estão em `loja/` (B3).
+- [x] `dist-android/barraca-na-praia-debug.apk` existe.
+- [ ] O AAB assinado não existe: falta a `JOGOS_CHAVE_SENHA` e a chave de upload (A5).
+- [x] `npm test` (76) e `npm run build` passam.
+
+### O que ficou fraco ou não deu
+- **AAB assinado:** não deu, pela senha/chave ausentes (A5). Sem isso não há pacote de publicação.
+- **Os PNGs da loja não estão no repositório.** O roteiro pediu só os botões "Baixar" e o `AGENTS.md` proíbe mexer no `vite.config.ts`, então não criei o "Salvar tudo em `loja/`" do Metrô. Para publicar, é preciso abrir `?loja` e baixar os 8 arquivos na mão.
+- **Mexi em `android/app/build.gradle`** (só o `versionName`), o que o `AGENTS.md` normalmente proíbe, mas o usuário pediu para regerar o APK com os passos da parte A, e a A4 exige `1.0.0`.
+- **Firebase sem `google-services.json`:** o arquivo não existe, então o plugin do Google não é aplicado e o build sai sem ele. Não afeta o APK de teste, mas vale criar antes de publicar.
+
+### Dúvidas
+1. **Commit do `android/app/build.gradle`:** tudo bem ter commitado a mudança do `versionName` (e do `.gitignore`)? Se preferir que a parte A refaça isso, é só reverter `57460a8`.
+2. **PNGs versionados:** quer que eu grave os 8 PNGs em `loja/` e versione (como no Metrô), ou fica só pelos botões "Baixar"?
+3. **`.gitignore`:** a regra do `AGENTS.md` diz para não mexer em configurações; adicionei `dist-android` e `android/key.properties` porque o roteiro A4/A5 manda. Confirmar que está certo.
+
+### O que depende do usuário
+1. Rodar, numa janela nova:
+   ```
+   setx JAVA_HOME "D:\Android\jbr"
+   setx JOGOS_CHAVE_SENHA "sua-senha-aqui"
+   ```
+2. Com a senha criada, a parte A pode gerar a chave de upload e o AAB (A5).
+3. Abrir `http://localhost:5175/?loja` e baixar os 8 PNGs para a loja.
