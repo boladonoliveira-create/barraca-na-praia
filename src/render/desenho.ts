@@ -710,11 +710,14 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   for (const v of g.visibleSteps()) { const s = SLOTS[v.s.slot], got = g.paid[v.a + ':' + v.k] || 0; drawPad(s.x, s.y, v.s.name, v.s.price - got, got / v.s.price, v.s.k === 'up', false, v.k !== g.nivel[v.a]) }
   if (g.novaPraiaAberta()) drawPadPraia();
 
+  // banhistas: numa camada própria, por baixo de clientes, ajudantes e do jogador (que fica sempre visível),
+  // e um pouco mais claros, para quem importa no jogo saltar à vista
+  const bs = g.banhistas.map(b => ({ b, q: g.posBanhista(b) })).filter(({ q }) => q.x > x0 - 30 && q.x < x1 + 30 && q.y > camY - 40 && q.y < camY + H + 60).sort((a, b) => a.q.y - b.q.y);
+  ctx.globalAlpha = 0.75; for (const { b, q } of bs) drawBanhista(b, q); ctx.globalAlpha = 1;
   // ordem de profundidade pelo y
   const ds: { y: number; d: () => void }[] = [];
   g.machines.forEach(m => ds.push({ y: m.y, d: () => drawMachine(m) }));
   g.vend.forEach(v => ds.push({ y: v.y, d: () => drawVendedor(v) }));
-  for (const b of g.banhistas) { const q = g.posBanhista(b); if (q.x < x0 - 30 || q.x > x1 + 30 || q.y < camY - 40 || q.y > camY + H + 60) continue; ds.push({ y: q.y, d: () => drawBanhista(b, q) }) }
   g.customers.forEach(c => ds.push({ y: c.y, d: () => {
     // aluno da escolinha: no mar, de pé na prancha
     if (c.state === 'surf' || ((c.state === 'irMar' || c.state === 'voltaMar') && c.y < SHORE + 10)) {

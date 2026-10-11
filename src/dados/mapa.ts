@@ -200,7 +200,8 @@ export function livre(x: number, y: number, folga = 12) {
   const dentro = (r: Rect, mx = 0, my = 0) => Math.abs(x - r.x) < r.w / 2 + folga + mx && Math.abs(y - r.y) < r.h / 2 + folga + my;
   for (const d of SHOPS) {
     if (dentro(d.counter) || dentro(d.drop) || dentro({ ...d.cash, w: 40, h: 40 })) return false;
-    if (d.kind === 'counter' || d.kind === 'kiosk') { const top = d.counter.y - d.counter.h / 2; if (dentro({ x: d.cx, y: top - 70, w: 60, h: 140 })) return false } // fila
+    // fila: sobe do balcão e, comprida, dobra para o lado (side)
+    if (d.kind === 'counter' || d.kind === 'kiosk') { const top = d.counter.y - d.counter.h / 2; if (dentro({ x: d.cx + d.side * 45, y: top - 80, w: 150, h: 160 })) return false }
   }
   for (const k in SLOTS) if (dentro({ ...SLOTS[k], w: 72, h: 60 })) return false;
   for (const l of LUGARES) if (dentro(l.zona)) return false;

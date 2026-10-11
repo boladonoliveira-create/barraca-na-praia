@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Jogo, padOf, NUM_AREAS } from './jogo.ts';
+import { Jogo, padOf, NUM_AREAS, BANHISTA_LONGE, TROCA_MS } from './jogo.ts';
 import { rng } from './simulador.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, ECONOMIA } from '../dados/planos.ts';
 import { SHOPS, LUGARES, SLOTS, ESCOLA, PALCO, TORNEIO, PRODUCTS, FAIXAS, WORLD_H, WORLD_W, H, AMBULANTE, livre, type Rect } from '../dados/mapa.ts';
@@ -60,6 +60,17 @@ describe('demanda', () => {
     rodar(g, 5000, () => { g.S[0].spawnT = 1e9 });
     expect(g.S[0].queue.map(c => c.want)).toEqual(['coco']);
     expect(g.S[0].cashValue).toBe(6);
+  });
+});
+
+describe('fila sem travar', () => {
+  it('balcão cheio de açaí e a fila pedindo coco: depois de um tempo, quem espera troca o pedido e compra', () => {
+    const g = novo(); g.addMachine('coco', 110, 612); g.S[0].spawnT = 1e9;
+    for (let i = 0; i < 4; i++) { g.spawnCustomer(0); g.S[0].queue.at(-1)!.want = 'coco' }
+    for (let i = 0; i < 20; i++) g.S[0].counter.acai.push('acai');
+    rodar(g, 4000, () => { g.S[0].spawnT = 1e9 }); expect(g.S[0].cashValue).toBe(0); // ainda esperando o coco
+    rodar(g, TROCA_MS + 4000, () => { g.S[0].spawnT = 1e9 });
+    expect(g.S[0].cashValue).toBeGreaterThan(0); expect(g.S[0].counter.acai.length).toBeLessThan(20);
   });
 });
 
@@ -498,6 +509,12 @@ describe('banhistas', () => {
     const por = (n: number) => naPraia(n).banhistas.length / (WORLD_W / 400);
     for (let n = 1; n <= 10; n++) { expect(por(n)).toBeGreaterThanOrEqual(24.5); expect(por(n)).toBeLessThanOrEqual(40.5) }
     expect(por(9)).toBeLessThan(Math.min(...[1, 2, 3, 4, 5, 6, 7, 8, 10].map(por)));
+  });
+
+  it(`param a ${BANHISTA_LONGE} ou mais de balcões, quadros, filas, entregas, pilhas e bancada (em todas as praias)`, () => {
+    for (let n = 1; n <= 10; n++) for (const b of naPraia(n).banhistas) b.pts.forEach((p, k) => {
+      if (b.acao[k] !== 'nada') expect(livre(p.x, p.y, BANHISTA_LONGE), `praia ${n}: (${p.x.toFixed(0)}, ${p.y.toFixed(0)})`).toBe(true);
+    });
   });
 
   it('nunca travam: andam, param e voltam a andar; ficam no mar ou em lugar livre da areia, nunca na rua (10 min)', () => {

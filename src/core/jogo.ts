@@ -69,6 +69,10 @@ export interface Io {
 }
 const NO_IO: Io = { tone() {}, fanfare() {}, buzz() {}, save() {}, goal() {}, viagem() {}, compra() {}, campeao() {} };
 
+/** Distância mínima entre o lugar onde um banhista para e qualquer coisa do jogo (legibilidade). */
+export const BANHISTA_LONGE = 50;
+/** Cliente esperando um produto em falta troca pelo que tem no balcão depois deste tempo (ms). */
+export const TROCA_MS = 6000;
 /** Câmera vertical: segue o jogador quando ele passa desta distância do pé da tela. */
 export const CAM_FOLGA = 60;
 export const zoneOf = (m: Pt): Rect => ({ x: m.x, y: m.y + 50, w: 80, h: 44 });
@@ -516,6 +520,13 @@ export class Jogo {
       const maxQ = si === 0 ? 6 + this.umbrellas.length : 7, interval = d.base / demand * stockF / this.publico();
       st.spawnT -= dt; if (st.spawnT <= 0) { st.spawnT = interval * (0.75 + this.rand() * 0.5); if (st.queue.length < maxQ) this.spawnCustomer(si) }
       st.queue.forEach((c, i) => { const q = this.slotPos(si, i); c.arr = moveTo(c, q.x, q.y, 2.5, f) });
+      // quem está entre os 4 primeiros e espera há muito por um produto em falta troca pelo que tem no balcão
+      // (sem isso, balcão cheio de um produto + fila pedindo o outro + jogador com a bolsa cheia travava a barraca)
+      if (d.kind === 'counter') for (const c of st.queue.slice(0, 4)) {
+        if (!c.arr || this.hasStock(si, c.want)) { c.sitT = 0; continue }
+        const outro = d.products.find(t => this.hasStock(si, t)); if (!outro || (c.sitT += dt) < TROCA_MS) continue;
+        c.want = outro; c.sitT = 0; this.popups.push({ x: c.x, y: c.y - 46, txt: 'Então me vê esse!', life: 1.2, col: '#3a2316', size: 14 });
+      }
       // os 4 primeiros da fila podem comprar
       const bi = st.queue.findIndex((c, i) => i < 4 && c.arr && this.hasStock(si, c.want));
       if (bi >= 0) {
@@ -666,10 +677,11 @@ export class Jogo {
   /** Sorteia os banhistas da praia: PRAIAS[b].banhistas por tela, cada um com 3 pontos de interesse fora das áreas. */
   criarBanhistas() {
     const R = this.rand, P = PRAIAS[Math.min(this.beach, PRAIAS.length - 1)], n = Math.round(P.banhistas * WORLD_W / W);
-    const ponto = (mar: boolean): Pt => {
+    // longe (BANHISTA_LONGE) de balcões, quadros, filas, entregas, pilhas e bancada; dx: a dupla do frescobol, ao lado
+    const ponto = (mar: boolean, dx = 0): Pt => {
       for (let k = 0; k < 12; k++) {
         const p = { x: 20 + R() * (WORLD_W - 40), y: mar ? 46 + R() * 60 : FAIXAS.areia.y0 + 30 + R() * (FAIXAS.areia.y1 - FAIXAS.areia.y0 - 50) };
-        if (mar || livre(p.x, p.y, 20)) return p;
+        if (mar || (livre(p.x, p.y, BANHISTA_LONGE) && (!dx || livre(p.x + dx, p.y, BANHISTA_LONGE)))) return p;
       }
       return { x: 20 + R() * (WORLD_W - 40), y: 60 }; // sem lugar livre na areia: vai nadar
     };
@@ -677,8 +689,8 @@ export class Jogo {
     while (this.banhistas.length < n) {
       const crianca = R() < 0.18, frescobol = !crianca && R() < 0.12, pts: Pt[] = [], acao: Acao[] = [], fica: number[] = [], anda: number[] = [];
       for (let k = 0; k < 3; k++) {
-        const mar = !crianca && R() < 0.25, p = ponto(mar); pts.push(p);
-        acao.push(mar ? 'nada' : frescobol ? 'frescobol' : crianca ? 'brinca' : (['canga', 'canga', 'parado'] as Acao[])[Math.floor(R() * 3)]);
+        const mar = !crianca && R() < 0.25, p = ponto(mar, frescobol ? 44 : 0); pts.push(p);
+        acao.push(p.y < FAIXAS.areia.y0 ? 'nada' : frescobol ? 'frescobol' : crianca ? 'brinca' : (['canga', 'canga', 'parado'] as Acao[])[Math.floor(R() * 3)]);
         fica.push(6000 + R() * 16000);
       }
       const vel = (0.45 + R() * 0.3) / 16.67; // unidades por ms, devagar
