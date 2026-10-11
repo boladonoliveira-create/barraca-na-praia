@@ -149,9 +149,9 @@ A estrutura segue dois jogos de referência. No Idle Miner Tycoon, cada parte da
   | Quadra | 1,2 milhão | 130 mil | 1,3 |
   | Ambulantes | 800 mil | 1,05 milhão | 1,15 |
   | Escolinha de surf | 2 milhões | 3 milhões | 1,15 |
-  | Sucos e vitaminas | 4 milhões | 6 milhões | 1,15 |
+  | Sucos e vitaminas | 4 milhões | 6,5 milhões | 1,15 |
   | Palco de pagode | 12 milhões | 13 milhões | 1,15 |
-  | Torneio | 18 milhões | 19 milhões | 1,25 |
+  | Torneio | 18 milhões | 18 milhões | 1,25 |
 
   Nas áreas 6 a 10, abrir é barato e as melhorias são caras e sobem devagar: assim a área nova ocupa a maior parte da praia, e não a espera para abrir.
 - **Praia:** cada praia multiplica os preços de compra por 1,45^b. As vendas não sobem com a praia: sobem com a fama.
@@ -160,7 +160,7 @@ A estrutura segue dois jogos de referência. No Idle Miner Tycoon, cada parte da
 
 ### Nova praia e fama
 
-- **Quadro de nova praia:** aparece quando a área N (a novidade da praia N) chega ao nível 10. É um quadro dourado no canto da Barraca do Sol: "Viajar para a Praia Grande · +X de fama". Custa `viagem[N]` × o preço do próximo nível da área N: 1,6 nas Praias 1 a 4, 1,3 na Praia 5 e 1 da Praia 6 em diante.
+- **Quadro de nova praia:** aparece quando a área N (a novidade da praia N) chega ao nível 10. É um quadro dourado no canto da Barraca do Sol: "Viajar para a Praia Grande · +X de fama". Custa `viagem[N]` × o preço do próximo nível da área N: 1,6 nas Praias 1 a 3, 1,4 na 4, 1,3 na 5 e 1 da Praia 6 em diante.
 - **Obrigatório para avançar,** mas sem pressa: o jogador pode continuar crescendo antes de comprar para ganhar mais fama.
 - **Na Praia 10** não há viagem: o quadro mostra "Praia 11 · em breve". A meta é ser campeão do torneio.
 - **Ao comprar:** zeram o dinheiro e os níveis; ficam a fama total, os troféus do torneio e as preferências.
@@ -188,20 +188,20 @@ O bot segue a seta: compra a melhor que já cabe no bolso e, se nada cabe, junta
 
 | Praia | Meta | Hoje (sementes 1, 2 e 3) |
 |---|---|---|
-| 1 | 8 a 10 min | 8,7 / 8,7 / 8,7 |
-| 2 | 15 a 20 min | 18,5 / 18,6 / 18,4 |
-| 3 | 20 a 25 min | 21,7 / 21,6 / 22,0 |
-| 4 | 25 a 35 min | 30,4 / 28,3 / 30,3 |
-| 5 | 35 a 45 min | 38,2 / 36,8 / 37,4 |
-| 6 | 45 a 55 min | 48,1 / 50,5 / 47,2 |
-| 7 | 55 a 65 min | 60,4 / 57,4 / 57,3 |
-| 8 | 60 a 75 min | 61,2 / 67,7 / 69,6 |
-| 9 | 70 a 85 min | 83,8 / 80,1 / 76,5 |
-| 10 | 80 a 95 min | 90,1 / 88,3 / 89,7 |
-| Total | 7,5 a 9 h | 7,7 / 7,6 / 7,6 h |
+| 1 | 8 a 10 min | 8,6 / 8,6 / 8,7 |
+| 2 | 15 a 20 min | 18,6 / 18,6 / 18,2 |
+| 3 | 20 a 25 min | 21,8 / 22,2 / 21,8 |
+| 4 | 25 a 35 min | 29,3 / 29,7 / 30,6 |
+| 5 | 35 a 45 min | 36,6 / 38,5 / 37,3 |
+| 6 | 45 a 55 min | 49,0 / 46,7 / 49,8 |
+| 7 | 55 a 65 min | 58,3 / 61,9 / 57,9 |
+| 8 | 60 a 75 min | 73,7 / 68,3 / 67,4 |
+| 9 | 70 a 85 min | 74,3 / 78,3 / 81,8 |
+| 10 | 80 a 95 min | 86,7 / 86,2 / 84,5 |
+| Total | 7,5 a 9 h | 7,6 / 7,7 / 7,6 h |
 
-- **Nenhuma espera** entre compras passa de 150 s (hoje, no máximo 147 s).
-- **As áreas antigas** voltam a funcionar nos primeiros 25% do tempo da praia (hoje, de 9% a 19%).
+- **Nenhuma espera** entre compras passa de 150 s (hoje, no máximo 140 s).
+- **As áreas antigas** voltam a funcionar nos primeiros 25% do tempo da praia (hoje, de 7% a 18%).
 - **No mapa em faixas** o jogador anda mais entre as áreas; os preços das áreas 5 a 10 foram baixados para compensar (seção 8, "Preços").
 - Os valores finais saem do simulador (seção 11) e das métricas do teste fechado.
 

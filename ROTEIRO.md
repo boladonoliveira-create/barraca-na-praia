@@ -1,6 +1,6 @@
 # Roteiro: Barraca na Praia
 
-Status: PRONTO PARA EXECUTAR
+Status: PRONTO PARA OPENCODE
 Rodada: 8
 Porta: 5175
 Quem faz: parte A = Claude Code. Parte B = OpenCode.
