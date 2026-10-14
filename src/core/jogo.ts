@@ -1,6 +1,6 @@
 /* Núcleo do jogo: estado, economia, clientes, ajudantes e compras. Sem canvas e sem DOM. */
 import {
-  SHOPS, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, SERVICO, PREPARO, RECEITAS, ATRACAO, PALCO, TORNEIO,
+  SHOPS, LUGARES, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, SERVICO, PREPARO, RECEITAS, ATRACAO, PALCO, TORNEIO,
   AMBULANTE, ESCOLA, PHRASES, SHIRTS, SKINS, W, H, WORLD_W, WORLD_H, ANDA, FAIXAS, livre, type Item, type Rect,
 } from '../dados/mapa.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, MARCOS, ECONOMIA, AREAS } from '../dados/planos.ts';
@@ -104,6 +104,11 @@ export class Jogo {
   }
 
   /* ---------- Valores derivados ---------- */
+  /** Antes dos Ambulantes, inclui as áreas 1–5 e o quadrado da área 6 para mostrar a próxima expansão. */
+  limitePraia() {
+    return this.aberta(5) ? WORLD_W : Math.max(...LUGARES.slice(0, 6).map(l => l.zona.x + l.zona.w / 2)) + 24;
+  }
+
   L(id: string) { return this.lv[id] || 0 }
   /** Fama: o lucro de todas as áreas (vendas e ganhos com o app fechado) × (1 + taxa × fama total). */
   lucro() { return 1 + ECONOMIA.taxaFama * this.famaTotal }
@@ -472,7 +477,7 @@ export class Jogo {
     let ix = input.x, iy = input.y; const il = Math.hypot(ix, iy); if (il > 1) { ix /= il; iy /= il }
     const sp = 3.6 * (1 + 0.12 * this.L('chinelo')); p.x += ix * sp * f; p.y += iy * sp * f;
     if (il > 0.05) { p.walk += 0.3 * f; if (Math.abs(ix) > 0.1) p.face = ix > 0 ? 1 : -1; this.moved += sp * f * Math.min(1, il) }
-    p.x = Math.max(16, Math.min(WORLD_W - 16, p.x)); p.y = Math.max(ANDA.y0, Math.min(ANDA.y1, p.y));
+    p.x = Math.max(16, Math.min(this.limitePraia() - 16, p.x)); p.y = Math.max(ANDA.y0, Math.min(ANDA.y1, p.y));
     for (const m of this.machines) { if (m.pilha) continue; const hw = 34, hh = 26, dx = p.x - m.x, dy = p.y - m.y; if (Math.abs(dx) < hw && Math.abs(dy) < hh) { const px = hw - Math.abs(dx), py = hh - Math.abs(dy); if (px < py) p.x += px * Math.sign(dx || 1); else p.y += py * Math.sign(dy || 1) } }
     this.stepTransfer(p, dt); this.pegarPranchas(p);
 
@@ -576,7 +581,7 @@ export class Jogo {
     }
     this.customers = this.customers.filter(c => !c.gone);
 
-    const camMax = WORLD_W - W; const target = Math.max(0, Math.min(camMax, p.x - W / 2)); this.camX += (target - this.camX) * Math.min(1, 0.12 * f);
+    const camMax = this.limitePraia() - W; const target = Math.max(0, Math.min(camMax, p.x - W / 2)); this.camX = Math.max(0, Math.min(camMax, this.camX + (target - this.camX) * Math.min(1, 0.12 * f)));
     // na vertical, a câmera só desce quando o jogador chega perto do pé da tela (a areia de cima fica como sempre foi),
     // e desce mais depressa que ele, para a grama e o calçadão aparecerem inteiros
     const alvoY = Math.max(0, Math.min(WORLD_H - H, (p.y - (H - CAM_FOLGA)) * 1.6)); this.camY += (alvoY - this.camY) * Math.min(1, 0.12 * f);

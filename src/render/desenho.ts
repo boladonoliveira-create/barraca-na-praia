@@ -693,6 +693,19 @@ function tutorialTarget(): { t: Rect | { x: number; y: number; h: number } | nul
   return { t, up };
 }
 
+/** Corda baixa: limite de exploração até a abertura dos Ambulantes. Só restringe o jogador, nunca clientes. */
+function drawLimitePraia() {
+  if (g.aberta(5)) return;
+  const x = g.limitePraia() - 4;
+  ctx.strokeStyle = '#c1a16d'; ctx.lineWidth = 3;
+  for (let y = SHORE + 44; y < FAIXAS.calcadao.y1 - 20; y += 70) {
+    ctx.beginPath(); ctx.moveTo(x, y - 12); ctx.quadraticCurveTo(x - 5, y + 25, x, y + 58); ctx.stroke();
+    ctx.fillStyle = '#a26b2f'; rr(x - 3, y - 22, 6, 24, 2); ctx.fill();
+    ctx.fillStyle = '#e0b87a'; circ(x, y - 22, 3); ctx.fill();
+  }
+  tagTxt(x - 110, SHORE + 64, 'Praia livre com os Ambulantes');
+}
+
 export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy: Joy) {
   ctx = c; g = jogo; const camX = g.camX, camY = g.camY, p = g.player;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); ctx.setTransform(k, 0, 0, k, -camX * k, -camY * k);
@@ -700,11 +713,12 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   desenharCenario(ctx, P, { x0, x1, t: reduceMotion ? 0 : g.now, cam: camX }, WORLD_H);
   for (const s of specks) { if (s.x < x0 || s.x > x1) continue; ctx.fillStyle = s.c; circ(s.x, s.y, s.r); ctx.fill() }
   ctx.fillStyle = 'rgba(255,255,255,0.22)'; rr(10, WALL_Y + 4, 380, PLAY_BOTTOM - WALL_Y + 12, 18); ctx.fill(); // o chão da Barraca do Sol
+  drawLimitePraia();
   g.umbrellas.forEach(drawUmbrella);
   drawBarraca(); drawKiosk(); drawServico(); drawBarraca(3); drawQuadra(); drawAmbulantes(); drawEscola(); drawBarraca(7); drawPalco(); drawTorneio();
   for (let a = 0; a < NUM_AREAS; a++) drawEnfeites(a);
   // áreas fechadas: todas aparecem trancadas no lugar delas (pilar 6)
-  LUGARES.forEach((L, i) => { if (i === 0 || g.aberta(i) || L.zona.x + L.zona.w / 2 < x0 || L.zona.x - L.zona.w / 2 > x1) return; drawTrancado(i) });
+  LUGARES.forEach((L, i) => { if (i === 0 || g.aberta(i) || (!g.aberta(5) && i > 5) || L.zona.x + L.zona.w / 2 < x0 || L.zona.x - L.zona.w / 2 > x1) return; drawTrancado(i) });
   for (const v of g.visibleSteps()) { const s = SLOTS[v.s.slot], got = g.paid[v.a + ':' + v.k] || 0; drawPad(s.x, s.y, v.s.name, v.s.price - got, got / v.s.price, v.s.k === 'up', false, v.k !== g.nivel[v.a]) }
   if (g.novaPraiaAberta()) drawPadPraia();
 

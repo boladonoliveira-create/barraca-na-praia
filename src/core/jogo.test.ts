@@ -560,3 +560,37 @@ describe('orla em faixas', () => {
 
 function SLOTS_X(slot: string) { return SLOTS[slot].x }
 function dentroDe(p: { x: number; y: number }, r: Rect) { return Math.abs(p.x - r.x) <= r.w / 2 && Math.abs(p.y - r.y) <= r.h / 2 }
+
+
+describe('exploração liberada pelos Ambulantes', () => {
+  it('antes da área 6, limita jogador e câmera incluindo todo o próximo quadrado trancado', () => {
+    const g = mundo([5, 5, 5, 5, 5]);
+    const limite = g.limitePraia(), proxima = LUGARES[5].rect;
+    expect(limite).toBeGreaterThan(proxima.x + proxima.w / 2);
+    expect(limite).toBeLessThan(WORLD_W);
+    g.player.x = WORLD_W - 16; g.player.y = 200; g.camX = WORLD_W - 400;
+    g.update(DT, { x: 1, y: 0 });
+    expect(g.player.x).toBeLessThanOrEqual(limite - 16);
+    expect(g.camX + 400).toBeLessThanOrEqual(limite);
+    // O quadro da abertura continua alcançável dentro da corda.
+    expect(SLOTS.fence5.x + 36).toBeLessThan(limite - 16);
+  });
+
+  it('libera toda a praia ao abrir os Ambulantes, mesmo com as áreas futuras trancadas', () => {
+    const g = mundo([5, 5, 5, 5, 5]);
+    subir(g, 5, 1);
+    expect(g.aberta(5)).toBe(true); expect(g.aberta(6)).toBe(false);
+    expect(g.limitePraia()).toBe(WORLD_W);
+    g.player.x = WORLD_W - 16; g.player.y = 200;
+    rodar(g, 3000);
+    expect(g.player.x).toBe(WORLD_W - 16);
+    expect(g.camX).toBeCloseTo(WORLD_W - 400, 1);
+  });
+
+  it('uma viagem volta a limitar a exploração até reabrir os Ambulantes', () => {
+    const g = mundo([5, 5, 5, 5, 5, 1]);
+    expect(g.limitePraia()).toBe(WORLD_W);
+    g.resetWorld();
+    expect(g.aberta(5)).toBe(false); expect(g.limitePraia()).toBeLessThan(WORLD_W);
+  });
+});
