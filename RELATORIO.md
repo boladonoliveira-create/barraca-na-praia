@@ -220,3 +220,118 @@ Commits:
    ```
 2. Com a senha criada, a parte A pode gerar a chave de upload e o AAB (A5).
 3. Abrir `http://localhost:5175/?loja` e baixar os 8 PNGs para a loja.
+
+
+## Parte C (OpenCode) — ordem da orla, exploração e banhistas
+
+Data: 14/10/2026. Resultado: as três partes pedidas foram concluídas, em ordem, com um commit por parte. O relatório anterior foi preservado. O `ROTEIRO.md` da rodada anterior continua em `Status: AGUARDANDO REVISÃO`; o escopo desta rodada foi o pedido direto do usuário.
+
+### Commits e validação
+
+| Parte | Commit | Validação antes do commit |
+|---|---|---|
+| 1. Ordem das áreas | `6cb1817` | `npm test`: 77 testes; `npm run build`: passou |
+| 2. Limite até os Ambulantes | `75c29c5` | `npm test`: 80 testes; `npm run build`: passou |
+| 3. Banhistas e calibração final | `4c1f284` | `npm test`: 81 testes; `npm run build`: passou |
+
+O relatório é registrado num commit separado, também depois de `npm test` e `npm run build`.
+
+### O que foi feito
+
+1. **Ordem das áreas:** os centros dos negócios agora seguem Barraca do Sol, Sorveteria, Chuveirão, Milho e pastel, Quadra, Ambulantes, Escolinha de surf, Sucos, Palco e Torneio, da esquerda para a direita. A orla passou de 2600 para 3500 de largura para conservar o espaço de trabalho; as faixas e as alturas foram mantidas. O Torneio ganhou uma quadra própria no último trecho, e a Quadra da área 5 continua aparecendo depois que o Torneio abre. Balcões, filas, caixas, pranchas, máquinas, pontos de compra e a câmera da captura do Torneio foram ajustados. As áreas futuras continuam com quadrado e placa trancados. Os testes verificam a ordem, as faixas, as zonas sem sobreposição e as máquinas alcançáveis.
+2. **Exploração:** antes de abrir a área 6, `Jogo.limitePraia()` limita a largura a 2044, incluindo as áreas 1 a 5 e todo o quadrado trancado dos Ambulantes. Jogador e câmera respeitam esse limite; uma corda baixa com estacas marca a divisa. A abertura dos Ambulantes libera a largura inteira, remove a corda e deixa todas as áreas futuras trancadas visíveis. Viajar e reiniciar a praia volta a limitar a exploração até reabrir os Ambulantes. Não foi criado campo novo no save. Os testes cobrem o limite, a compra alcançável, a liberação e o reinício.
+3. **Banhistas:** densidade de 12,5 a 20 por tela de largura 400, variando por praia. Aproximadamente 50% ficam em cangas, 20% em cadeiras sob guarda-sol, 10% em grupinhos parados, 10% no mar e até 10% têm passeios curtos. As fileiras têm pequenos desvios, alternam o alinhamento e agrupam até três pessoas. Nenhum banhista ocupa exatamente o mesmo ponto que outro. Lugares e passeios reservam a silhueta dos enfeites além dos 50 de afastamento das zonas de trabalho. Banhistas continuam fora das colisões, desenhados abaixo do jogador e dos clientes. Os testes conferem a densidade, grupos, afastamento e comportamento por 10 minutos.
+
+A densidade é uma média por faixa horizontal de 400: as zonas de trabalho ficam mais vazias, e a areia livre concentra os grupos. `amostrasBanhistas` mantém o orçamento anterior de sorteios de candidatos; a organização visual usa um hash próprio, evitando alterar a sequência aleatória das vendas quando muda a densidade. As mudanças nos lugares dos banhistas alteram somente o destino visual dos produtos vendidos pelos Ambulantes, não o pagamento deles.
+
+### Economia e simulador
+
+Rodei `npm run sim` depois das mudanças no mapa e depois do limite. As execuções intermediárias diagnosticaram praias fora do tempo, uma espera de 170 s na viagem da Praia 8 e um total ligeiramente abaixo de 7,5 h. Não alterei o bot, as metas nem as asserções do simulador.
+
+Calibração final em `ECONOMIA`:
+
+| Número | Antes | Depois |
+|---|---|---|
+| Base de Milho e pastel | 38000 | 37000 |
+| Base de Sucos | 6500000 | 6000000 |
+| Base do Palco | 13000000 | 11650000 |
+| Base do Torneio | 18000000 | 17700000 |
+| Fator de viagem da Praia 8 | 1 | 0,85 |
+
+A execução final de `npm run sim`, com bot humano e sementes 1, 2 e 3, terminou as 10 praias e deu **Tudo dentro da faixa** nas três sementes. Todas as metas por praia, espera máxima de 150 s, áreas antigas abertas nos primeiros 25% e total entre 7,5 e 9 h passaram. O script imprime problemas sem retornar código de erro; conferi as mensagens e os resultados, além do teste econômico da semente 1.
+
+#### Semente 1
+
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 8.6 | 8 a 10 | - | 109 s | 3 |
+| 2 | 18.5 | 15 a 20 | 0% | 118 s | 8 |
+| 3 | 21.8 | 20 a 25 | 8% | 83 s | 40 |
+| 4 | 28.8 | 25 a 35 | 19% | 107 s | 97 |
+| 5 | 41.2 | 35 a 45 | 17% | 115 s | 242 |
+| 6 | 50.8 | 45 a 55 | 15% | 96 s | 520 |
+| 7 | 62.6 | 55 a 65 | 9% | 89 s | 1192 |
+| 8 | 64.1 | 60 a 75 | 9% | 90 s | 2105 |
+| 9 | 75.4 | 70 a 85 | 11% | 87 s | 3817 |
+| 10 | 85.3 | 80 a 95 | 12% | 78 s | 6142 |
+Total: 457.0 min (7.6 h)
+
+Resultado: tudo dentro da faixa.
+
+#### Semente 2
+
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 8.7 | 8 a 10 | - | 109 s | 3 |
+| 2 | 18.3 | 15 a 20 | 0% | 111 s | 8 |
+| 3 | 22.1 | 20 a 25 | 9% | 87 s | 40 |
+| 4 | 28.8 | 25 a 35 | 18% | 105 s | 98 |
+| 5 | 37.4 | 35 a 45 | 18% | 113 s | 226 |
+| 6 | 50.9 | 45 a 55 | 15% | 110 s | 510 |
+| 7 | 56.8 | 55 a 65 | 10% | 91 s | 1093 |
+| 8 | 66.7 | 60 a 75 | 9% | 106 s | 2087 |
+| 9 | 78.3 | 70 a 85 | 11% | 88 s | 3810 |
+| 10 | 92.6 | 80 a 95 | 11% | 93 s | 6437 |
+Total: 460.6 min (7.7 h)
+
+Resultado: tudo dentro da faixa.
+
+#### Semente 3
+
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 8.7 | 8 a 10 | - | 109 s | 3 |
+| 2 | 18.4 | 15 a 20 | 0% | 117 s | 8 |
+| 3 | 22.0 | 20 a 25 | 9% | 85 s | 40 |
+| 4 | 29.6 | 25 a 35 | 18% | 121 s | 99 |
+| 5 | 37.0 | 35 a 45 | 18% | 96 s | 225 |
+| 6 | 52.2 | 45 a 55 | 14% | 128 s | 514 |
+| 7 | 60.3 | 55 a 65 | 9% | 102 s | 1159 |
+| 8 | 67.2 | 60 a 75 | 9% | 113 s | 2180 |
+| 9 | 73.3 | 70 a 85 | 11% | 78 s | 3696 |
+| 10 | 82.8 | 80 a 95 | 12% | 75 s | 5929 |
+Total: 451.5 min (7.5 h)
+
+Resultado: tudo dentro da faixa.
+
+Os totais foram 457,0 / 460,6 / 451,5 min (aproximadamente 7,62 / 7,68 / 7,52 h). A maior espera observada foi 128 s; as áreas antigas abriram em até 19% do tempo da praia. Os valores das tabelas estão arredondados como na saída do simulador; as verificações usam os valores sem arredondamento.
+
+### Ambiente na nuvem e verificação visual
+
+- Li `CLAUDE.md`, `AGENTS.md`, `ROTEIRO.md`, o relatório anterior e `docs/MOLDE-ORLA.md` antes das alterações. O `../CLAUDE.md` citado nas instruções não existe neste checkout.
+- Node 24.19.0; dependências instaladas com `npm ci`, preservando manifestos, lockfile, integridade e TLS. O cache padrão em `/home/agent/.npm` falhou por não ser gravável; usar `--cache /tmp/barraca-npm-cache` resolveu a instalação.
+- `npm run dev -- --host 0.0.0.0` iniciou o Vite na porta 5175, e uma requisição local confirmou o HTML e o canvas. Chromium abriu o jogo e executou as prévias sem exceções de JavaScript.
+- Na prévia da Praia 5, tentar posicionar o jogador em x=3000 o manteve na divisa, com câmera em aproximadamente 1644 e corda visível. Na Praia 6, a mesma posição foi alcançada, com câmera em aproximadamente 2800, sem corda e com Palco/Torneio trancados à vista. Também conferi a distribuição das cangas/cadeiras na Praia 10 e o Palco na nova posição.
+- Atualizei `CLAUDE.md` e o molde da orla para refletir a exploração, as coordenadas e os banhistas.
+- Salvei `install_script` e `start_skill` no rascunho do ambiente, com diretório, Node 24, instalação pelo lockfile, reinício do Vite e verificações. Não foram necessários novos segredos ou domínios. O salvamento foi confirmado; ele não publica o ambiente. Para reutilizar o snapshot, revisar/salvar as configurações e publicar o ambiente pela interface.
+
+### O que ficou fraco ou não deu
+
+- Nenhuma das três partes ficou bloqueada; todos os testes finais, build e as três sementes passaram. As falhas intermediárias de economia foram resolvidas pela calibração acima.
+- A validação visual foi feita em Chromium headless; não houve teste manual em celular físico nem avaliação de FPS em aparelho. Isso continua sendo uma conferência útil para revisão, principalmente nos grupos de banhistas e na corda junto à borda da câmera.
+- APK e AAB não foram gerados nesta rodada: não faziam parte das três mudanças pedidas. As pendências Android registradas no relatório anterior não foram tratadas.
+- A publicação do ambiente e a restauração numa nova tarefa não foram executadas; o fluxo web foi validado na instância atual e as instruções reutilizáveis foram salvas.
+
+### Dúvidas
+
+Nenhuma dúvida bloqueante. A quadra separada do Torneio foi necessária para cumprir sua posição depois do Palco mantendo a área 5 no quinto trecho.
