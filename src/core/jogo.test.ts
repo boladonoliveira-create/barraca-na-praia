@@ -472,6 +472,13 @@ describe('área 10: torneio', () => {
 });
 
 describe('áreas no mapa', () => {
+  it('segue a progressão da esquerda para a direita, incluindo a quadra própria do torneio', () => {
+    for (let a = 1; a < LUGARES.length; a++) {
+      expect(LUGARES[a].rect.x).toBeGreaterThan(LUGARES[a - 1].rect.x);
+      expect(SHOPS[a].cx).toBeGreaterThan(SHOPS[a - 1].cx);
+    }
+    expect(SHOPS[9].counter).not.toEqual(SHOPS[4].counter);
+  });
   it('nenhuma área fica fora da faixa dela; o balcão fica dentro do lugar da área', () => {
     LUGARES.forEach((L, a) => {
       const F = FAIXAS[L.faixa], r = L.rect;
@@ -485,10 +492,9 @@ describe('áreas no mapa', () => {
     expect(LUGARES[6].rect.y - LUGARES[6].rect.h / 2).toBeLessThan(FAIXAS.areia.y0 + 60); expect(LUGARES[5].faixa).toBe('calcadao');
   });
 
-  it('as zonas das áreas não se sobrepõem (o torneio usa a da quadra)', () => {
+  it('as zonas das áreas não se sobrepõem', () => {
     const z = LUGARES.map(L => L.zona);
     for (let a = 0; a < z.length; a++) for (let b = a + 1; b < z.length; b++) {
-      if (a === 4 && b === 9) { expect(z[b]).toEqual(z[a]); continue }
       const sep = Math.abs(z[a].x - z[b].x) >= (z[a].w + z[b].w) / 2 || Math.abs(z[a].y - z[b].y) >= (z[a].h + z[b].h) / 2;
       expect(sep, a + ' e ' + b).toBe(true);
     }

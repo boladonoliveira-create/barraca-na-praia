@@ -316,7 +316,7 @@ function drawServico() {
 }
 /* ---------- Área 5: quadra de futevôlei (atração) ---------- */
 function drawQuadra() {
-  if (!g.aberta(4) || g.aberta(9)) return;
+  if (!g.aberta(4)) return;
   const c = SHOPS[4].counter, x0 = c.x - c.w / 2, y0 = c.y - c.h / 2, arq = g.L('arquibancada'), rede = g.L('rede'), tor = g.L('torneio');
   ctx.fillStyle = '#f3d9a4'; rr(x0, y0, c.w, c.h, 6); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(x0 + 6, y0 + 6, c.w - 12, c.h - 12);
   // rede (a nova é listrada) e os postes
@@ -636,9 +636,7 @@ function drawKiosk() {
     que falta para abrir; de uma praia futura, "Trancado · área · Praia N". Dá para passar por cima (não muda o jogo). */
 function drawTrancado(i: number) {
   const L = LUGARES[i], r = L.rect, futura = i >= g.areasPraia();
-  if (i === 9 && !g.aberta(4)) return; // o torneio usa a quadra: enquanto ela não abre, a placa dela já diz o lugar
-  const so = i === 9; // com a quadra aberta, o torneio só mostra a placa, ao lado dela
-  if (!so) {
+  { // cada área futura tem seu próprio quadrado
     // chão levemente mais escuro, com o tracejado na cor da faixa (areia, grama ou calçadão)
     const f = r.y < FAIXAS.areia.y1 ? ['rgba(120,80,30,0.10)', 'rgba(138,106,82,0.6)']
       : r.y < FAIXAS.grama.y1 ? ['rgba(40,110,40,0.10)', 'rgba(74,124,68,0.65)']
@@ -647,7 +645,7 @@ function drawTrancado(i: number) {
     rr(r.x - r.w / 2, r.y - r.h / 2, r.w, r.h, 14); ctx.fillStyle = f[0]; ctx.fill();
     ctx.setLineDash([8, 6]); ctx.strokeStyle = f[1]; ctx.lineWidth = 2.5; ctx.stroke(); ctx.setLineDash([]);
   }
-  const px = so ? r.x + r.w / 2 - 80 : r.x, py = so ? r.y - r.h / 2 + 46 : r.y;
+  const px = r.x, py = r.y;
   ctx.save(); ctx.translate(px, py); ctx.rotate(-0.03);
   ctx.fillStyle = '#8d5a2b'; ctx.fillRect(-3, 20, 6, 26); ctx.fillStyle = '#6b4a2a'; ctx.fillRect(-1, 22, 1.6, 22); // estaca
   ctx.fillStyle = '#e0b87a'; rr(-76, -30, 152, 56, 10); ctx.fill(); ctx.strokeStyle = '#a26b2f'; ctx.lineWidth = 3; ctx.stroke(); // tábua

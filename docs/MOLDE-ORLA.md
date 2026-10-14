@@ -4,7 +4,7 @@ A praia agora é uma orla de verdade, como no Recreio (RJ): do mar até a rua, e
 
 ## As faixas
 
-O mundo tem **2600 de largura e 1140 de altura**; a tela mostra 400 × 760. Os números ficam em `FAIXAS` (`src/dados/mapa.ts`).
+O mundo tem **3500 de largura e 1140 de altura**; a tela mostra 400 × 760. Os números ficam em `FAIXAS` (`src/dados/mapa.ts`).
 
 | Faixa | y | O que tem | Jogador |
 |---|---|---|---|
@@ -36,20 +36,20 @@ Na areia, a decoração das praias (`enfeitesAreia`) já é recortada para fora 
 
 | # | Área | Faixa | Lugar (rect) | Zona | Balcão (SHOPS.counter) |
 |---|---|---|---|---|---|
-| 0 | Barraca do Sol | areia | 0–400 × 140–760 | igual | (200, 300), 200 × 40 |
-| 1 | Sorveteria | grama | 470–690 × 828–912 | 410–750 × 828–1040 | (540, 862), 96 × 44 |
-| 2 | Chuveirão e cadeiras | areia | 660–1050 × 455–815 | 660–1050 × 440–815 | chuveiros em (770, 620) e (870, 620) |
-| 3 | Milho e pastel | grama | 905–1580 × 828–912 | 905–1580 × 828–1040 | (1200, 862), 200 × 40 |
-| 4 | Quadra de futevôlei | areia | 2130–2500 × 485–815 | 2130–2500 × 489–815 | a quadra: (2315, 650), 160 × 104 |
-| 5 | Ambulantes | calçadão | 2180–2595 × 925–1055 | 2180–2600 × 828–1060 | bancada (2440, 962), 140 × 36 |
-| 6 | Escolinha de surf | areia (beira) | 1460–1840 × 150–495 | 1460–1840 × 150–488 | arara (1650, 215), 170 × 30 |
-| 7 | Sucos e vitaminas | grama | 1620–2210 × 828–912 | 1620–2178 × 828–1040 | (1830, 862), 200 × 40 |
-| 8 | Palco de pagode | areia (centro) | 1120–1400 × 290–625 | 1110–1410 × 280–630 | o palco: (1260, 400), 200 × 110 |
-| 9 | Torneio | usa a quadra | igual à quadra | igual à quadra | a mesma quadra |
+| 0 | BARRACA DO SOL | areia | 0–400 × 140–760 | 0–400 × 140–760 | (200, 300), 200 × 40 |
+| 1 | SORVETERIA | grama | 470–690 × 828–912 | 410–750 × 828–1040 | (540, 862), 96 × 44 |
+| 2 | CHUVEIRÃO E CADEIRAS | areia | 660–1050 × 455–815 | 660–1050 × 440–815 | (820, 600), 220 × 30 |
+| 3 | MILHO E PASTEL | grama | 905–1580 × 828–912 | 905–1580 × 828–1040 | (1200, 862), 200 × 40 |
+| 4 | QUADRA DE FUTEVÔLEI | areia | 1365–1735 × 485–815 | 1365–1735 × 489–815 | (1550, 650), 160 × 104 |
+| 5 | AMBULANTES | calcadao | 1600–2015 × 925–1055 | 1600–2020 × 828–1060 | (1860, 962), 140 × 36 |
+| 6 | ESCOLINHA DE SURF | areia | 2020–2400 × 150–495 | 2020–2400 × 150–488 | (2210, 215), 170 × 30 |
+| 7 | SUCOS E VITAMINAS | grama | 2220–2810 × 828–912 | 2220–2778 × 828–1040 | (2430, 862), 200 × 40 |
+| 8 | PALCO DE PAGODE | areia | 2690–2970 × 290–625 | 2680–2980 × 280–630 | (2830, 400), 200 × 110 |
+| 9 | TORNEIO DE FUTEVÔLEI | areia | 3080–3450 × 485–815 | 3080–3450 × 489–815 | (3265, 650), 160 × 104 |
 
 - **Quiosques na grama (1, 3 e 7):** o prédio fica na grama; os clientes fazem fila subindo para a areia; o jogador trabalha do lado do calçadão (zona de entrega em y 936, quadros em y 1005); as máquinas (caixas e panelas) ficam na grama, ao lado do prédio.
-- **Ambulantes (5):** a bancada fica no calçadão; as pilhas de caixas, na calçada (x 2300 e 2560, y 1030); o caminhão para na rua em (2440, 1100); os ambulantes esperam em cima da bancada (y 912 a 918) e rodam pela areia (y 190 a 790).
-- **Na areia livre** (entre as áreas) andam os banhistas. Trechos livres para enfeites de "divisa": `DIVISAS` = [430, 1085, 1440, 1980, 2560].
+- **Ambulantes (5):** a bancada fica no calçadão; as pilhas de caixas, na calçada (x 1720 e 1980, y 1030); o caminhão para na rua em (1860, 1100); os ambulantes esperam em cima da bancada (y 912 a 918) e rodam pela areia (y 190 a 790).
+- **Na areia livre** (entre as áreas) andam os banhistas. Trechos livres para enfeites de "divisa": `DIVISAS` = [430, 1085, 1780, 2070, 2660, 3050, 3460].
 
 ## Paleta
 

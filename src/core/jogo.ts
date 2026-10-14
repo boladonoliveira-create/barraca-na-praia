@@ -259,8 +259,8 @@ export class Jogo {
       if (s.id === 'ambulantes') { this.S[5].open = true; this.addPilha('caixaMate'); this.syncVendedores(); this.caminhao = { estado: 'fora', x: 0, t: 800, entregues: 0 } }
       if (s.id === 'biscoito') this.addPilha('caixaBisc');
       if (s.id === 'escola') { this.S[6].open = true; this.syncPranchas() }
-      if (s.id === 'sucos') { this.S[7].open = true; this.addMachine('laranja', 1660, 852); this.addCooker('sucoLaranja', 2000, 852) }
-      if (s.id === 'liqui2') { this.addMachine('acaiBanana', 2170, 852); this.addCooker('sucoAcai', 2085, 852) }
+      if (s.id === 'sucos') { this.S[7].open = true; this.addMachine('laranja', 2260, 852); this.addCooker('sucoLaranja', 2600, 852) }
+      if (s.id === 'liqui2') { this.addMachine('acaiBanana', 2770, 852); this.addCooker('sucoAcai', 2685, 852) }
       if (s.id === 'palco') { this.S[8].open = true; this.palco = { t: this.intervaloShow(), show: 0 } }
       if (s.id === 'arena') this.S[9].open = true;
     } else {

@@ -1,7 +1,7 @@
 /* Rodada 8, B2: material da loja (só em dev, ?loja). Tudo é desenhado no canvas com o próprio render do jogo:
    ícone 512 × 512 (com prévia em 48 × 48), destaque 1024 × 500 e 6 capturas 1080 × 1920. Cada imagem tem "Baixar",
    que baixa o PNG pelo navegador. Base: previaLoja.ts do Metrô (só leitura). */
-import { W, H, WORLD_W, WORLD_H } from '../dados/mapa.ts';
+import { W, H, WORLD_W, WORLD_H, SHOPS } from '../dados/mapa.ts';
 import { Jogo } from '../core/jogo.ts';
 import { desenhar, type Joy } from './desenho.ts';
 import { ECONOMIA, NIVEL_ABRE, NIVEL_NOVA_PRAIA } from '../dados/planos.ts';
@@ -136,7 +136,7 @@ function capturas(): [string, HTMLCanvasElement][] {
   // 4. show de pagode no palco
   const g4 = montar(9); subir(g4, 8, 6); encher(g4, 30); g4.palco = { t: 0, show: 600000 }; camera(g4, 1262, 460); g4.state = 'inicio';
   // 5. torneio (final em andamento, com troféus)
-  const g5 = montar(10); subir(g5, 9, 7); encher(g5, 30); g5.trofeus = 2; g5.partida = { etapa: 3, ms: 300000 }; camera(g5, 2315, 650); g5.state = 'inicio';
+  const g5 = montar(10); subir(g5, 9, 7); encher(g5, 30); g5.trofeus = 2; g5.partida = { etapa: 3, ms: 300000 }; camera(g5, SHOPS[9].counter.x, SHOPS[9].counter.y); g5.state = 'inicio';
   // 6. Praia 1, com a seta do tutorial (jogar com um dedo)
   const g6 = montar(1); g6.firstScene(); encher(g6, 4); g6.tutorial = 0; g6.moved = 0; camera(g6, 200, 560); g6.state = 'play';
   return [
