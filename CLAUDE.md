@@ -4,7 +4,7 @@ Jogo mobile "idle arcade" (no estilo do Pizza Ready): o jogador anda com um dedo
 
 - Design completo: `GDD-BARRACA-NA-PRAIA.md` (fonte da verdade para regras e números).
 - Protótipo de referência: `barraca-na-praia.html`. O que o GDD marca como "já existe no protótipo" precisa manter o mesmo comportamento.
-- **Orla em faixas:** do mar até a rua: mar, areia, grama, calçadão e rua (só visual). O jogador anda pela praia inteira, da areia ao fim da calçada, e a câmera segue também na vertical (`FAIXAS` em `dados/mapa.ts`).
+- **Orla em faixas:** do mar até a rua: mar, areia, grama, calçadão e rua (só visual). Até abrir os Ambulantes, o jogador explora o trecho das áreas 1 a 5 e o quadrado trancado da área 6; depois anda pela praia inteira, da areia ao fim da calçada, e a câmera segue também na vertical (`FAIXAS` em `dados/mapa.ts`).
 - **Áreas:** 10, cada uma num lugar da orla (`LUGARES`): Barraca do Sol (areia, à esquerda), Sorveteria, Milho e pastel e Sucos (quiosques na grama), Chuveirão e Quadra (areia, perto da grama), Palco (centro da areia), Escolinha de surf (beira da água), Ambulantes (bancada no calçadão e caminhão na rua) e Torneio (quadra própria no fim da orla). As áreas futuras aparecem trancadas no lugar delas. A praia fica cheia de banhistas, que não compram e não atrapalham (GDD seções 6 e 7).
 - **Trilhas:** cada área tem a sua trilha de níveis, independente das outras, e a área N+1 abre quando a área N chega ao nível 5 (GDD seções 6 a 8).
 - **Praias:** o litoral tem 10 praias (`src/dados/praias.ts`). A praia N tem as áreas 1 a N; a área N é a novidade. Com a área N no nível 10 aparece o quadro dourado da viagem: zera dinheiro e níveis e dá fama, que multiplica o lucro de tudo. As 10 praias existem; na Praia 10 o quadro diz "Praia 11 · em breve" e a meta é ser campeão do torneio. Os troféus do torneio dão público para sempre (GDD seções 6 e 8).
@@ -80,7 +80,7 @@ O `npm run sim` roda com o Node 24, que executa TypeScript direto. Por isso os i
   - recolhe as pilhas paradas;
   - opera chuveirão, cadeiras e panelas.
 - **Variações:** o bot humano (padrão) reage com 200 a 400 ms de atraso, anda com desvio leve e para 3 a 5 s a cada 30 s. `npm run sim -- --perfeito` usa o bot perfeito.
-- **Números:** ficam em `ECONOMIA` (`src/dados/planos.ts`): preços, fator por praia (1,45), custo da viagem por praia (`viagem`), fama (K = 2000, taxa 0,07) e o desconto das áreas antigas (20%). Hoje as 10 praias ficam dentro da meta nas 3 sementes (~9 / 18 / 22 / 30 / 38 / 49 / 59 / 70 / 78 / 86 min), e o total fica em 7,6 a 7,7 h.
+- **Números:** ficam em `ECONOMIA` (`src/dados/planos.ts`): preços, fator por praia (1,45), custo da viagem por praia (`viagem`), fama (K = 2000, taxa 0,07) e o desconto das áreas antigas (20%). Hoje as 10 praias ficam dentro da meta nas 3 sementes (~9 / 18 / 22 / 29 / 39 / 51 / 60 / 66 / 76 / 87 min), e o total fica em 7,5 a 7,7 h.
 - **Sensível:** o resultado muda bastante com pequenas mudanças de preço (o bot escolhe compras diferentes e a fama acumula). Ao mexer num número, rode as 3 sementes de novo.
 
 ## Ordem de trabalho (GDD seção 12)

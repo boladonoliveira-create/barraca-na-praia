@@ -94,10 +94,10 @@ export const AJUDANTE = ['ajud', 'ajudS', 'salva', 'cozinheiro', '', 'gerente', 
 /** Números da economia (GDD seção 8). Ajustados com o simulador: npm run sim. */
 export const ECONOMIA = {
   abrir: [0, 6000, 130000, 450000, 1200000, 800000, 2000000, 4000000, 12000000, 18000000],  // preço de abrir cada área (o quadro na cerca), na Praia 1
-  base: [110, 700, 11000, 37000, 130000, 1050000, 3000000, 6000000, 11500000, 18000000],          // preço da primeira melhoria de cada área, na Praia 1
+  base: [110, 700, 11000, 37000, 130000, 1050000, 3000000, 6000000, 11650000, 17700000],          // preço da primeira melhoria de cada área, na Praia 1
   cresce: [1.5, 1.4, 1.3, 1.3, 1.3, 1.15, 1.15, 1.15, 1.15, 1.25],                          // cada nível custa isto vezes o anterior, dentro da área
   praia: 1.45,     // cada praia multiplica os preços de compra (praia^b); as vendas sobem com a fama
-  viagem: [1.6, 1.6, 1.6, 1.4, 1.3, 1, 1, 1, 1, 1], // em cada praia, a viagem custa isto × o preço do próximo nível da área nova
+  viagem: [1.6, 1.6, 1.6, 1.4, 1.3, 1, 1, 0.85, 1, 1], // em cada praia, a viagem custa isto × o preço do próximo nível da área nova
   antiga: 0.2,     // começo rápido (Praia 3 em diante): as áreas antigas custam esta fração do preço
   famaK: 2000,     // fama ganha numa praia = floor(sqrt(ganho na praia / famaK))
   taxaFama: 0.07,  // lucro de todas as áreas × (1 + taxaFama × fama total)

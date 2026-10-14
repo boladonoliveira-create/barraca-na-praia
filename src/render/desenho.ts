@@ -454,11 +454,13 @@ const BAN_HAIRS = ['#2b1d14', '#5a3825', '#8a5a2b', '#e0b04a', '#1a1a1a', '#b565
 const BAN_CAPS = ['#e8590c', '#1c7ed6', '#2f9e44', '#e64980', '#f59f00'];
 
 /** Guarda-sol pequeno com cadeira ao lado de uma canga (às vezes). */
-function guardaSolCanga(x: number, y: number, i: number) {
+function guardaSolCanga(x: number, y: number, i: number, cadeira = true) {
   const cor = CANGAS[i % CANGAS.length];
   shadow(x, y + 6, 14);
+  if (cadeira) {
   ctx.fillStyle = '#a26b2f'; ctx.fillRect(x + 8, y - 2, 12, 3); ctx.fillRect(x + 8, y - 9, 12, 3); // cadeira
   ctx.strokeStyle = '#495057'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x + 8, y + 6); ctx.lineTo(x + 9, y - 9); ctx.moveTo(x + 20, y + 6); ctx.lineTo(x + 19, y - 9); ctx.stroke();
+  }
   ctx.strokeStyle = '#9c8660'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - 6, y + 6); ctx.lineTo(x - 6, y - 24); ctx.stroke(); // haste
   ctx.fillStyle = cor; ctx.beginPath(); ctx.ellipse(x - 6, y - 22, 15, 8, 0, Math.PI, 0); ctx.fill(); // cúpula
   ctx.fillStyle = 'rgba(255,255,255,0.65)'; ctx.beginPath(); ctx.ellipse(x - 6, y - 22, 15, 8, 0, Math.PI, Math.PI * 1.5); ctx.fill();
@@ -488,6 +490,19 @@ function drawBanhista(b: Banhista, q: { x: number; y: number; acao: string; face
     ctx.fillStyle = skin; circ(q.x, q.y - 6, 4.6); ctx.fill(); ctx.fillStyle = hair; ctx.beginPath(); ctx.arc(q.x, q.y - 6, 4.6, Math.PI, Math.PI * 2); ctx.fill();
     return;
   }
+  if (q.acao === 'cadeira') { // cadeira dobrável, com o corpo sentado e as pernas estendidas
+    guardaSolCanga(q.x + 6, q.y - 4, b.cor, false);
+    ctx.strokeStyle = '#f8f9fa'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(q.x - 9, q.y - 24); ctx.lineTo(q.x - 6, q.y + 5); ctx.lineTo(q.x + 13, q.y + 5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(q.x - 6, q.y - 4); ctx.lineTo(q.x + 9, q.y + 10); ctx.moveTo(q.x + 10, q.y - 4); ctx.lineTo(q.x - 8, q.y + 10); ctx.stroke();
+    ctx.fillStyle = CANGAS[b.cor % CANGAS.length]; rr(q.x - 8, q.y - 23, 17, 23, 3); ctx.fill();
+    ctx.fillStyle = shirt; rr(q.x - 6, q.y - 21, 14, 16, 4); ctx.fill();
+    ctx.strokeStyle = skin; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(q.x - 1, q.y - 5); ctx.lineTo(q.x + 14, q.y + 3); ctx.moveTo(q.x + 4, q.y - 5); ctx.lineTo(q.x + 17, q.y - 1); ctx.stroke();
+    ctx.fillStyle = skin; circ(q.x, q.y - 27, 5); ctx.fill();
+    ctx.fillStyle = hair; ctx.beginPath(); ctx.arc(q.x, q.y - 27, 5, Math.PI, Math.PI * 2); ctx.fill();
+    return;
+  }
   if (q.acao === 'canga') { // deitado na canga (de bruços ou de barriga para cima, pelo b.cor)
     const cor = CANGAS[b.cor % CANGAS.length], brucos = b.cor % 2 === 0, f = q.face || 1;
     ctx.save(); ctx.translate(q.x, q.y); ctx.rotate((hash(b.cor) - 0.5) * 0.12);
@@ -499,7 +514,7 @@ function drawBanhista(b: Banhista, q: { x: number; y: number; acao: string; face
     ctx.fillStyle = hair; ctx.beginPath(); ctx.arc(-13, -1, 5, brucos ? Math.PI : 0.4, brucos ? Math.PI * 2 : Math.PI - 0.4); ctx.fill();
     if (brucos) { ctx.fillStyle = hair; ctx.beginPath(); ctx.arc(-13, -1, 5, Math.PI, Math.PI * 2); ctx.fill() }
     ctx.restore();
-    if (b.cor % 4 === 0) guardaSolCanga(q.x + 28, q.y, b.cor);
+    if (b.cor % 4 === 0) guardaSolCanga(q.x + 20, q.y, b.cor);
     return;
   }
   ctx.save(); ctx.translate(q.x, q.y); if (b.crianca) ctx.scale(0.7, 0.7);

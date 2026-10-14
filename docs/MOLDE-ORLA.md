@@ -125,7 +125,7 @@ Varie roupa, cabelo e cor por `b.cor`. Mantenha o tamanho de hoje (a criança a 
 
 ### B4. Palco central (`src/render/desenho.ts`, só `drawPalco`)
 
-O palco é o quadrado em (1260, 400), 200 × 110, no centro da areia, com caminho livre em volta.
+O palco é o quadrado em (2830, 400), 200 × 110, no centro da areia, com caminho livre em volta.
 
 - **Músicos, sempre no palco:** 8 no total.
   - 3 na frente, em pé: cavaquinho, pandeiro e vocal.
@@ -136,7 +136,7 @@ O palco é o quadrado em (1260, 400), 200 × 110, no centro da areia, com caminh
 - **Camarote:** um cercadinho de um lado do palco, com um quiosque pequeno dele (bebidas).
 - **Multidão:** durante o show, muita gente em volta (a frente do palco fica em y 455 a 500). Use `hash` para posições fixas e um pulinho por `g.now`.
 - **Mantenha:** a placa "PALCO DE PAGODE" e as etiquetas "Próximo show em 2:10" / "SHOW!", que estão no fim da função.
-- **Limite:** não cubra os quadros de compra do palco (y 520 e 590, x 1170, 1260 e 1350); fique dentro da zona (1110–1410 × 280–630).
+- **Limite:** não cubra os quadros de compra do palco (y 520 e 590, x 2740, 2830 e 2920); fique dentro da zona (2680–2980 × 280–630).
 
 ### B5. Placas trancadas (`src/render/desenho.ts`, só `drawTrancado`)
 
@@ -164,3 +164,10 @@ Todo valor de dinheiro aparece curto:
 ## Conferir
 
 Abra `http://localhost:5175/?praia=N` (só em `npm run dev`) e ande pela orla inteira, descendo até a calçada. Se não tiver navegador, confira pela função `livre` e pelos limites de cada item.
+
+
+## Atualização: exploração e banhistas
+
+As áreas seguem a progressão da esquerda para a direita. Antes dos Ambulantes, o jogador e a câmera ficam dentro de `Jogo.limitePraia()` (2044): inclui as áreas 1 a 5 e o quadrado trancado da área 6, com corda baixa. Ao abrir os Ambulantes, a corda some e toda a orla de 3500 fica livre; todas as áreas futuras ficam visíveis e trancadas. O limite volta ao viajar, até reabrir os Ambulantes.
+
+A densidade atual é de 12,5 a 20 banhistas por tela de largura 400, conforme a praia. A maioria fica deitada na canga, sentada em cadeira sob guarda-sol ou em grupinhos em fileiras soltas; aproximadamente 10% nadam e no máximo 10% têm passeios curtos. Os lugares e os passeios reservam margem para toda a silhueta e ficam longe das zonas de trabalho. Banhistas são apenas decoração: não entram nas colisões e são desenhados abaixo dos clientes e do jogador. `amostrasBanhistas` é o orçamento fixo de candidatos sorteados: evita mudar a sequência aleatória da economia ao ajustar a densidade visual.

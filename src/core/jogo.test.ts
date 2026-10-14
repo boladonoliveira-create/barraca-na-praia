@@ -511,9 +511,13 @@ describe('áreas no mapa', () => {
 });
 
 describe('banhistas', () => {
-  it('de 25 a 40 por tela, variando por praia; a Praia do Pôr do Sol tem menos', () => {
+  it('de 12 a 20 por tela, variando por praia; a Praia do Pôr do Sol tem menos', () => {
     const por = (n: number) => naPraia(n).banhistas.length / (WORLD_W / 400);
-    for (let n = 1; n <= 10; n++) { expect(por(n)).toBeGreaterThanOrEqual(24.5); expect(por(n)).toBeLessThanOrEqual(40.5) }
+    for (let n = 1; n <= 10; n++) {
+      const g = naPraia(n);
+      expect(por(n)).toBeGreaterThanOrEqual(12); expect(por(n)).toBeLessThanOrEqual(20.1);
+      expect(new Set(g.banhistas.map(b => `${b.pts[0].x}:${b.pts[0].y}`)).size).toBe(g.banhistas.length);
+    }
     expect(por(9)).toBeLessThan(Math.min(...[1, 2, 3, 4, 5, 6, 7, 8, 10].map(por)));
   });
 
@@ -523,16 +527,29 @@ describe('banhistas', () => {
     });
   });
 
-  it('nunca travam: andam, param e voltam a andar; ficam no mar ou em lugar livre da areia, nunca na rua (10 min)', () => {
+  it('a maioria descansa, alguns nadam e poucos passeiam sem entrar nas áreas de trabalho (10 min)', () => {
     const g = naPraia(5), antes = g.banhistas.map(b => g.posBanhista(b, 0));
     const mexeu = g.banhistas.map(() => 0);
     for (let t = 0; t < 600000; t += 1000) g.banhistas.forEach((b, i) => {
       const q = g.posBanhista(b, t); if (Math.hypot(q.x - antes[i].x, q.y - antes[i].y) > 1) mexeu[i]++; antes[i] = q;
       expect(q.y).toBeLessThan(FAIXAS.grama.y0); expect(q.x).toBeGreaterThan(0); expect(q.x).toBeLessThan(WORLD_W + 50);
       if (q.acao === 'nada') expect(q.y).toBeLessThan(FAIXAS.areia.y0);
-      else if (q.acao !== 'anda' && b.par < 0) expect(livre(q.x, q.y)).toBe(true);
+      else expect(livre(q.x, q.y, BANHISTA_LONGE)).toBe(true);
     });
-    expect(mexeu.every(n => n > 10)).toBe(true);
+    const passeiam = mexeu.filter(n => n > 10).length;
+    expect(passeiam).toBeGreaterThan(0);
+    expect(passeiam).toBeLessThan(g.banhistas.length * 0.2);
+    expect(mexeu.filter(n => n === 0).length).toBeGreaterThan(g.banhistas.length * 0.7);
+    expect(g.banhistas.filter(b => b.acao[0] === 'nada').length).toBeGreaterThan(0);
+    expect(g.banhistas.filter(b => b.acao[0] === 'cadeira').length).toBeGreaterThan(0);
+  });
+
+  it('cangas e cadeiras formam grupos próximos em fileiras fora das áreas de trabalho', () => {
+    const g = naPraia(10), pts = g.banhistas.filter(b => ['canga', 'cadeira', 'parado'].includes(b.acao[0])).map(b => b.pts[0]);
+    expect(new Set(pts.map(p => `${p.x}:${p.y}`)).size).toBe(pts.length);
+    const juntos = pts.filter(p => pts.some(q => p !== q && Math.hypot(q.x - p.x, q.y - p.y) < 65));
+    expect(juntos.length).toBeGreaterThan(pts.length * 0.7);
+    for (const p of pts) for (const dx of [-40, 40]) for (const dy of [-32, 32]) expect(livre(p.x + dx, p.y + dy, BANHISTA_LONGE)).toBe(true);
   });
 
   it('não mudam o jogo: com a mesma semente, a praia rende igual com ou sem eles na tela', () => {

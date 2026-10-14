@@ -36,7 +36,7 @@ const novoServico = (): Servico => ({ agua: 0, enchT: 0, spawnT: 800, spawnC: 15
 export interface Vendedor extends Walker { carga: Item[]; estado: 'doca' | 'rota' | 'volta'; vendaT: number; esperaT: number; dinheiro: number; alvo: Pt | null }
 /** Banhista: gente que não compra. O roteiro (pontos, o que faz em cada um e quanto tempo fica) é sorteado ao criar a
     praia; a posição sai do tempo (posBanhista), então ninguém trava e não custa nada no laço do jogo. */
-export type Acao = 'anda' | 'canga' | 'nada' | 'frescobol' | 'brinca' | 'parado';
+export type Acao = 'anda' | 'canga' | 'cadeira' | 'nada' | 'frescobol' | 'brinca' | 'parado';
 export interface Banhista { pts: Pt[]; acao: Acao[]; fica: number[]; anda: number[]; periodo: number; fase: number; crianca: boolean; par: number; cor: number; lado: number }
 /** O caminhão de mercadoria na baia da rua. */
 export interface Caminhao { estado: 'fora' | 'chegando' | 'parado' | 'saindo'; x: number; t: number; entregues: number }
@@ -698,9 +698,9 @@ export class Jogo {
   }
 
   /* ---------- Banhistas ---------- */
-  /** Sorteia os banhistas da praia: PRAIAS[b].banhistas por tela, cada um com 3 pontos de interesse fora das áreas. */
+  /** Sorteia candidatos de roteiro, depois organiza a população visível em grupos. O orçamento de sorteios é fixo para não mudar a economia ao reduzir a densidade. */
   criarBanhistas() {
-    const R = this.rand, P = PRAIAS[Math.min(this.beach, PRAIAS.length - 1)], n = Math.round(P.banhistas * WORLD_W / W);
+    const R = this.rand, P = PRAIAS[Math.min(this.beach, PRAIAS.length - 1)], n = Math.round(P.amostrasBanhistas * WORLD_W / W);
     // longe (BANHISTA_LONGE) de balcões, quadros, filas, entregas, pilhas e bancada; dx: a dupla do frescobol, ao lado
     const ponto = (mar: boolean, dx = 0): Pt => {
       for (let k = 0; k < 12; k++) {
@@ -726,6 +726,39 @@ export class Jogo {
         this.banhistas.push({ pts: pts.map(p => ({ x: p.x + 44, y: p.y })), acao, fica, anda, periodo, fase, crianca: false, par: i, cor: cor + 1, lado: -1 });
         this.banhistas[i].par = i + 1;
       }
+    }
+    const candidatos = this.banhistas;
+    const total = Math.round(P.banhistas * WORLD_W / W);
+    // Fileiras soltas, com três lugares próximos por grupo. Toda a silhueta da decoração fica longe do trabalho.
+    const hash = (i: number) => { const v = Math.sin(i * 127.1 + this.beach * 311.7) * 43758.5453; return v - Math.floor(v) };
+    const grupos: Pt[][] = [];
+    let indice = 0;
+    const seguro = (p: Pt) => [-40, 40].every(dx => [-32, 32].every(dy => livre(p.x + dx, p.y + dy, BANHISTA_LONGE)));
+    for (let linha = 0; linha < 9; linha++) for (let x = 110 + (linha % 2) * 45; x < WORLD_W - 90; x += 180) {
+      const cx = x + (hash(++indice) - 0.5) * 20, cy = 190 + linha * 68 + (hash(indice + 1000) - 0.5) * 18;
+      const grupo = [-55, 0, 55].map((dx, j) => ({ x: cx + dx, y: cy + (hash(indice + j + 2000) - 0.5) * 12 }));
+      const livres = grupo.filter(seguro);
+      if (livres.length) grupos.push(livres);
+    }
+    // Ordena grupos inteiros, sem separar os amigos; usa apenas aleatoriedade visual determinística.
+    const lugares = grupos.map((pts, i) => ({ pts, ordem: hash(i + 3000) })).sort((a, b) => a.ordem - b.ordem).flatMap(g => g.pts);
+    this.banhistas = [];
+    let lugar = 0;
+    for (let i = 0; i < total; i++) {
+      const b = candidatos[Math.floor(i * candidatos.length / total)], tipo = i % 10;
+      const p = tipo === 8 || lugar >= lugares.length
+        ? { x: 25 + hash(i + 4000) * (WORLD_W - 50), y: 52 + hash(i + 5000) * 48 }
+        : lugares[lugar++];
+      const acao: Acao = p.y < FAIXAS.areia.y0 ? 'nada' : tipo < 5 ? 'canga' : tipo < 7 ? 'cadeira' : 'parado';
+      const pts = [{ ...p }], acoes = [acao], fica = [60000], anda = [0];
+      if (tipo === 9 && acao !== 'nada') {
+        // Poucos passeios curtos: o segmento inteiro fica fora das áreas e das filas, sem atravessar zonas de trabalho.
+        const fim = { x: p.x + 40, y: p.y + 12 };
+        const caminhoLivre = Array.from({ length: 11 }, (_, k) => ({ x: p.x + (fim.x - p.x) * k / 10, y: p.y + (fim.y - p.y) * k / 10 })).every(seguro);
+        if (caminhoLivre) { pts.push(fim); acoes.push('parado'); fica[0] = 3000; fica.push(4000); anda[0] = 14000; anda.push(14000) }
+      }
+      const periodo = fica.reduce((a, b) => a + b, 0) + anda.reduce((a, b) => a + b, 0);
+      this.banhistas.push({ ...b, pts, acao: acoes, fica, anda, periodo, fase: hash(i + 6000) * periodo, par: -1, crianca: acao === 'parado' && b.crianca });
     }
   }
   /** Onde o banhista está agora e o que está fazendo. */
