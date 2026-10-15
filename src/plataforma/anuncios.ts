@@ -7,11 +7,14 @@ import cfg from '../../admob.config.json';
 const r = cfg.reais, usarReais = cfg.usarReais && !!(r.app && r.recompensado && r.intersticial);
 export const IDS = usarReais ? r : cfg.teste;
 
-/** Intersticial: nunca nas Praias 1 a 3; depois, só na viagem (quem chama garante: depois da animação do barquinho),
-    no máximo a cada 4 min. praia: o número da praia que o jogador está deixando. Nunca durante o jogo. Sem banner. */
-export const INTERSTICIAL_INTERVALO = 4 * 60000;
-export function podeIntersticial(praia: number, agoraMs: number, ultimoMs: number) {
-  return praia >= 4 && agoraMs - ultimoMs >= INTERSTICIAL_INTERVALO;
+/** Automáticos somente nas viagens saindo das Praias 6 e 9, depois do barquinho.
+    Pelo menos uma hora entre automáticos e 15 min de descanso após um recompensado. Nunca durante o jogo. */
+export const INTERSTICIAL_INTERVALO = 60 * 60000;
+export const RECOMPENSADO_DESCANSO = 15 * 60000;
+export function podeIntersticial(praia: number, agoraMs: number, ultimoMs: number, ultimoRecompensadoMs = -Infinity) {
+  return (praia === 6 || praia === 9)
+    && agoraMs - ultimoMs >= INTERSTICIAL_INTERVALO
+    && agoraMs - ultimoRecompensadoMs >= RECOMPENSADO_DESCANSO;
 }
 
 export interface Anuncios {

@@ -216,7 +216,7 @@ O bot segue a seta: compra a melhor que já cabe no bolso e, se nada cabe, junta
   - Dobrar os ganhos com o app fechado (já existe, simulado).
   - +20% de fama na viagem para a próxima praia.
   - Pular a espera de uma máquina ou contratar um ajudante temporário por 3 minutos (a fazer).
-- **Intersticial:** nunca nas Praias 1 a 3. Depois disso, só na viagem (depois da animação do barquinho), no máximo 1 a cada 4 minutos. Nunca durante o jogo.
+- **Intersticial:** somente nas viagens ao sair das Praias 6 e 9, depois da animação do barquinho. Pelo menos 60 minutos entre automáticos e 15 minutos desde o último anúncio opcional. A primeira hora de cada sessão é livre de automáticos. Nunca durante o jogo.
 - **Sem banner.**
 - **Compras:** remover anúncios (mantém os recompensados como opção) e pacote inicial com dinheiro e um ajudante extra.
 

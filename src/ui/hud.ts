@@ -13,7 +13,7 @@ const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
 /** ads: AdMob no app; null no navegador (anúncio simulado). */
 export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: boolean, ads: Anuncios | null) {
-  let adTimer = 0, ultimoInter = Date.now(); // o 1º intersticial só depois de 4 min de sessão
+  let adTimer = 0, ultimoInter = Date.now(), ultimoRecompensado = -Infinity; // primeira hora de sessão sem automáticos
   const semMovimento = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function goal() { $('beachLbl').textContent = g.beachName() + ' · próximo'; $('goal').textContent = g.goalText() }
@@ -36,7 +36,7 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
   /** Recompensado: no app, AdMob; no navegador, o simulado. ok() se ganhou, semRecompensa() se fechou antes. */
   function showAd(tipo: string, ok: () => void, semRecompensa?: () => void) {
     const prev = g.state; g.state = 'ad'; analytics.registrar('ad_offer', { tipo });
-    const fim = (ganhou: boolean) => { g.state = prev; pauseAudio(false); analytics.registrar('ad_watch', { tipo, recompensa: ganhou }); ganhou ? ok() : semRecompensa?.() };
+    const fim = (ganhou: boolean) => { ultimoRecompensado = Date.now(); g.state = prev; pauseAudio(false); analytics.registrar('ad_watch', { tipo, recompensa: ganhou }); ganhou ? ok() : semRecompensa?.() };
     if (ads) { pauseAudio(true); ads.recompensado().then(fim, () => fim(false)) } else simulado('Anúncio simulado', () => fim(true));
   }
   /** Intersticial (sem recompensa). Só é chamado na viagem (podeIntersticial); depois chama fim. */
@@ -81,7 +81,7 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
     setTimeout(() => {
       $('ovLitoral').hidden = true;
       const cartao = () => cartaoFama(fama, minutos);
-      if (!g.testMode && podeIntersticial(deixada, Date.now(), ultimoInter)) { ultimoInter = Date.now(); intersticial(cartao) } else cartao();
+      if (!g.testMode && podeIntersticial(deixada, Date.now(), ultimoInter, ultimoRecompensado)) { ultimoInter = Date.now(); intersticial(cartao) } else cartao();
     }, semMovimento ? 600 : 2100);
   }
   let viagemAtual: { fama: number; minutos: number; anuncio: boolean } | null = null;

@@ -335,3 +335,17 @@ Os totais foram 457,0 / 460,6 / 451,5 min (aproximadamente 7,62 / 7,68 / 7,52 h)
 ### Dúvidas
 
 Nenhuma dúvida bloqueante. A quadra separada do Torneio foi necessária para cumprir sua posição depois do Palco mantendo a área 5 no quinto trecho.
+
+
+## Parte C (OpenCode) — anúncios automáticos mais raros (15/10/2026)
+
+Pedido direto do usuário: diminuir os anúncios automáticos para reduzir as interrupções.
+
+- Antes: um automático elegível em cada viagem saindo das Praias 4 a 9, com intervalo mínimo de 4 minutos.
+- Agora: somente nas viagens saindo das Praias 6 e 9, com intervalo mínimo de 60 minutos e primeira hora da sessão livre de automáticos. São no máximo duas ocasiões na progressão das dez praias, em vez de seis.
+- Após terminar ou fechar uma tentativa de anúncio opcional, há 15 minutos sem automáticos. Os anúncios de recompensa continuam dependendo do toque do jogador e não receberam limite de frequência.
+- Mantidos o barquinho antes do automático, a ausência de banners e a regra de não interromper o jogo durante as tarefas.
+- Testes verificam as duas praias elegíveis, a fronteira de uma hora e o descanso de 15 minutos após recompensados. Documentação do jogo e GDD atualizados.
+- Validação: `npm test` passou com 83 testes e `npm run build` passou antes do commit. A economia não foi alterada.
+- Limitação: não houve teste de anúncio real em celular/AdMob; os IDs continuam em modo de teste. Os intervalos são controlados por sessão, como antes; reiniciar o app inicia uma nova hora sem automáticos.
+- Commit: registrado junto com esta seção, em português. Nenhuma dúvida bloqueante.

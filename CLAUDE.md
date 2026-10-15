@@ -55,7 +55,7 @@ docs/MOLDE-ORLA.md      as faixas, os lugares das áreas, livre(x, y), a paleta 
 - Ciclo de vida: `@capacitor/app` no app, `visibilitychange` no navegador (`aoSair`/`aoVoltar` em `main.ts`).
 - Modo teste (botão ∞): só existe em `npm run dev` (`import.meta.env.DEV`). Nunca na versão da loja.
 - Prévia de cenário: `?praia=N` (só em `npm run dev`) abre na praia N com as áreas abertas e um pouco de dinheiro, sem gravar o save.
-- Anúncios: intersticial nunca nas Praias 1 a 3; depois, só na viagem (depois do barquinho), no máximo a cada 4 min. Sem banner.
+- Anúncios: intersticial somente ao sair das Praias 6 e 9 (depois do barquinho), com pelo menos 60 min entre automáticos e 15 min desde o último anúncio opcional. A primeira hora da sessão não tem automáticos. Sem banner.
 
 ## Comandos
 
