@@ -362,3 +362,111 @@ Pedido direto do usuário: diminuir os anúncios automáticos para reduzir as in
 ## Parte C (OpenCode) — publicação do APK para download
 
 A pedido do usuário, o APK de teste foi incluído em `downloads/barraca-na-praia-debug.apk`, junto do SHA256, no ramo `entrega/apk-teste-20261017`. O ramo mantém as alterações anteriores do jogo e acrescenta o binário para permitir download pelo GitHub. A API de Releases permanece bloqueada pela rede, mas o envio por Git foi verificado; a `main` não é alterada. O APK é o mesmo 1.0.0 validado na seção anterior, com as alterações de anúncios. Testes e build são executados antes do commit de entrega.
+
+## Parte C (OpenCode) — mochila, barreiras e compras livres (17/10/2026)
+
+Pedido direto do usuário, executado na ordem solicitada. Li `AGENTS.md`, `CLAUDE.md`, `ROTEIRO.md`, o relatório anterior e `docs/MOLDE-ORLA.md`. O `../CLAUDE.md` continua ausente neste ambiente. O roteiro antigo já estava em `AGUARDANDO REVISÃO`; o pedido atual autorizou esta rodada, e essa linha foi mantida.
+
+### Commits e verificações por parte
+
+1. `d3d71c5` — **Amplia a mochila e a carga proporcional dos ajudantes**. `npm test`: 85 testes passaram; `npm run build`: passou.
+2. `d8be54b` — **Limita as primeiras praias e cria terrenos sólidos com rotas de desvio**. `npm test`: 94 testes passaram; `npm run build`: passou.
+3. `89e192d` — **Libera os quadros de compra e preserva melhorias fora de ordem**. `npm test`: 105 testes passaram; `npm run build`: passou.
+
+A calibração final e esta seção são registradas em um commit adicional, com testes e build passando antes dele. As três partes ficaram em commits separados no ramo `melhorias/carga-barreiras-compras`.
+
+### O que foi feito
+
+**Carga:** capacidade inicial real de 8 itens e quatro melhorias para 12, 16, 24 e 32. A pilha desenha todos os itens nas costas, em três colunas, crescendo por fileiras; as animações de coleta e entrega acompanham a posição da carga. Ajudantes gerais carregam metade da capacidade do jogador (4/6/8/12/16), e sorveteiros/instrutores carregam um quarto (2/3/4/6/8), inclusive quando já contratados. Caixas e pranchas respeitam a capacidade real. A Barraca ganhou três posições extras na trilha (63 ao todo), preservando as 60 melhorias anteriores.
+
+**Barreiras e colisão:** nas Praias 1 a 5, o limite acompanha os terrenos abertos; jogador e câmera não avançam além dele. Corda de praia e placa com seta, nome e praia da próxima área indicam a continuidade. Da Praia 6 em diante, o mapa inteiro fica disponível, e todo terreno ainda fechado é sólido até sua compra. O quadro de abertura fica do lado de fora. A colisão considera deslocamentos grandes e permite deslizar na borda. Jogador/bot e ajudantes usam rotas com desvios nas quinas; o bot considera também máquinas e os quadros que não pretende comprar. Os banhistas mantêm seu caráter visual, sem bloquear o jogador ou os clientes.
+
+**Compras:** os dois próximos quadros em pontos distintos de cada área aberta podem ser pagos em qualquer ordem. Não existe mais o estado “depois”. Só dependências concretas ficam com “Precisa de: X”, incluindo fritadeira não construída e conclusão da etapa anterior do torneio. A seta continua sugerindo custo-benefício, e o nível continua sendo a quantidade de melhorias compradas. O sucessor no mesmo chão aparece após sair dele, evitando que a comemoração de uma compra já inicie outro gasto involuntário. Os demais quadros visíveis continuam disponíveis imediatamente.
+
+**Save:** formato v5 guarda os índices exatos das compras e os pagamentos parciais. A conversão de v4 preserva as melhorias antigas, inclusive níveis altos da cauda, a identidade do mundo e os pagamentos nos índices remapeados. O v3 mantém sua conversão anterior. Testes cobrem compra alternativa, retomada de pagamento parcial, dependências, impedimento de compras repetidas, ordem e recuperação do progresso.
+
+**Navegação durante as compras livres:** corrigi oscilações de entrega de cargas mistas e a aproximação às quinas com muitos níveis de chinelo. A decisão humana do simulador continua com reação de 200–400 ms, desvio leve e pausas de 3–5 s a cada 30 s; as metas e asserções não foram relaxadas.
+
+### Economia e simulador final
+
+As mochilas extras têm preços-base próprios de R$ 8.000, R$ 24.000 e R$ 64.000, multiplicados pelos fatores de praia e começo rápido existentes. Inserir essas compras não encarece as melhorias antigas da cauda. A capacidade maior e as compras livres aceleraram a progressão; os preços-base foram recalibrados na `ECONOMIA` para manter as metas originais.
+
+| Área | Base antes desta rodada | Base final |
+|---|---:|---:|
+| Chuveirão | 11.000 | 13.000 |
+| Quadra | 130.000 | 170.000 |
+| Ambulantes | 1.050.000 | 1.470.000 |
+| Escolinha de surf | 3.000.000 | 4.575.000 |
+| Sucos e vitaminas | 6.000.000 | 9.000.000 |
+| Palco de pagode | 11.650.000 | 18.000.000 |
+| Torneio de futevôlei | 17.700.000 | 32.000.000 |
+
+Metas originais: durações conforme a tabela, total de 450–540 min (7,5–9 h), espera máxima de 150 s e áreas antigas funcionando nos primeiros 25% da praia. Fama crescente e conclusão das dez praias também verificadas. Comando final: `npm run sim` (bot humano, sementes 1, 2 e 3). Os valores abaixo são os arredondados pelo comando; a avaliação usa valores completos.
+
+### Semente 1
+
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 8.5 | 8 a 10 | - | 104 s | 3 |
+| 2 | 17.2 | 15 a 20 | 0% | 120 s | 7 |
+| 3 | 21.2 | 20 a 25 | 9% | 99 s | 40 |
+| 4 | 27.7 | 25 a 35 | 17% | 96 s | 96 |
+| 5 | 36.7 | 35 a 45 | 17% | 114 s | 243 |
+| 6 | 50.3 | 45 a 55 | 13% | 92 s | 585 |
+| 7 | 61.0 | 55 a 65 | 8% | 92 s | 1339 |
+| 8 | 64.9 | 60 a 75 | 10% | 77 s | 2455 |
+| 9 | 79.4 | 70 a 85 | 11% | 74 s | 4595 |
+| 10 | 94.8 | 80 a 95 | 11% | 78 s | 7894 |
+Total: 461.5 min (7.7 h)
+Tudo dentro da faixa.
+
+### Semente 2
+
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 8.4 | 8 a 10 | - | 102 s | 3 |
+| 2 | 18.3 | 15 a 20 | 0% | 115 s | 8 |
+| 3 | 20.4 | 20 a 25 | 10% | 102 s | 40 |
+| 4 | 27.1 | 25 a 35 | 19% | 89 s | 96 |
+| 5 | 36.4 | 35 a 45 | 17% | 108 s | 242 |
+| 6 | 49.1 | 45 a 55 | 13% | 93 s | 573 |
+| 7 | 62.0 | 55 a 65 | 7% | 90 s | 1339 |
+| 8 | 65.3 | 60 a 75 | 10% | 74 s | 2457 |
+| 9 | 79.7 | 70 a 85 | 11% | 78 s | 4594 |
+| 10 | 88.8 | 80 a 95 | 12% | 72 s | 7437 |
+Total: 455.6 min (7.6 h)
+Tudo dentro da faixa.
+
+### Semente 3
+
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 8.6 | 8 a 10 | - | 110 s | 3 |
+| 2 | 18.4 | 15 a 20 | 0% | 117 s | 8 |
+| 3 | 20.3 | 20 a 25 | 9% | 97 s | 40 |
+| 4 | 27.2 | 25 a 35 | 18% | 96 s | 96 |
+| 5 | 36.3 | 35 a 45 | 17% | 106 s | 242 |
+| 6 | 50.5 | 45 a 55 | 14% | 88 s | 585 |
+| 7 | 63.1 | 55 a 65 | 7% | 80 s | 1383 |
+| 8 | 68.9 | 60 a 75 | 9% | 78 s | 2624 |
+| 9 | 75.4 | 70 a 85 | 11% | 76 s | 4550 |
+| 10 | 93.7 | 80 a 95 | 11% | 72 s | 7902 |
+Total: 462.3 min (7.7 h)
+Tudo dentro da faixa.
+
+### Validação final e limites
+
+- `npm run sim`: as dez praias dentro de todas as metas nas três sementes; totais de **461,5 / 455,6 / 462,3 min** (aproximadamente 7,69 / 7,59 / 7,71 h). Nenhuma semente travou. As maiores esperas arredondadas ficaram em 120 / 115 / 117 s; as áreas antigas abriram antes dos primeiros 20% da praia (meta: até 25%).
+- `npm test`: **105 testes passaram em 8 arquivos**, após a calibração final. `npm run build`: passou. `git diff --check`: sem erros. Nenhuma meta do simulador foi alterada.
+- Verificação visual em Chromium headless: capacidades 8/12/16/24/32, corda e placa na Praia 1, terrenos futuros na Praia 6 e quadro “Precisa de: Fritadeira de pastel”, com texto legível. As capturas e logs de trabalho ficaram em `/workspace/barraca-validacao/`, fora do repositório.
+- Atualizados `CLAUDE.md`, GDD e o molde da orla conforme as regras implementadas.
+
+### O que ficou fraco ou não deu
+
+Nenhuma das três partes foi abandonada. As execuções intermediárias mostraram travamentos nas quinas e tempos fora da faixa; os desvios, a aproximação e os preços foram corrigidos antes da validação final acima.
+
+Não houve teste manual em celular físico nem medição de FPS em aparelho. O balanceamento está validado para o bot humano das três sementes, e a experiência de jogadores reais ainda precisa de teste no aparelho. Não gerei um APK novo nesta rodada: o APK publicado anteriormente continua com a versão anterior destas três mudanças. Os novos commits ficaram locais neste ramo; não houve nova publicação no GitHub.
+
+### Dúvidas
+
+Nenhuma dúvida bloqueante.
