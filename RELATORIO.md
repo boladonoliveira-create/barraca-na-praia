@@ -358,3 +358,7 @@ Pedido direto do usuário: diminuir os anúncios automáticos para reduzir as in
 - Verificação: assinatura APK v2 válida, arquivo ZIP íntegro e os 10 arquivos web empacotados idênticos aos de `dist/`. Requer Android 7 (API 24) ou superior. Não foi instalado em dispositivo físico nesta tarefa.
 - SHA256: `95febbd4c5a29c2d55725ca1488c4aaa8cec6874566448c7a21b87ea2a1a996a`.
 - APK de depuração, com assinatura de teste gerada neste ambiente e IDs de teste do AdMob; não é o pacote de publicação da Play Store. O arquivo fica ignorado pelo Git. Nenhum código ou configuração Android versionada precisou ser alterado; este commit registra somente o relatório.
+
+## Parte C (OpenCode) — publicação do APK para download
+
+A pedido do usuário, o APK de teste foi incluído em `downloads/barraca-na-praia-debug.apk`, junto do SHA256, no ramo `entrega/apk-teste-20261017`. O ramo mantém as alterações anteriores do jogo e acrescenta o binário para permitir download pelo GitHub. A API de Releases permanece bloqueada pela rede, mas o envio por Git foi verificado; a `main` não é alterada. O APK é o mesmo 1.0.0 validado na seção anterior, com as alterações de anúncios. Testes e build são executados antes do commit de entrega.
