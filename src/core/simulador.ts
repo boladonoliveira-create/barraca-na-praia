@@ -3,7 +3,7 @@
    O bot humano (padrão, usado nas metas de ritmo) reage com 200 a 400 ms de atraso, anda com desvio leve
    e para 3 a 5 s a cada 30 s. O perfeito (humano: false) decide a cada quadro e anda reto.
    Relatório no terminal: npm run sim (scripts/sim.ts) */
-import { SHOPS, SLOTS, COUNTER_CAP, PRODUCTS, type Item, type Rect } from '../dados/mapa.ts';
+import { SHOPS, COUNTER_CAP, PRODUCTS, type Item, type Rect } from '../dados/mapa.ts';
 import { Jogo, zoneOf, padOf, inZone, NUM_AREAS, type Pt } from './jogo.ts';
 
 /** Gerador determinístico (mulberry32) para o resultado não variar entre execuções. */
@@ -19,7 +19,8 @@ const DT = 1000 / 60;
 
 /** Contorna a máquina que estiver entre o jogador e o alvo (ela bloqueia o caminho direto).
     Juntando dinheiro, contorna também os quadros de compra que estiverem no caminho. */
-function waypoint(g: Jogo, p: Pt, t: Pt, desviar: Pt[] = []): Pt {
+export function waypoint(g: Jogo, p: Pt, t: Pt, desviar: Pt[] = []): Pt {
+  t = g.caminhoAte(p, t);
   // quadro no caminho (o trajeto reto passa por cima dele): vai para a quina alcançável mais perto do alvo
   const cruza = (a: Pt, b: Pt, z: Rect) => { for (let i = 1; i <= 16; i++) if (inZone({ x: a.x + (b.x - a.x) * i / 16, y: a.y + (b.y - a.y) * i / 16 }, z)) return true; return false };
   let z: Rect | null = null, qd = Infinity;
@@ -33,22 +34,9 @@ function waypoint(g: Jogo, p: Pt, t: Pt, desviar: Pt[] = []): Pt {
       const k = { x: z.x + sx * 52, y: z.y + sy * 46 }, d = Math.hypot(t.x - k.x, t.y - k.y);
       if (d < cd && Math.hypot(k.x - p.x, k.y - p.y) > 3 && !cruza(p, k, z)) { c = k; cd = d }
     }
-    if (c) return c;
+    if (c) return g.caminhoAte(p, c);
   }
-  let best: Pt | null = null, bd = Infinity;
-  for (const m of g.machines) {
-    // obstáculo entre o jogador e o alvo na mesma altura: passa por cima ou por baixo dele
-    if (Math.abs(p.y - m.y) < 40 && Math.abs(t.y - m.y) < 40 && Math.sign(p.x - m.x) !== Math.sign(t.x - m.x) && Math.abs(p.x - m.x) < 60) {
-      const d = Math.abs(p.x - m.x); if (d >= bd) continue;
-      bd = d; best = { x: p.x, y: m.y + (p.y !== m.y ? Math.sign(p.y - m.y) : t.y >= m.y ? 1 : -1) * 58 }; continue; // contorna pelo lado em que já está
-    }
-    if (Math.abs(p.x - m.x) >= 46 || Math.abs(t.x - m.x) >= 46) continue;
-    if (Math.sign(p.y - m.y) === Math.sign(t.y - m.y)) continue;
-    const d = Math.abs(p.y - m.y); if (d >= bd) continue;
-    bd = d; const side = p.x >= m.x ? 1 : -1;
-    best = { x: m.x + side * 50, y: m.y + Math.sign(t.y - m.y) * 40 };
-  }
-  return best || t;
+  return t;
 }
 
 function canDeliver(g: Jogo, t: Item) {
@@ -100,7 +88,7 @@ function alvoNovo(g: Jogo): Rect | Pt | null {
 function meta(g: Jogo): { pad: Rect; slot: string; falta: number } | null {
   if (g.novaPraiaAberta() && g.proximaExiste()) return { pad: padOf('praia'), slot: 'praia', falta: g.custoNovaPraia() - (g.paid.praia || 0) };
   const v = g.melhorCompra(true) || g.melhorCompra(false); // como a seta: a melhor que cabe no bolso; se nada cabe, junta para a melhor
-  return v ? { pad: padOf(v.s.slot), slot: v.s.slot, falta: g.falta(v) } : null;
+  return v ? { pad: g.padCompra(v), slot: v.s.slot, falta: g.falta(v) } : null;
 }
 
 /** Decide o próximo alvo do bot. */
@@ -161,7 +149,7 @@ export function simular({ seed = 1, limiteMin = 900, humano = true, praias = NUM
     // dentro da zona-alvo: fica parado (inZone exige estar dentro do retângulo)
     if (t >= pausaAte && (!('w' in a) || !inZone(p, { ...a, w: a.w - 16, h: a.h - 16 }))) {
       // juntando para uma compra: não pisa nos outros quadros (pisar neles gastaria o dinheiro)
-      const m = meta(g), evitar = m && g.money < m.falta ? g.visibleSteps().filter(x => x.s.slot !== m.slot).map(x => SLOTS[x.s.slot]) : [];
+      const m = meta(g), evitar = m && g.money < m.falta ? g.visibleSteps().filter(x => x.s.slot !== m.slot).map(x => g.padCompra(x)) : [];
       const w = waypoint(g, p, a, evitar), dx = w.x - p.x, dy = w.y - p.y, d = Math.hypot(dx, dy);
       // desvio leve: a direção balança devagar, e some perto do alvo para não ficar rodando em volta
       const ang = humano ? desvio * Math.sin(t / 600 + fase) * Math.min(1, d / 60) : 0, c = Math.cos(ang), sn = Math.sin(ang);

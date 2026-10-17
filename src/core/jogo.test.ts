@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Jogo, padOf, NUM_AREAS, BANHISTA_LONGE, TROCA_MS } from './jogo.ts';
-import { rng } from './simulador.ts';
+import { rng, waypoint } from './simulador.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, ECONOMIA } from '../dados/planos.ts';
 import { SHOPS, LUGARES, SLOTS, ESCOLA, PALCO, TORNEIO, PRODUCTS, FAIXAS, WORLD_H, WORLD_W, H, AMBULANTE, livre, type Rect } from '../dados/mapa.ts';
 import type { Save } from './jogo.ts';
@@ -399,14 +399,14 @@ describe('área 7: escolinha de surf', () => {
     expect(aulas).toBeGreaterThan(60);
   });
 
-  it('a área trancada não muda nada no jogo: dá para passar por cima', () => {
+  it('terrenos futuros bloqueiam a passagem sem comprar ou alterar o progresso', () => {
     const g = naPraia(7); for (let a = 0; a < NUM_AREAS; a++) subir(g, a, 12);
     g.money = 5000; const antes = JSON.stringify([g.money, g.nivel, g.paid, g.S.map(s => s.open)]);
     for (const a of [7, 8]) {
       expect(g.liberada(a)).toBe(false); expect(g.aberta(a)).toBe(false);
       expect(g.machines.some(m => dentroDe(m, LUGARES[a].zona))).toBe(false);
       Object.assign(g.player, { x: LUGARES[a].rect.x, y: LUGARES[a].rect.y }); rodar(g, 2000, () => { g.money = 5000 });
-      expect(g.player.x).toBeCloseTo(LUGARES[a].rect.x); // ninguém empurra o jogador para fora
+      expect(dentroDe(g.player, LUGARES[a].rect)).toBe(false); // um save/teleporte dentro do sólido também é corrigido
     }
     expect(JSON.stringify([g.money, g.nivel, g.paid, g.S.map(s => s.open)])).toBe(antes);
     expect(g.visibleSteps().every(v => v.a <= 6)).toBe(true);
@@ -579,36 +579,85 @@ function SLOTS_X(slot: string) { return SLOTS[slot].x }
 function dentroDe(p: { x: number; y: number }, r: Rect) { return Math.abs(p.x - r.x) <= r.w / 2 && Math.abs(p.y - r.y) <= r.h / 2 }
 
 
-describe('exploração liberada pelos Ambulantes', () => {
-  it('antes da área 6, limita jogador e câmera incluindo todo o próximo quadrado trancado', () => {
-    const g = mundo([5, 5, 5, 5, 5]);
-    const limite = g.limitePraia(), proxima = LUGARES[5].rect;
-    expect(limite).toBeGreaterThan(proxima.x + proxima.w / 2);
-    expect(limite).toBeLessThan(WORLD_W);
-    g.player.x = WORLD_W - 16; g.player.y = 200; g.camX = WORLD_W - 400;
-    g.update(DT, { x: 1, y: 0 });
-    expect(g.player.x).toBeLessThanOrEqual(limite - 16);
-    expect(g.camX + 400).toBeLessThanOrEqual(limite);
-    // O quadro da abertura continua alcançável dentro da corda.
-    expect(SLOTS.fence5.x + 36).toBeLessThan(limite - 16);
+describe('barreiras e terrenos trancados', () => {
+  it('nas Praias 1 a 5, o limite acompanha somente as áreas abertas', () => {
+    for (let n = 1; n <= 5; n++) {
+      const g = naPraia(n); expect(g.limitePraia()).toBe(424);
+      for (let a = 0; a < n; a++) subir(g, a, 5);
+      const borda = Math.max(...LUGARES.slice(0, n).map(l => l.zona.x + l.zona.w / 2));
+      expect(g.limitePraia()).toBe(borda + 24);
+      g.player.x = WORLD_W - 16; g.player.y = 200; g.camX = WORLD_W - 400;
+      g.update(DT, { x: 1, y: 0 });
+      expect(g.player.x).toBeLessThanOrEqual(g.limitePraia() - 16);
+      expect(g.camX + 400).toBeLessThanOrEqual(g.limitePraia());
+    }
   });
-
-  it('libera toda a praia ao abrir os Ambulantes, mesmo com as áreas futuras trancadas', () => {
-    const g = mundo([5, 5, 5, 5, 5]);
-    subir(g, 5, 1);
-    expect(g.aberta(5)).toBe(true); expect(g.aberta(6)).toBe(false);
-    expect(g.limitePraia()).toBe(WORLD_W);
-    g.player.x = WORLD_W - 16; g.player.y = 200;
-    rodar(g, 3000);
-    expect(g.player.x).toBe(WORLD_W - 16);
-    expect(g.camX).toBeCloseTo(WORLD_W - 400, 1);
+  it('a abertura fica do lado de dentro da corda e expande o trecho ao ser paga', () => {
+    const g = naPraia(2); subir(g, 0, 5);
+    const v = g.visibleSteps().find(v => v.a === 1)!, pad = g.padCompra(v);
+    expect(pad.x + pad.w / 2).toBeLessThan(g.limitePraia() - 16);
+    Object.assign(g.player, pad); g.money = v.s.price; rodar(g, 3500);
+    expect(g.aberta(1)).toBe(true); expect(g.limitePraia()).toBe(774);
   });
-
-  it('uma viagem volta a limitar a exploração até reabrir os Ambulantes', () => {
-    const g = mundo([5, 5, 5, 5, 5, 1]);
-    expect(g.limitePraia()).toBe(WORLD_W);
-    g.resetWorld();
-    expect(g.aberta(5)).toBe(false); expect(g.limitePraia()).toBeLessThan(WORLD_W);
+  it('da Praia 6 em diante a orla inteira fica livre, mesmo antes de abrir os Ambulantes', () => {
+    for (let n = 6; n <= 10; n++) {
+      const g = naPraia(n); expect(g.aberta(5)).toBe(false); expect(g.limitePraia()).toBe(WORLD_W);
+      g.resetWorld(); expect(g.limitePraia()).toBe(WORLD_W);
+    }
+  });
+  it('o jogador esbarra no terreno trancado sem atravessá-lo, mesmo num passo grande', () => {
+    const g = naPraia(6), r = LUGARES[8].rect;
+    Object.assign(g.player, { x: r.x - r.w / 2 - 50, y: r.y });
+    g.update(4000, { x: 1, y: 0 });
+    expect(g.player.x).toBeLessThanOrEqual(r.x - r.w / 2 - 12);
+    expect(g.quadradosSolidos()).toContainEqual(r);
+  });
+  it('o quadro de abertura fica fora do terreno e a colisão some depois da compra', () => {
+    const g = mundo([5, 5, 5, 5, 5, 5]);
+    const v = g.visibleSteps().find(v => v.a === 6)!, pad = g.padCompra(v), r = LUGARES[6].rect;
+    expect(dentroDe(pad, r)).toBe(false);
+    Object.assign(g.player, pad); g.money = v.s.price; rodar(g, 3500);
+    expect(g.aberta(6)).toBe(true); expect(g.quadradosSolidos()).not.toContainEqual(r);
+  });
+  it('o ajudante contorna um quadrado fechado e chega ao outro lado sem travar', () => {
+    const g = naPraia(6); g.addHelper(0); const h = g.helpers[0], r = LUGARES[8].rect;
+    Object.assign(h, { x: r.x - r.w / 2 - 50, y: r.y }); const alvo = { x: r.x + r.w / 2 + 50, y: r.y };
+    let chegou = false, desviou = false;
+    for (let i = 0; i < 1200 && !chegou; i++) {
+      chegou = g.moverAgente(h, alvo.x, alvo.y, 2.4, 1); desviou ||= Math.abs(h.y - r.y) > 100;
+      expect(dentroDe(h, r)).toBe(false);
+    }
+    expect(desviou).toBe(true); expect(chegou).toBe(true);
+  });
+  it('a quina próxima não prende o bot dentro da tolerância de parada', () => {
+    const g = mundo([16, 15, 10]), alvo = { x: 40, y: 446 };
+    Object.assign(g.player, { x: 148.68, y: 440.04 });
+    const q = waypoint(g, g.player, alvo);
+    expect(Math.hypot(q.x - g.player.x, q.y - g.player.y)).toBeGreaterThan(2.5);
+    for (let i = 0; i < 600 && Math.hypot(g.player.x - alvo.x, g.player.y - alvo.y) > 4; i++) {
+      const q = waypoint(g, g.player, alvo), dx = q.x - g.player.x, dy = q.y - g.player.y, d = Math.hypot(dx, dy);
+      g.update(DT, d > 2 ? { x: dx / d, y: dy / d } : PARADO);
+    }
+    expect(Math.hypot(g.player.x - alvo.x, g.player.y - alvo.y)).toBeLessThan(5);
+  });
+  it('o bot sai do corredor entre o depósito e o terreno do chuveirão fechado', () => {
+    const g = mundo([15, 12]), alvo = { x: 710, y: 935 };
+    Object.assign(g.player, { x: 645.7, y: 826 });
+    for (let i = 0; i < 600 && Math.hypot(g.player.x - alvo.x, g.player.y - alvo.y) > 4; i++) {
+      const q = waypoint(g, g.player, alvo), dx = q.x - g.player.x, dy = q.y - g.player.y, d = Math.hypot(dx, dy);
+      g.update(DT, d > 2 ? { x: dx / d, y: dy / d } : PARADO);
+      expect(dentroDe(g.player, LUGARES[2].rect)).toBe(false);
+    }
+    expect(Math.hypot(g.player.x - alvo.x, g.player.y - alvo.y)).toBeLessThan(5);
+  });
+  it('o mesmo waypoint do simulador contorna o quadrado sem atravessá-lo', () => {
+    const g = naPraia(6), r = LUGARES[8].rect, alvo = { x: r.x + r.w / 2 + 50, y: r.y };
+    Object.assign(g.player, { x: r.x - r.w / 2 - 50, y: r.y });
+    for (let i = 0; i < 1200 && Math.hypot(g.player.x - alvo.x, g.player.y - alvo.y) > 4; i++) {
+      const q = waypoint(g, g.player, alvo), dx = q.x - g.player.x, dy = q.y - g.player.y, d = Math.hypot(dx, dy);
+      g.update(DT, d > 2 ? { x: dx / d, y: dy / d } : PARADO); expect(dentroDe(g.player, r)).toBe(false);
+    }
+    expect(Math.hypot(g.player.x - alvo.x, g.player.y - alvo.y)).toBeLessThan(5);
   });
 });
 

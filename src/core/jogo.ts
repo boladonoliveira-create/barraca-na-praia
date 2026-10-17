@@ -6,6 +6,7 @@ import {
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, MARCOS, ECONOMIA, AREAS, BOLSA_CAPACIDADES } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
 import { PREMIOS, diaDeHoje, type Diaria, type Premio } from './diaria.ts';
+import { Navegacao, ampliar } from './navegacao.ts';
 import { makeTrilha, type Step } from './economia.ts';
 
 export type Kind = Item | 'bill';
@@ -104,9 +105,42 @@ export class Jogo {
   }
 
   /* ---------- Valores derivados ---------- */
-  /** Antes dos Ambulantes, inclui as áreas 1–5 e o quadrado da área 6 para mostrar a próxima expansão. */
+  private navegacoes = new Map<boolean, Navegacao>();
+  private chaveNavegacao = '';
+  private revisaoNavegacao = 0;
+  /** Nas Praias 1–5 só o trecho aberto; da Praia 6 em diante, toda a orla. */
   limitePraia() {
-    return this.aberta(5) ? WORLD_W : Math.max(...LUGARES.slice(0, 6).map(l => l.zona.x + l.zona.w / 2)) + 24;
+    return this.beach >= 5 ? WORLD_W : Math.max(W, ...LUGARES.filter((_, a) => this.aberta(a)).map(l => l.zona.x + l.zona.w / 2)) + 24;
+  }
+  proximaAreaFechada() { return LUGARES.findIndex((_, a) => !this.aberta(a)) }
+  quadradosSolidos() { return this.beach < 5 ? [] : LUGARES.filter((_, a) => !this.aberta(a)).map(l => l.rect) }
+  private rota(comMaquinas = false) {
+    const chave = this.beach + ':' + this.revisaoNavegacao;
+    if (chave !== this.chaveNavegacao) { this.chaveNavegacao = chave; this.navegacoes.clear() }
+    let rota = this.navegacoes.get(comMaquinas);
+    if (!rota) {
+      const solidos = this.quadradosSolidos().map(r => ampliar(r, 12));
+      if (comMaquinas) for (const m of this.machines) if (!m.pilha) solidos.push({ x: m.x, y: m.y, w: 68, h: 52 });
+      rota = new Navegacao(solidos, { x0: 16, x1: this.limitePraia() - 16, y0: ANDA.y0, y1: ANDA.y1 });
+      this.navegacoes.set(comMaquinas, rota);
+    }
+    return rota;
+  }
+  caminhoAte(origem: Pt, destino: Pt) { return this.rota(true).proximo(origem, destino) }
+  /** Todos os carregadores usam o mesmo desvio; os clientes continuam com suas rotinas de fila e mar. */
+  moverAgente(a: Walker, x: number, y: number, sp: number, f: number) {
+    const rota = this.rota(), alvo = rota.alcancavel({ x, y }), q = rota.proximo(a, alvo), antes = { x: a.x, y: a.y };
+    moveTo(a, q.x, q.y, sp, f); const dx = a.x - antes.x, dy = a.y - antes.y;
+    Object.assign(a, antes); rota.mover(a, dx, dy);
+    return Math.hypot(a.x - alvo.x, a.y - alvo.y) < 0.01;
+  }
+  /** Abertura sempre alcançável pelo lado de fora da corda ou do terreno sólido. */
+  padCompra(v: Visivel): Rect {
+    const p = padOf(v.s.slot);
+    if (this.aberta(v.a)) return p;
+    if (this.beach < 5) return { ...p, x: this.limitePraia() - 60 };
+    const r = LUGARES[v.a].rect;
+    return Math.abs(p.x - r.x) < r.w / 2 + 48 && Math.abs(p.y - r.y) < r.h / 2 + 42 ? { ...p, x: r.x - r.w / 2 - 52 } : p;
   }
 
   L(id: string) { return this.lv[id] || 0 }
@@ -220,10 +254,10 @@ export class Jogo {
   }
 
   /* ---------- Mundo ---------- */
-  freshShops() { this.S = SHOPS.map((d, i) => ({ open: i === 0, counter: Object.fromEntries(d.products.map(p => [p, []])), stock: 0, queue: [], cashValue: 0, cashBills: 0, spawnT: 800 })) }
-  addPilha(type: Item) { const p = AMBULANTE.pilhas[type]; this.machines.push({ type, x: p.x, y: p.y, pile: 0, cap: AMBULANTE.pilhaCap, t: 0, pilha: true }) }
-  addMachine(type: Item, x: number, y: number) { this.machines.push({ type, x, y, pile: 0, cap: type === 'caixa' ? 4 : 10, t: 0 }) }
-  addCooker(type: Item, x: number, y: number) { this.machines.push({ type, x, y, pile: 0, cap: PREPARO.saidaMax, t: 0, needs: RECEITAS[type]!.cru, loaded: 0 }) }
+  freshShops() { this.revisaoNavegacao++; this.S = SHOPS.map((d, i) => ({ open: i === 0, counter: Object.fromEntries(d.products.map(p => [p, []])), stock: 0, queue: [], cashValue: 0, cashBills: 0, spawnT: 800 })) }
+  addPilha(type: Item) { this.revisaoNavegacao++; const p = AMBULANTE.pilhas[type]; this.machines.push({ type, x: p.x, y: p.y, pile: 0, cap: AMBULANTE.pilhaCap, t: 0, pilha: true }) }
+  addMachine(type: Item, x: number, y: number) { this.revisaoNavegacao++; this.machines.push({ type, x, y, pile: 0, cap: type === 'caixa' ? 4 : 10, t: 0 }) }
+  addCooker(type: Item, x: number, y: number) { this.revisaoNavegacao++; this.machines.push({ type, x, y, pile: 0, cap: PREPARO.saidaMax, t: 0, needs: RECEITAS[type]!.cru, loaded: 0 }) }
   syncCadeiras() { const n = Math.min(SERVICO.cadeiras.length, SERVICO.cadeirasBase + SERVICO.cadeirasPorNivel * this.L('cadeiras')); while (this.sv.cadeiras.length < n) this.sv.cadeiras.push({ ...SERVICO.cadeiras[this.sv.cadeiras.length], user: null, suja: false }) }
   syncVendedores() {
     const n = Math.min(AMBULANTE.vagas.length, 1 + this.L('carrinhos'));
@@ -252,6 +286,7 @@ export class Jogo {
   applyStep(a: number, silent = false) {
     const s = this.trilhas[a][this.nivel[a]], i = ++this.nivel[a];
     if (s.k === 'build') {
+      this.revisaoNavegacao++;
       if (s.id === 'maq2') this.addMachine('acai', 290, 470);
       if (s.id === 'coco') this.addMachine('coco', 110, 612);
       if (s.id === 'coco2') this.addMachine('coco', 290, 612);
@@ -476,10 +511,9 @@ export class Jogo {
     if (this.state !== 'play') return;
     this.tempo += dt;
     let ix = input.x, iy = input.y; const il = Math.hypot(ix, iy); if (il > 1) { ix /= il; iy /= il }
-    const sp = 3.6 * (1 + 0.12 * this.L('chinelo')); p.x += ix * sp * f; p.y += iy * sp * f;
+    const sp = 3.6 * (1 + 0.12 * this.L('chinelo')); this.rota(true).mover(p, ix * sp * f, iy * sp * f);
     if (il > 0.05) { p.walk += 0.3 * f; if (Math.abs(ix) > 0.1) p.face = ix > 0 ? 1 : -1; this.moved += sp * f * Math.min(1, il) }
     p.x = Math.max(16, Math.min(this.limitePraia() - 16, p.x)); p.y = Math.max(ANDA.y0, Math.min(ANDA.y1, p.y));
-    for (const m of this.machines) { if (m.pilha) continue; const hw = 34, hh = 26, dx = p.x - m.x, dy = p.y - m.y; if (Math.abs(dx) < hw && Math.abs(dy) < hh) { const px = hw - Math.abs(dx), py = hh - Math.abs(dy); if (px < py) p.x += px * Math.sign(dx || 1); else p.y += py * Math.sign(dy || 1) } }
     this.stepTransfer(p, dt); this.pegarPranchas(p);
 
     // dinheiro vai sozinho para o jogador perto da pilha ou no "Entregar"
@@ -495,7 +529,7 @@ export class Jogo {
     // compras: 1/28 do preço a cada 40 ms
     this.payT += dt;
     for (const v of this.visibleSteps()) {
-      const pad = padOf(v.s.slot), pr = v.s.price;
+      const pad = this.padCompra(v), pr = v.s.price;
       if (inZone(p, pad) && this.money > 0 && this.payT > 40) {
         const key = v.a + ':' + v.k; if (v.k !== this.nivel[v.a]) continue; // a seguinte só depois da próxima
         this.payT = 0; const got = this.paid[key] || 0, chunk = Math.min(Math.floor(this.money), this.testMode ? pr : Math.max(1, Math.ceil(pr / 28)), pr - got); if (chunk <= 0) continue;
@@ -525,10 +559,10 @@ export class Jogo {
       const d = SHOPS[h.shop], same = this.helpers.filter(x => x.shop === h.shop), hi = same.indexOf(h);
       if (h.mode === 'pick') {
         if (!h.target || h.target.pile === 0 && !h.stack.length) this.helperThink(h);
-        if (!h.target) { moveTo(h, d.drop.x - 40 + hi * 30, d.drop.y + 44, 2.4, f); if (h.stack.length) h.mode = 'drop'; continue }
+        if (!h.target) { this.moverAgente(h, d.drop.x - 40 + hi * 30, d.drop.y + 44, 2.4, f); if (h.stack.length) h.mode = 'drop'; continue }
         const z = zoneOf(h.target);
-        if (moveTo(h, z.x + (hi - 1) * 12, z.y, 2.4, f)) { this.stepTransfer(h, dt, h.type); if (h.stack.length >= h.cap || (h.target.pile === 0 && h.stack.length > 0)) h.mode = 'drop' }
-      } else if (moveTo(h, d.drop.x - 30 + hi * 20, d.drop.y, 2.4, f)) {
+        if (this.moverAgente(h, z.x + (hi - 1) * 12, z.y, 2.4, f)) { this.stepTransfer(h, dt, h.type); if (h.stack.length >= h.cap || (h.target.pile === 0 && h.stack.length > 0)) h.mode = 'drop' }
+      } else if (this.moverAgente(h, d.drop.x - 30 + hi * 20, d.drop.y, 2.4, f)) {
         if (this.stepTransfer(h, dt)) h.wait = 0; else h.wait += dt;
         // 1,2 s sem conseguir entregar: volta e busca outro produto
         if (!h.stack.length) { h.mode = 'pick'; h.target = null } else if (h.wait > 1200 && h.stack.length < h.cap) { h.mode = 'pick'; h.target = null; h.wait = 0 }
@@ -665,7 +699,7 @@ export class Jogo {
     let k = 0;
     for (const v of this.vend) {
       if (v.estado === 'doca') {
-        const vg = A.vagas[k++]; moveTo(v, vg.x, vg.y, sp * 1.5, f);
+        const vg = A.vagas[k++]; this.moverAgente(v, vg.x, vg.y, sp * 1.5, f);
         if (v !== this.carregando()) continue;
         v.esperaT += dt; const cap = this.isoporCap();
         if (v.carga.length < cap && v.esperaT > 120) { // enche o carrinho com o estoque da bancada, um por vez
@@ -677,11 +711,11 @@ export class Jogo {
         continue;
       }
       if (v.estado === 'volta') { // deixa o dinheiro na bancada (ou no cofre)
-        if (moveTo(v, doca.x, doca.y, sp, f)) { this.pagarAmbulante(v); v.estado = 'doca'; v.esperaT = 0 }
+        if (this.moverAgente(v, doca.x, doca.y, sp, f)) { this.pagarAmbulante(v); v.estado = 'doca'; v.esperaT = 0 }
         continue;
       }
       // rota: anda entre as pessoas, de um ponto qualquer da areia a outro, vendendo para quem estiver perto
-      if (!v.alvo || moveTo(v, v.alvo.x, v.alvo.y, sp, f)) v.alvo = { x: 30 + this.rand() * (WORLD_W - 60), y: A.areia.y0 + this.rand() * (A.areia.y1 - A.areia.y0) };
+      if (!v.alvo || this.moverAgente(v, v.alvo.x, v.alvo.y, sp, f)) v.alvo = { x: 30 + this.rand() * (WORLD_W - 60), y: A.areia.y0 + this.rand() * (A.areia.y1 - A.areia.y0) };
       v.vendaT -= dt;
       if (v.vendaT <= 0 && v.carga.length) {
         v.vendaT = A.vendaMs / this.publico() * (0.75 + this.rand() * 0.5);
@@ -844,9 +878,9 @@ export class Jogo {
   instrutor(h: Helper, dt: number, f: number) {
     const molhadas = this.esc.pranchas.filter(b => b.estado === 'molhada'), drop = SHOPS[6].drop, hi = this.helpers.filter(x => x.shop === 6).indexOf(h);
     h.tT += dt;
-    if (h.stack.length && (h.stack.length >= h.cap || !molhadas.length)) { if (moveTo(h, drop.x - 20 + hi * 30, drop.y, 2.4, f)) this.stepTransfer(h, dt); return }
-    if (molhadas.length) { const b = molhadas.reduce((a, x) => Math.hypot(x.x - h.x, x.y - h.y) < Math.hypot(a.x - h.x, a.y - h.y) ? x : a); moveTo(h, b.x, b.y, 2.4, f); this.pegarPranchas(h); return }
-    moveTo(h, drop.x - 20 + hi * 30, drop.y + 50, 2.4, f);
+    if (h.stack.length && (h.stack.length >= h.cap || !molhadas.length)) { if (this.moverAgente(h, drop.x - 20 + hi * 30, drop.y, 2.4, f)) this.stepTransfer(h, dt); return }
+    if (molhadas.length) { const b = molhadas.reduce((a, x) => Math.hypot(x.x - h.x, x.y - h.y) < Math.hypot(a.x - h.x, a.y - h.y) ? x : a); this.moverAgente(h, b.x, b.y, 2.4, f); this.pegarPranchas(h); return }
+    this.moverAgente(h, drop.x - 20 + hi * 30, drop.y + 50, 2.4, f);
   }
   /** Salva-vidas: enche a caixa quando está pela metade e arruma as cadeiras. */
   salvaVidas(h: Helper, dt: number, f: number) {
@@ -857,7 +891,7 @@ export class Jogo {
     if (h.mode === 'drop') alvo = reg;
     else if (sujas.length) alvo = sujas.reduce((a, b) => Math.hypot(b.x - h.x, b.y - h.y) < Math.hypot(a.x - h.x, a.y - h.y) ? b : a);
     else alvo = { x: reg.x, y: reg.y + 56 };
-    if (moveTo(h, alvo.x, alvo.y, 2.4, f) && h.mode === 'drop') this.encher(dt, false);
+    if (this.moverAgente(h, alvo.x, alvo.y, 2.4, f) && h.mode === 'drop') this.encher(dt, false);
     this.arrumar(h, false);
   }
 
@@ -884,12 +918,12 @@ export class Jogo {
     h.wait += dt;
     if (h.tarefa === 'esperar') { if (h.wait > 800) h.tarefa = null; return }
     if (h.tarefa === 'entregar') {
-      if (moveTo(h, drop.x - 30 + hi * 20, drop.y, 2.4, f) && this.stepTransfer(h, dt)) h.wait = 0;
+      if (this.moverAgente(h, drop.x - 30 + hi * 20, drop.y, 2.4, f) && this.stepTransfer(h, dt)) h.wait = 0;
       if (!h.stack.some(t => !cru(t)) || h.wait > 1500) h.tarefa = null;
       return;
     }
     const m = h.target!, z = zoneOf(m);
-    if (moveTo(h, z.x + (hi - 1) * 12, z.y, 2.4, f)) {
+    if (this.moverAgente(h, z.x + (hi - 1) * 12, z.y, 2.4, f)) {
       const antes = h.stack.length; this.stepTransfer(h, dt, m.type); if (h.stack.length !== antes) h.wait = 0;
       if (h.tarefa === 'carregar' && (!h.stack.includes(m.needs!) || this.espaco(m) <= 0)) h.tarefa = null;
       else if (h.tarefa === 'pegar' && (m.pile === 0 || h.stack.length >= h.cap)) h.tarefa = null;

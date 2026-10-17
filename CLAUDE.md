@@ -4,7 +4,7 @@ Jogo mobile "idle arcade" (no estilo do Pizza Ready): o jogador anda com um dedo
 
 - Design completo: `GDD-BARRACA-NA-PRAIA.md` (fonte da verdade para regras e números).
 - Protótipo de referência: `barraca-na-praia.html`. O que o GDD marca como "já existe no protótipo" precisa manter o mesmo comportamento.
-- **Orla em faixas:** do mar até a rua: mar, areia, grama, calçadão e rua (só visual). Até abrir os Ambulantes, o jogador explora o trecho das áreas 1 a 5 e o quadrado trancado da área 6; depois anda pela praia inteira, da areia ao fim da calçada, e a câmera segue também na vertical (`FAIXAS` em `dados/mapa.ts`).
+- **Orla em faixas:** do mar até a rua: mar, areia, grama, calçadão e rua (só visual). Nas Praias 1 a 5, o jogador e a câmera ficam no trecho das áreas abertas, com corda e placa da próxima área. Da Praia 6 em diante, a orla inteira fica livre, mas os terrenos trancados são sólidos; jogador, bot e ajudantes contornam esses terrenos, e a câmera segue também na vertical (`FAIXAS` em `dados/mapa.ts`).
 - **Áreas:** 10, cada uma num lugar da orla (`LUGARES`): Barraca do Sol (areia, à esquerda), Sorveteria, Milho e pastel e Sucos (quiosques na grama), Chuveirão e Quadra (areia, perto da grama), Palco (centro da areia), Escolinha de surf (beira da água), Ambulantes (bancada no calçadão e caminhão na rua) e Torneio (quadra própria no fim da orla). As áreas futuras aparecem trancadas no lugar delas. A praia fica cheia de banhistas, que não compram e não atrapalham (GDD seções 6 e 7).
 - **Trilhas:** cada área tem a sua trilha de níveis, independente das outras, e a área N+1 abre quando a área N chega ao nível 5 (GDD seções 6 a 8).
 - **Praias:** o litoral tem 10 praias (`src/dados/praias.ts`). A praia N tem as áreas 1 a N; a área N é a novidade. Com a área N no nível 10 aparece o quadro dourado da viagem: zera dinheiro e níveis e dá fama, que multiplica o lucro de tudo. As 10 praias existem; na Praia 10 o quadro diz "Praia 11 · em breve" e a meta é ser campeão do torneio. Os troféus do torneio dão público para sempre (GDD seções 6 e 8).
@@ -16,7 +16,7 @@ Jogo mobile "idle arcade" (no estilo do Pizza Ready): o jogador anda com um dedo
 3. **Sem menus.** Comprar é pisar num quadrado no chão. A próxima compra aparece ao lado da coisa que ela melhora.
 4. **Progresso sempre visível.** Toda compra muda algo na tela.
 5. **Trabalho manual vira automação, área por área.** Cada área nova começa manual e o ajudante dela automatiza depois. Sempre existe uma área onde o jogador ainda trabalha com as mãos.
-6. **O futuro fica à vista.** As áreas das próximas praias aparecem trancadas no lugar delas, com placa ("Trancado · Palco de pagode · Praia 9"); dá para passar por cima.
+6. **O futuro fica à vista.** As áreas das próximas praias aparecem trancadas no lugar delas, com placa ("Trancado · Palco de pagode · Praia 9"); são sólidos a partir da Praia 6 e devem ser contornados.
 
 ## Estrutura (GDD seção 11)
 
