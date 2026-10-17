@@ -349,3 +349,12 @@ Pedido direto do usuário: diminuir os anúncios automáticos para reduzir as in
 - Validação: `npm test` passou com 83 testes e `npm run build` passou antes do commit. A economia não foi alterada.
 - Limitação: não houve teste de anúncio real em celular/AdMob; os IDs continuam em modo de teste. Os intervalos são controlados por sessão, como antes; reiniciar o app inicia uma nova hora sem automáticos.
 - Commit: registrado junto com esta seção, em português. Nenhuma dúvida bloqueante.
+
+## Parte C (OpenCode) — APK para baixar (17/10/2026)
+
+- Gerado `dist-android/barraca-na-praia-debug.apk` (10,3 MiB), versão 1.0.0, versionCode 1, pacote `com.jogosbr.barracanapraia`. Inclui todas as alterações atuais, inclusive os anúncios automáticos reduzidos.
+- Comandos: `npm test` (83 testes passaram), `npm run build`, `npx cap sync android` e `bash gradlew --no-daemon --max-workers=2 assembleDebug` (BUILD SUCCESSFUL).
+- Ambiente: SDK Android 36 e Build Tools 35.0.0 em `/workspace/android-sdk`; JDK 21 completo em `/workspace/android-build/jdk`. O Java original só tinha o runtime. As ferramentas foram baixadas das fontes oficiais com checksums conferidos; o Java foi configurado para usar o proxy e o repositório de certificados do sistema, mantendo TLS verificado. Configuração local em `/workspace/android-build/java-network.env`, fora do repositório.
+- Verificação: assinatura APK v2 válida, arquivo ZIP íntegro e os 10 arquivos web empacotados idênticos aos de `dist/`. Requer Android 7 (API 24) ou superior. Não foi instalado em dispositivo físico nesta tarefa.
+- SHA256: `95febbd4c5a29c2d55725ca1488c4aaa8cec6874566448c7a21b87ea2a1a996a`.
+- APK de depuração, com assinatura de teste gerada neste ambiente e IDs de teste do AdMob; não é o pacote de publicação da Play Store. O arquivo fica ignorado pelo Git. Nenhum código ou configuração Android versionada precisou ser alterado; este commit registra somente o relatório.
