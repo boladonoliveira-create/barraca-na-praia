@@ -125,7 +125,7 @@ A estrutura segue dois jogos de referência. No Idle Miner Tycoon, cada parte da
 
 - **Cada área tem a sua trilha de níveis:** máquinas, ajudante, cardápio, capacidade, cofre e o que for próprio dela. O nível da área é quantas melhorias ela já comprou; o número aparece num selo ao lado do balcão ("Nv 7 ★").
 - **Melhorar uma área nunca depende de outra.** Cada área tem o seu turbo, o seu cardápio e as suas capacidades.
-- **As melhorias aparecem no chão só dentro da área, ao lado do que melhoram:** a próxima da trilha e, se ficar em outro lugar, uma prévia da seguinte (apagada, com "depois"). A prévia só pode ser paga depois da próxima.
+- **As melhorias aparecem no chão só dentro da área, ao lado do que melhoram:** os dois próximos passos pendentes em pontos distintos. Todo quadro visível pode ser pago em qualquer ordem; dependências concretas, como melhorar uma fritadeira ainda não construída, mostram “Precisa de: X”. A seta sugere o melhor custo-benefício. Após uma compra, a melhoria seguinte no mesmo ponto só aparece quando o jogador sai do quadro, para evitar pagamentos involuntários em cadeia.
 - **Depois da lista fixa,** cada área repete melhorias de cardápio, velocidade e capacidade, para sempre ter algo a comprar.
 
 ### Liberação, marcos e cofre
@@ -267,7 +267,7 @@ Cada mecânica nova da seção 7 deve ser uma "loja" com dados próprios (produt
 
 ### Salvar
 
-Guardar a versão do formato junto do progresso. Hoje é `{ versao: 4, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal`, `famas` (fama de cada praia concluída) e os níveis por área. O `mundo` é criado uma vez e serve para salvar na nuvem e para o co-op no futuro. O v3 (uma praia só) é convertido: vai para a praia igual ao número de áreas abertas (no máximo 5), com a fama mínima das praias anteriores.
+Guardar a versão do formato junto do progresso. Hoje é `{ versao: 5, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal`, `famas` (fama de cada praia concluída) e os níveis por área, além dos índices exatos das melhorias em `compradas`. O v4 é migrado preservando as compras anteriores, os pagamentos parciais e a identidade do mundo; as mochilas novas não deslocam nem substituem melhorias antigas. O `mundo` é criado uma vez e serve para salvar na nuvem e para o co-op no futuro. O v3 (uma praia só) é convertido: vai para a praia igual ao número de áreas abertas (no máximo 5), com a fama mínima das praias anteriores.
 
 ### Analytics (Firebase)
 

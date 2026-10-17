@@ -89,7 +89,7 @@ if (previa) {
   g.load({ money: 0, niveis: [], paid: {}, praia: previa, famaTotal: famas.reduce((a, b) => a + b, 0), famas, ganho: 0, tempo: 0, last: 0, tutorial: 4 });
   const nova = g.areasPraia() - 1;
   for (let a = 0; a <= nova; a++) while (g.liberada(a) && (!g.aberta(a) || (a < nova && g.nivel[a] < NIVEL_ABRE))) { g.applyStep(a, true); g.gratis(a) }
-  g.money = g.shown = 3 * g.trilhas[nova][g.nivel[nova]].price;
+  g.money = g.shown = 3 * g.trilhas[nova][g.proximoIndice(nova)].price;
 }
 hud.syncTest(); hud.goal(); g.firstScene();
 hud.showStart(() => {

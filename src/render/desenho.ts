@@ -4,7 +4,7 @@ import { fmt } from '../core/economia.ts';
 import { NIVEL_ABRE, AREAS } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
 import { desenharCenario, luz, hash } from './cenarios.ts';
-import { zoneOf, padOf, inZone, NUM_AREAS, type Jogo, type Kind, type Machine, type Umbrella, type Carrier, type Vendedor, type Banhista } from '../core/jogo.ts';
+import { zoneOf, padOf, inZone, posCarga, NUM_AREAS, type Jogo, type Kind, type Machine, type Umbrella, type Carrier, type Vendedor, type Banhista } from '../core/jogo.ts';
 
 export interface Joy { on: boolean; ox: number; oy: number; x: number; y: number }
 interface PersonLook { shirt: string; skin: string; walk?: number; face?: number; cap?: string; hat?: boolean; apron?: boolean; hair?: string; hairStyle?: number; shorts?: string; flip?: string; shades?: boolean; carry?: boolean }
@@ -153,7 +153,7 @@ function drawStack(a: Carrier) {
   const bx = a.x - a.face * 13, by = a.y - 22;
   ctx.fillStyle = '#8d5a2b'; rr(bx - 12, by - 10, 24, 25, 5); ctx.fill();
   ctx.strokeStyle = '#f4d58d'; ctx.lineWidth = 2; ctx.stroke();
-  for (let i = 0; i < a.stack.length; i++) drawItem(a.stack[i], bx + (i % 3 - 1) * 10, by - 8 - Math.floor(i / 3) * 10, 0.8);
+  for (let i = 0; i < a.stack.length; i++) { const p = posCarga(a, i); drawItem(a.stack[i], p.x, p.y, 0.8) }
 }
 
 function drawMachine(m: Machine) {
@@ -206,16 +206,19 @@ function drawMachine(m: Machine) {
   else for (let i = 0; i < m.pile; i++) drawItem(m.type, z.x - 24 + (i % 4) * 16, z.y + 4 - Math.floor(i / 4) * 9, 0.9);
 }
 
-function drawPad(x: number, y: number, name: string, remain: number, progress: number, isUp: boolean, gold: boolean, previa = false) {
+function drawPad(x: number, y: number, name: string, remain: number, progress: number, isUp: boolean, gold: boolean, precisa: string | null = null) {
   const w = 72, h = 60, afford = g.money >= remain;
-  if (previa) ctx.globalAlpha = 0.45;
+  if (precisa) ctx.globalAlpha = 0.8;
   rr(x - w / 2, y - h / 2, w, h, 12); ctx.fillStyle = gold ? 'rgba(255,243,196,0.92)' : 'rgba(255,253,247,0.8)'; ctx.fill();
   ctx.save(); rr(x - w / 2, y - h / 2, w, h, 12); ctx.clip(); ctx.fillStyle = 'rgba(47,158,68,0.35)'; ctx.fillRect(x - w / 2, y + h / 2 - h * progress, w, h * progress); ctx.restore();
   ctx.setLineDash([6, 5]); ctx.lineWidth = 2.5; ctx.strokeStyle = gold ? '#e0a800' : afford ? '#2f9e44' : '#b08a5a'; rr(x - w / 2, y - h / 2, w, h, 12); ctx.stroke(); ctx.setLineDash([]);
   if (isUp) { ctx.fillStyle = '#2f9e44'; circ(x + w / 2 - 4, y - h / 2 + 4, 9); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x + w / 2 - 4, y - h / 2 + 9); ctx.lineTo(x + w / 2 - 4, y - h / 2); ctx.moveTo(x + w / 2 - 8, y - h / 2 + 3.5); ctx.lineTo(x + w / 2 - 4, y - h / 2 - 0.5); ctx.lineTo(x + w / 2, y - h / 2 + 3.5); ctx.stroke() }
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#3a2316'; ctx.font = '800 11px "Nunito",sans-serif';
+  ctx.globalAlpha = 1; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#3a2316'; ctx.font = '800 11px "Nunito",sans-serif';
   const words = name.split(' '), half = Math.ceil(words.length / 2); ctx.fillText(words.slice(0, half).join(' '), x, y - 15); const l2 = words.slice(half).join(' '); if (l2) ctx.fillText(l2, x, y - 3);
-  ctx.font = '800 15px "Baloo 2",sans-serif'; ctx.fillStyle = '#2f9e44'; ctx.fillText(previa ? 'depois' : g.testMode ? 'Grátis' : 'R$ ' + fmt(remain), x, y + 15);
+  if (precisa) {
+    ctx.fillStyle = '#6c583e'; ctx.font = '800 9px "Nunito",sans-serif'; ctx.fillText('Precisa de:', x, y + 11);
+    ctx.font = '800 8px "Nunito",sans-serif'; ctx.fillText(precisa, x, y + 23, 76);
+  } else { ctx.font = '800 15px "Baloo 2",sans-serif'; ctx.fillStyle = '#2f9e44'; ctx.fillText(g.testMode ? 'Grátis' : 'R$ ' + fmt(remain), x, y + 15) }
   ctx.globalAlpha = 1;
 }
 
@@ -745,7 +748,7 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   for (let a = 0; a < NUM_AREAS; a++) drawEnfeites(a);
   // áreas fechadas: todas aparecem trancadas no lugar delas (pilar 6)
   LUGARES.forEach((L, i) => { if (i === 0 || g.aberta(i) || g.beach < 5 || L.zona.x + L.zona.w / 2 < x0 || L.zona.x - L.zona.w / 2 > x1) return; drawTrancado(i) });
-  for (const v of g.visibleSteps()) { const s = g.padCompra(v), got = g.paid[v.a + ':' + v.k] || 0; drawPad(s.x, s.y, v.s.name, v.s.price - got, got / v.s.price, v.s.k === 'up', false, v.k !== g.nivel[v.a]) }
+  for (const v of g.visibleSteps()) { const s = g.padCompra(v), got = g.paid[v.a + ':' + v.k] || 0; drawPad(s.x, s.y, v.s.name, v.s.price - got, got / v.s.price, v.s.k === 'up', false, g.precisaDe(v)) }
   if (g.novaPraiaAberta()) drawPadPraia();
 
   // banhistas: numa camada própria, por baixo de clientes, ajudantes e do jogador (que fica sempre visível),

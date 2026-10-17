@@ -27,3 +27,11 @@ describe('navegação em terrenos sólidos', () => {
     expect(n.livre(n.alcancavel({ x: 100, y: 100 }))).toBe(true);
   });
 });
+
+
+it('um ponto ligeiramente dentro da borda é projetado para fora e não vira origem sem saída', () => {
+  const r = { x: 200, y: 470, w: 100, h: 88 }, n = new Navegacao([r], { x0: 16, x1: 408, y0: 152, y1: 1048 });
+  const p = { x: 249.999304, y: 484.3759 }, q = n.proximo(p, { x: 40, y: 446 });
+  expect(Math.hypot(q.x - p.x, q.y - p.y)).toBeGreaterThan(2.5);
+  expect(n.livre(q)).toBe(true);
+});

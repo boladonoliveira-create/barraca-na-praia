@@ -3,10 +3,11 @@ import type { Rect } from '../dados/mapa.ts';
 export interface Ponto { x: number; y: number }
 export interface Limites { x0: number; x1: number; y0: number; y1: number }
 export const ampliar = (r: Rect, margem: number): Rect => ({ ...r, w: r.w + margem * 2, h: r.h + margem * 2 });
-export const contem = (p: Ponto, r: Rect) => Math.abs(p.x - r.x) < r.w / 2 - 0.001 && Math.abs(p.y - r.y) < r.h / 2 - 0.001;
+export const contem = (p: Ponto, r: Rect) => Math.abs(p.x - r.x) < r.w / 2 && Math.abs(p.y - r.y) < r.h / 2;
 const distancia = (a: Ponto, b: Ponto) => Math.hypot(b.x - a.x, b.y - a.y);
 /** Interseção exata de segmento e retângulo, inclusive para deslocamentos grandes. */
 export function cruza(a: Ponto, b: Ponto, r: Rect) {
+  if (Math.max(a.x, b.x) <= r.x - r.w / 2 || Math.min(a.x, b.x) >= r.x + r.w / 2 || Math.max(a.y, b.y) <= r.y - r.h / 2 || Math.min(a.y, b.y) >= r.y + r.h / 2) return false;
   let inicio = 0, fim = 1;
   for (const eixo of ['x', 'y'] as const) {
     const tamanho = eixo === 'x' ? r.w : r.h, min = r[eixo] - tamanho / 2, max = r[eixo] + tamanho / 2, d = b[eixo] - a[eixo];
@@ -36,12 +37,14 @@ export class Navegacao {
     const l = this.limites, q = { x: Math.max(l.x0, Math.min(l.x1, p.x)), y: Math.max(l.y0, Math.min(l.y1, p.y)) };
     if (this.livre(q)) return q;
     const opcoes = this.solidos.filter(r => contem(q, r)).flatMap(r => [
-      { x: r.x - r.w / 2 - 1, y: q.y }, { x: r.x + r.w / 2 + 1, y: q.y },
-      { x: q.x, y: r.y - r.h / 2 - 1 }, { x: q.x, y: r.y + r.h / 2 + 1 },
+      { x: r.x - r.w / 2 - 4, y: q.y }, { x: r.x + r.w / 2 + 4, y: q.y },
+      { x: q.x, y: r.y - r.h / 2 - 4 }, { x: q.x, y: r.y + r.h / 2 + 4 },
     ]).filter(p => this.livre(p)).sort((a, b) => distancia(q, a) - distancia(q, b));
     return opcoes[0] || this.pontos.reduce((a, b) => distancia(q, a) < distancia(q, b) ? a : b);
   }
   proximo(origem: Ponto, destino: Ponto): Ponto {
+    const origemLivre = this.alcancavel(origem);
+    if (distancia(origem, origemLivre) > 0.001) return origemLivre;
     const alvo = this.alcancavel(destino);
     if (this.retaLivre(origem, alvo)) return alvo;
     const chave = `${alvo.x}:${alvo.y}`;

@@ -6,13 +6,15 @@ import {
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, MARCOS, ECONOMIA, AREAS, BOLSA_CAPACIDADES } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
 import { PREMIOS, diaDeHoje, type Diaria, type Premio } from './diaria.ts';
-import { Navegacao, ampliar } from './navegacao.ts';
+import { Navegacao, ampliar, contem } from './navegacao.ts';
 import { makeTrilha, type Step } from './economia.ts';
 
 export type Kind = Item | 'bill';
 export interface Pt { x: number; y: number }
 export interface Walker extends Pt { walk: number; face: number }
 export interface Carrier extends Walker { stack: Item[]; tT: number }
+/** Mesma posição da carga para desenho e animações de coleta/entrega. */
+export const posCarga = (a: Carrier, i: number): Pt => ({ x: a.x - a.face * 13 + (i % 3 - 1) * 10, y: a.y - 30 - Math.floor(i / 3) * 10 });
 /** needs: panela/fritadeira (Praia 4) — só cozinha o que recebe cru (loaded), em lote. */
 /** pilha: pilha de caixas no chão (o caminhão enche; não produz sozinha e não bloqueia o caminho). */
 export interface Machine extends Pt { type: Item; pile: number; cap: number; t: number; needs?: Item; loaded?: number; pilha?: boolean }
@@ -52,6 +54,8 @@ export interface Save {
   last: number; tutorial: number; pendente?: number;
   /** recompensa diária: a data e o dia do calendário que pegou por último */
   diaria?: Diaria;
+  /** Índices efetivamente comprados por área; níveis são a quantidade, não um prefixo da trilha. */
+  compradas?: number[][];
   /** Torneio: troféus ganhos (ficam para sempre) e a partida em andamento (etapa 1 a 3, ms que faltam). */
   trofeus?: number; partida?: { etapa: number; ms: number };
 }
@@ -90,6 +94,10 @@ export function moveTo(a: Walker, tx: number, ty: number, sp: number, f: number)
 
 export class Jogo {
   money = 0; shown = 0; lv: Record<string, number> = {}; beach = 0; famaTotal = 0; famas: number[] = []; ganho = 0; tempo = 0; trilhas: Step[][] = []; nivel: number[] = []; paid: Record<string, number> = {};
+  compradas: Set<number>[] = [];
+  private revisaoCompras = 0;
+  private ultimaPisada: { slot: string; pad: Rect } | null = null;
+  private cacheCompras: { revisao: number; praia: number; visiveis: Visivel[] } | null = null;
   machines: Machine[] = []; customers: Customer[] = []; flyers: Flyer[] = []; popups: Popup[] = []; sparks: Spark[] = []; helpers: Helper[] = []; umbrellas: Umbrella[] = []; S: ShopState[] = [];
   boostUntil = 0; boostX = 2; diaria: Diaria = { ultimo: null, dia: 0 }; now = 0; tutorial = 0; moved = 0; state: Estado = 'play'; payT = 0; camX = 0; camY = 0; testMode = false;
   sv: Servico = novoServico(); vend: Vendedor[] = []; esc: Escola = { pranchas: [], fila: [], spawnT: 800 };
@@ -106,6 +114,7 @@ export class Jogo {
 
   /* ---------- Valores derivados ---------- */
   private navegacoes = new Map<boolean, Navegacao>();
+  private desvios = new Map<string, Navegacao>();
   private chaveNavegacao = '';
   private revisaoNavegacao = 0;
   /** Nas Praias 1–5 só o trecho aberto; da Praia 6 em diante, toda a orla. */
@@ -116,7 +125,7 @@ export class Jogo {
   quadradosSolidos() { return this.beach < 5 ? [] : LUGARES.filter((_, a) => !this.aberta(a)).map(l => l.rect) }
   private rota(comMaquinas = false) {
     const chave = this.beach + ':' + this.revisaoNavegacao;
-    if (chave !== this.chaveNavegacao) { this.chaveNavegacao = chave; this.navegacoes.clear() }
+    if (chave !== this.chaveNavegacao) { this.chaveNavegacao = chave; this.navegacoes.clear(); this.desvios.clear() }
     let rota = this.navegacoes.get(comMaquinas);
     if (!rota) {
       const solidos = this.quadradosSolidos().map(r => ampliar(r, 12));
@@ -126,7 +135,20 @@ export class Jogo {
     }
     return rota;
   }
-  caminhoAte(origem: Pt, destino: Pt) { return this.rota(true).proximo(origem, destino) }
+  velocidadeJogador() { return 3.6 * (1 + 0.12 * this.L('chinelo')) }
+  caminhoAte(origem: Pt, destino: Pt, evitar: Pt[] = []) {
+    const base = this.rota(true);
+    const quadros = evitar.map(p => ({ ...p, w: 72, h: 60 })).filter(r => !contem(origem, r) && !contem(destino, ampliar(r, 14))).map(r => ampliar(r, 14));
+    if (!quadros.length) return base.proximo(origem, destino);
+    const chave = quadros.map(r => r.x + ':' + r.y).join(',');
+    let rota = this.desvios.get(chave);
+    if (!rota) {
+      rota = new Navegacao([...base.solidos, ...quadros], base.limites);
+      if (this.desvios.size >= 32) this.desvios.clear();
+      this.desvios.set(chave, rota);
+    }
+    return rota.proximo(origem, destino);
+  }
   /** Todos os carregadores usam o mesmo desvio; os clientes continuam com suas rotinas de fila e mar. */
   moverAgente(a: Walker, x: number, y: number, sp: number, f: number) {
     const rota = this.rota(), alvo = rota.alcancavel({ x, y }), q = rota.proximo(a, alvo), antes = { x: a.x, y: a.y };
@@ -217,7 +239,7 @@ export class Jogo {
   }
   /** Quadro de nova praia: aparece com a área nova desta praia no nível NIVEL_NOVA_PRAIA. */
   novaPraiaAberta() { const a = this.areasPraia() - 1; return this.aberta(a) && this.nivel[a] >= NIVEL_NOVA_PRAIA }
-  /** A próxima praia já tem a área dela pronta no jogo (depois da Praia 5 o quadro diz "em breve"). */
+  /** A próxima praia já tem a área dela pronta no jogo (depois da Praia 10 o quadro diz "em breve"). */
   proximaExiste() { return this.beach + 1 < NUM_AREAS }
   /** Custo da viagem: ECONOMIA.viagem[praia] × o preço do próximo nível da área nova. */
   custoNovaPraia() { return Math.round(this.trilhas[this.areasPraia() - 1][NIVEL_NOVA_PRAIA].price * ECONOMIA.viagem[this.beach] / 5) * 5 }
@@ -226,28 +248,50 @@ export class Jogo {
     if (this.novaPraiaAberta()) return this.proximaExiste() ? 'Viajar para a ' + PRAIAS[this.beach + 1].nome : (PRAIAS[this.beach + 1]?.nome ?? 'Praia ' + (this.beach + 2)) + ' · em breve';
     const v = this.melhorCompra(false) || this.melhorCompra(true); return v ? AREAS[v.a] + ': ' + v.s.name : '';
   }
+  proximoIndice(a: number) { return this.trilhas[a].findIndex((_, k) => !this.compradas[a].has(k)) }
   falta(v: Visivel) { return v.s.price - (this.paid[v.a + ':' + v.k] || 0) }
 
   /** Compras no chão: em cada área aberta, a próxima da trilha e, se ficar em outro quadrado, a seguinte.
       De uma área fechada, só o quadro de abertura, e só quando a área anterior chegou ao nível mínimo. */
   visibleSteps(): Visivel[] {
+    // Um sucessor no mesmo chão só aparece depois da saída: impede gastar de novo enquanto a compra anterior comemora.
+    if (this.ultimaPisada && !inZone(this.player, this.ultimaPisada.pad)) { this.ultimaPisada = null; this.revisaoCompras++ }
+    if (this.cacheCompras?.revisao === this.revisaoCompras && this.cacheCompras.praia === this.beach) return this.cacheCompras.visiveis;
     const out: Visivel[] = [];
     for (let a = 0; a < NUM_AREAS; a++) {
-      if (!this.liberada(a) || (a === 9 && this.partida.ms > 0)) continue; // durante a partida, a próxima etapa espera
-      const t = this.trilhas[a], k = this.nivel[a];
+      if (!this.liberada(a)) continue;
+      const t = this.trilhas[a], pendentes = t.map((_, k) => k).filter(k => !this.compradas[a].has(k) && t[k].slot !== this.ultimaPisada?.slot), k = pendentes[0], seguinte = pendentes.find(i => t[i].slot !== t[k]?.slot);
+      if (k === undefined) continue;
       out.push({ a, k, s: t[k] });
-      if (this.aberta(a) && t[k + 1] && t[k + 1].slot !== t[k].slot) out.push({ a, k: k + 1, s: t[k + 1] });
+      if (this.aberta(a) && seguinte !== undefined && t[seguinte].slot !== t[k].slot) out.push({ a, k: seguinte, s: t[seguinte] });
     }
+    this.cacheCompras = { revisao: this.revisaoCompras, praia: this.beach, visiveis: out };
     return out;
   }
+  /** Só dependências físicas ou etapas do campeonato impedem a compra de um quadro visível. */
+  precisaDe(v: Visivel): string | null {
+    if (!this.aberta(v.a) || v.s.k === 'build') return null;
+    if (v.s.id === 'fritaRapida' && !this.machines.some(m => m.type === 'pastel')) return 'Fritadeira de pastel';
+    if (v.s.id === 'bolsa') {
+      const anteriores = this.trilhas[v.a].slice(0, v.k).filter(s => s.id === 'bolsa').length;
+      if (this.L('bolsa') < anteriores) return 'Mochila de ' + BOLSA_CAPACIDADES[anteriores];
+    }
+    if (v.s.id.startsWith('etapa')) {
+      if (this.partida.ms > 0) return 'Fim da partida';
+      const etapa = Number(v.s.id.slice(5));
+      if (this.trofeus < etapa - 1) return TORNEIO.etapas[etapa - 2];
+    }
+    return null;
+  }
+
   /** Melhor custo-benefício: abrir área vale mais, chegar a um marco (ou ao nível que abre a próxima) também.
       soCabe: só entre as que o dinheiro já paga (é o que a seta sugere). */
   melhorCompra(soCabe = true): Visivel | null {
     let best: Visivel | null = null, bs = -1;
     for (const v of this.visibleSteps()) {
-      if (v.k !== this.nivel[v.a]) continue; // só a próxima de cada área (a seguinte vem depois dela)
+      if (this.precisaDe(v)) continue;
       if (soCabe && this.money < this.falta(v)) continue;
-      const proximo = v.k + 1, ganho = 1 + (v.s.k === 'build' && !this.aberta(v.a) ? 2 : 0) + (MARCOS.includes(proximo) || proximo === NIVEL_ABRE ? 1 : 0) + (this.aberta(v.a) && v.a === this.areasPraia() - 1 ? 1 : 0);
+      const proximo = this.nivel[v.a] + 1, ganho = 1 + (v.s.k === 'build' && !this.aberta(v.a) ? 2 : 0) + (MARCOS.includes(proximo) || proximo === NIVEL_ABRE ? 1 : 0) + (this.aberta(v.a) && v.a === this.areasPraia() - 1 ? 1 : 0);
       const sc = ganho / Math.max(1, this.falta(v)); if (sc > bs) { bs = sc; best = v }
     }
     return best;
@@ -277,14 +321,18 @@ export class Jogo {
   }
   resetWorld() {
     // começo rápido (a partir da Praia 3): as áreas que já foram novidade de uma praia anterior
-    this.trilhas = Array.from({ length: NUM_AREAS }, (_, a) => makeTrilha(a, this.beach, this.beach >= 2 && a < this.beach)); this.nivel = Array(NUM_AREAS).fill(0); this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.sv = novoServico(); this.vend = []; this.caminhao = { estado: 'fora', x: 0, t: 0, entregues: 0 }; this.esc = { pranchas: [], fila: [], spawnT: 800 }; this.palco = { t: 0, show: 0 }; this.partida = { etapa: 0, ms: 0 };
+    this.trilhas = Array.from({ length: NUM_AREAS }, (_, a) => makeTrilha(a, this.beach, this.beach >= 2 && a < this.beach)); this.nivel = Array(NUM_AREAS).fill(0); this.compradas = Array.from({ length: NUM_AREAS }, () => new Set<number>()); this.revisaoCompras++; this.ultimaPisada = null; this.machines = []; this.customers = []; this.helpers = []; this.umbrellas = []; this.lv = {}; this.paid = {}; this.sv = novoServico(); this.vend = []; this.caminhao = { estado: 'fora', x: 0, t: 0, entregues: 0 }; this.esc = { pranchas: [], fila: [], spawnT: 800 }; this.palco = { t: 0, show: 0 }; this.partida = { etapa: 0, ms: 0 };
     this.money = 0; this.shown = 0; this.camX = 0; this.camY = 0; this.freshShops();
     this.criarBanhistas(); this.addMachine('acai', 110, 470); this.player.x = 200; this.player.y = 560; this.player.stack = [];
   }
 
-  /** Compra o próximo nível da área a. */
-  applyStep(a: number, silent = false) {
-    const s = this.trilhas[a][this.nivel[a]], i = ++this.nivel[a];
+  /** Aplica uma compra específica; chamadas sem índice continuam comprando o primeiro passo pendente. */
+  applyStep(a: number, silent = false, k = this.proximoIndice(a)) {
+    const s = this.trilhas[a][k];
+    if (!s || this.compradas[a].has(k)) return;
+    const pad = this.padCompra({ a, k, s });
+    if (!silent && inZone(this.player, pad)) this.ultimaPisada = { slot: s.slot, pad };
+    this.compradas[a].add(k); this.revisaoCompras++; const i = ++this.nivel[a];
     if (s.k === 'build') {
       this.revisaoNavegacao++;
       if (s.id === 'maq2') this.addMachine('acai', 290, 470);
@@ -354,7 +402,7 @@ export class Jogo {
   }
 
   /** Começo rápido: aplica de graça os passos de preço 0 que vêm agora na trilha da área (1º ajudante e cofre). */
-  gratis(a: number) { while (this.aberta(a) && this.trilhas[a][this.nivel[a]]?.price === 0) this.applyStep(a, true) }
+  gratis(a: number) { while (this.aberta(a) && this.trilhas[a][this.proximoIndice(a)]?.price === 0) this.applyStep(a, true) }
 
   /** Comprou o quadro de nova praia: ganha a fama, zera dinheiro e níveis e começa a próxima praia. */
   viajar() {
@@ -372,6 +420,7 @@ export class Jogo {
   /* ---------- Salvar ---------- */
   snapshot(last = Date.now()): Save {
     return {
+      compradas: this.compradas.map(cs => [...cs].sort((a, b) => a - b)),
       money: this.testMode ? 0 : Math.floor(this.money), niveis: [...this.nivel], paid: this.paid, praia: this.beach + 1, famaTotal: this.famaTotal, famas: [...this.famas],
       ganho: Math.floor(this.ganho), tempo: Math.round(this.tempo), last, tutorial: this.tutorial, pendente: this.pendente, diaria: { ...this.diaria }, trofeus: this.trofeus, partida: { ...this.partida },
     };
@@ -382,7 +431,11 @@ export class Jogo {
     this.famaTotal = s?.famaTotal || 0; this.trofeus = s?.trofeus || 0; this.diaria = s?.diaria ? { ...s.diaria } : { ultimo: null, dia: 0 }; this.famas = s?.famas ? [...s.famas] : []; this.ganho = s?.ganho || 0; this.tempo = s?.tempo || 0;
     this.resetWorld(); if (!s) return 0;
     this.money = s.money || 0; this.shown = this.money; this.tutorial = s.tutorial || 0; this.paid = s.paid || {}; this.pendente = s.pendente || 0;
-    (s.niveis || []).forEach((n, a) => { for (let k = 0; k < Math.min(n, 60) && a < this.areasPraia(); k++) this.applyStep(a, true) });
+    (s.niveis || []).forEach((n, a) => {
+      if (a >= this.areasPraia()) return;
+      const indices = s.compradas?.[a] ?? Array.from({ length: Math.min(n, this.trilhas[a].length) }, (_, k) => k);
+      for (const k of [...new Set(indices)].sort((a, b) => a - b)) if (Number.isInteger(k) && k >= 0 && k < this.trilhas[a].length) this.applyStep(a, true, k);
+    });
     for (let a = 0; a < NUM_AREAS; a++) this.gratis(a); // save convertido do v3 (níveis zerados): o começo rápido entra agora
     if (s.partida) this.partida = { ...s.partida };
     return this.pendente + this.offlineGain(s.last, nowMs);
@@ -442,7 +495,7 @@ export class Jogo {
         if (idx >= 0) { a.tT = 0; a.stack.splice(idx, 1); m.loaded!++; this.fly(m.needs, a.x, a.y - 30, m.x, m.y - 10, 200); if (P) this.io.tone(480, 0.06, 'triangle', 0.05, 0.8) }
       }
       if (inZone(a, z) && m.pile > 0 && this.canCarry(a, m.type) && a.tT > 90) {
-        a.tT = 0; m.pile--; a.stack.push(m.type); this.fly(m.type, m.x, m.y + 44, a.x, a.y - 30 - a.stack.length * 9, 200);
+        a.tT = 0; m.pile--; a.stack.push(m.type); const pos = posCarga(a, a.stack.length - 1); this.fly(m.type, m.x, m.y + 44, pos.x, pos.y, 200);
         if (P) { this.io.tone(400 + a.stack.length * 30, 0.06, 'triangle', 0.05, 1.2); if (this.tutorial === 0) this.tutorial = 1 }
       }
     }
@@ -458,7 +511,7 @@ export class Jogo {
         if (idx < 0) continue;
         a.tT = 0; const it = a.stack.splice(idx, 1)[0], u: Item = it === 'caixaBisc' ? 'biscoito' : 'mate';
         for (let k = 0; k < AMBULANTE.caixa; k++) st.counter[u].push(u);
-        this.fly(it, a.x, a.y - 30 - (idx + 1) * 9, d.counter.x, d.counter.y, 220);
+        const pos = posCarga(a, idx); this.fly(it, pos.x, pos.y, d.counter.x, d.counter.y, 220);
         if (P) this.io.tone(520, 0.1, 'triangle', 0.06, 1.4); return true;
       }
       if (d.kind === 'escola') { // pendura a prancha molhada na arara, se tiver lugar
@@ -469,7 +522,7 @@ export class Jogo {
       // solta qualquer item da pilha que caiba, não só o de cima
       let idx = -1; for (let i = a.stack.length - 1; i >= 0; i--) { const t = a.stack[i]; if (PRODUCTS[t].shop === si && t !== 'caixa' && st.counter[t].length < COUNTER_CAP) { idx = i; break } }
       if (idx >= 0) {
-        a.tT = 0; const it = a.stack.splice(idx, 1)[0]; st.counter[it].push(it); const s = this.counterSlot(si, it, Math.min(17, st.counter[it].length - 1)); this.fly(it, a.x, a.y - 30 - (idx + 1) * 9, s.x, s.y, 220);
+        a.tT = 0; const it = a.stack.splice(idx, 1)[0]; st.counter[it].push(it); const s = this.counterSlot(si, it, Math.min(17, st.counter[it].length - 1)); const pos = posCarga(a, idx); this.fly(it, pos.x, pos.y, s.x, s.y, 220);
         if (P) { this.io.tone(700 - a.stack.length * 25, 0.05, 'triangle', 0.05, 0.9); if (this.tutorial === 1) this.tutorial = 2 } return true;
       }
     }
@@ -511,7 +564,7 @@ export class Jogo {
     if (this.state !== 'play') return;
     this.tempo += dt;
     let ix = input.x, iy = input.y; const il = Math.hypot(ix, iy); if (il > 1) { ix /= il; iy /= il }
-    const sp = 3.6 * (1 + 0.12 * this.L('chinelo')); this.rota(true).mover(p, ix * sp * f, iy * sp * f);
+    const sp = this.velocidadeJogador(); this.rota(true).mover(p, ix * sp * f, iy * sp * f);
     if (il > 0.05) { p.walk += 0.3 * f; if (Math.abs(ix) > 0.1) p.face = ix > 0 ? 1 : -1; this.moved += sp * f * Math.min(1, il) }
     p.x = Math.max(16, Math.min(this.limitePraia() - 16, p.x)); p.y = Math.max(ANDA.y0, Math.min(ANDA.y1, p.y));
     this.stepTransfer(p, dt); this.pegarPranchas(p);
@@ -531,10 +584,10 @@ export class Jogo {
     for (const v of this.visibleSteps()) {
       const pad = this.padCompra(v), pr = v.s.price;
       if (inZone(p, pad) && this.money > 0 && this.payT > 40) {
-        const key = v.a + ':' + v.k; if (v.k !== this.nivel[v.a]) continue; // a seguinte só depois da próxima
+        const key = v.a + ':' + v.k; if (this.precisaDe(v)) continue;
         this.payT = 0; const got = this.paid[key] || 0, chunk = Math.min(Math.floor(this.money), this.testMode ? pr : Math.max(1, Math.ceil(pr / 28)), pr - got); if (chunk <= 0) continue;
         this.money -= chunk; this.paid[key] = got + chunk; this.fly('bill', p.x, p.y - 16, pad.x, pad.y, 170); this.io.tone(600 + this.paid[key] / pr * 500, 0.04, 'triangle', 0.04, 1);
-        if (this.paid[key] >= pr) { delete this.paid[key]; if (this.tutorial === 3) this.tutorial = 4; this.applyStep(v.a); this.gratis(v.a) }
+        if (this.paid[key] >= pr) { delete this.paid[key]; if (this.tutorial === 3) this.tutorial = 4; this.applyStep(v.a, false, v.k); this.gratis(v.a) }
       }
     }
     if (this.novaPraiaAberta() && this.proximaExiste()) {

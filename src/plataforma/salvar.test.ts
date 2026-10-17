@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { lerSave, gravarSave, lerMundo, SAVE_KEY, SAVE_VERSION } from './salvar.ts';
+import { Jogo } from '../core/jogo.ts';
+import { makeTrilha } from '../core/economia.ts';
 import { ECONOMIA } from '../dados/planos.ts';
 
 const save = { money: 10, niveis: [6, 2, 0, 0], paid: {}, praia: 2, famaTotal: 3, famas: [3], ganho: 40, tempo: 9000, last: 5, tutorial: 4 };
@@ -9,11 +11,11 @@ function mem(init: Record<string, string> = {}) {
 }
 
 describe('salvamento', () => {
-  it('grava com chave própria, versão 4 e o mundo, e lê de volta', () => {
+  it('grava com chave própria, versão 5 e o mundo, e lê de volta', () => {
     const s = mem(); gravarSave(save, s.get, s.set);
-    expect(SAVE_VERSION).toBe(4);
+    expect(SAVE_VERSION).toBe(5);
     const gravado = JSON.parse(s.m.get(SAVE_KEY)!);
-    expect(gravado).toEqual({ versao: 4, mundo: { id: expect.any(String), criadoEm: expect.any(Number) }, jogo: save });
+    expect(gravado).toEqual({ versao: 5, mundo: { id: expect.any(String), criadoEm: expect.any(Number) }, jogo: save });
     expect(lerSave(s.get)).toEqual(save);
   });
 
@@ -45,5 +47,33 @@ describe('salvamento', () => {
 
   it('save corrompido vira jogo novo', () => {
     expect(lerSave(mem({ [SAVE_KEY]: '{quebrado' }).get)).toBeNull();
+  });
+});
+
+
+describe('conversão de compras v4 para v5', () => {
+  it('preserva as melhorias e pagamentos antigos ao inserir três mochilas na trilha', () => {
+    for (const praia of [1, 3, 6, 10]) {
+      const antigo = { ...save, praia, niveis: [60, 3], paid: { '0:20': 123, praia: 456 } };
+      const convertido = lerSave(mem({ [SAVE_KEY]: JSON.stringify({ versao: 4, jogo: antigo }) }).get)!;
+      expect(convertido.compradas?.[0]).toHaveLength(60);
+      expect(convertido.compradas?.[0]).not.toContain(20);
+      expect(convertido.paid).toEqual({ '0:23': 123, praia: 456 });
+      const g = new Jogo(); g.load(convertido, antigo.last);
+      const velha = makeTrilha(0, praia - 1, praia >= 3, true);
+      const contagem: Record<string, number> = {};
+      for (const s of velha) if (s.k === 'up') contagem[s.id] = (contagem[s.id] || 0) + 1;
+      for (const [id, qtd] of Object.entries(contagem)) expect(g.L(id), id).toBe(qtd);
+      expect(g.nivel[0]).toBe(60); expect(g.playerCap()).toBe(12);
+    }
+  });
+
+  it('o v5 conserva compras fora de ordem e o mundo existente', () => {
+    const jogo = { ...save, niveis: [1, 0], compradas: [[1], []], paid: { '0:0': 7 } };
+    const s = mem({ [SAVE_KEY]: JSON.stringify({ versao: 5, mundo: { id: 'mundo-antigo', criadoEm: 1 }, jogo }) });
+    const g = new Jogo(); g.load(lerSave(s.get), jogo.last);
+    expect(g.L('sombras')).toBe(1); expect(g.machines).toHaveLength(1); expect(g.proximoIndice(0)).toBe(0);
+    gravarSave(g.snapshot(jogo.last), s.get, s.set);
+    expect(lerMundo(s.get).id).toBe('mundo-antigo'); expect(lerSave(s.get)?.compradas?.[0]).toEqual([1]);
   });
 });

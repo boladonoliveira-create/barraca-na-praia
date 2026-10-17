@@ -5,10 +5,11 @@
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import type { Save } from '../core/jogo.ts';
+import { makeTrilha } from '../core/economia.ts';
 import { ECONOMIA } from '../dados/planos.ts';
 
-// v4: { versao, mundo, jogo }, com praia e fama. O v3 é convertido (deV3); v2 e antes recomeçam do zero.
-export const SAVE_KEY = 'barraca-na-praia:save', SAVE_VERSION = 4;
+// v5 acrescenta compras individuais; v4 e v3 são convertidos. v2 e antes recomeçam do zero.
+export const SAVE_KEY = 'barraca-na-praia:save', SAVE_VERSION = 5;
 /** Identificador criado uma vez por jogador (para salvar na nuvem e para o co-op no futuro). */
 export interface Mundo { id: string; criadoEm: number }
 const PREFS_KEY = 'barraca-na-praia:prefs';
@@ -38,12 +39,30 @@ export function deV3(j: { niveis: number[]; last?: number; tutorial?: number; pe
   return { money: 0, niveis: [], paid: {}, praia, famaTotal: famas.reduce((a, b) => a + b, 0), famas, ganho: 0, tempo: 0, last: j.last || 0, tutorial: j.tutorial || 0, pendente: j.pendente || 0 };
 }
 
-/** Lê o progresso da versão atual (ou converte o v3); qualquer outra versão (ou save quebrado) devolve null e o jogo recomeça. */
+/** Converte o prefixo v4 para os índices individuais v5 sem ganhar/perder compras ao inserir as mochilas. */
+export function deV4(j: Save): Save {
+  const b = Math.max(0, Math.min(9, (j.praia || 1) - 1)), mapas: Map<number, number>[] = [];
+  const chaves = (t: ReturnType<typeof makeTrilha>) => { const n: Record<string, number> = {}; return t.map(s => s.id + ':' + (n[s.id] = (n[s.id] || 0) + 1)) };
+  for (let a = 0; a < 10; a++) {
+    const rapido = b >= 2 && a < b, antiga = chaves(makeTrilha(a, b, rapido, true)), nova = chaves(makeTrilha(a, b, rapido));
+    mapas.push(new Map(antiga.map((id, k) => [k, nova.indexOf(id)])));
+  }
+  const compradas = Array.from({ length: 10 }, (_, a) => Array.from({ length: Math.min(60, Math.max(0, Math.floor(j.niveis[a] || 0))) }, (_, k) => mapas[a].get(k)!).filter(k => k >= 0));
+  const paid: Record<string, number> = {};
+  for (const [key, valor] of Object.entries(j.paid || {})) {
+    if (key === 'praia') { paid[key] = valor; continue }
+    const [a, k] = key.split(':').map(Number), novo = mapas[a]?.get(k);
+    if (novo !== undefined && novo >= 0) paid[a + ':' + novo] = valor;
+  }
+  return { ...j, paid, compradas };
+}
+
+/** Lê o progresso da versão atual (ou converte o v4/v3); qualquer outra versão (ou save quebrado) devolve null e o jogo recomeça. */
 export function lerSave(get: Get = ls.get): Save | null {
   try {
     const s = JSON.parse(get(SAVE_KEY) || 'null');
     if (!s || !Array.isArray(s.jogo?.niveis)) return null;
-    return s.versao === SAVE_VERSION ? s.jogo : s.versao === 3 ? deV3(s.jogo) : null;
+    return s.versao === SAVE_VERSION ? s.jogo : s.versao === 4 ? deV4(s.jogo) : s.versao === 3 ? deV3(s.jogo) : null;
   } catch { return null }
 }
 

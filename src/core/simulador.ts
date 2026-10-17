@@ -20,23 +20,15 @@ const DT = 1000 / 60;
 /** Contorna a máquina que estiver entre o jogador e o alvo (ela bloqueia o caminho direto).
     Juntando dinheiro, contorna também os quadros de compra que estiverem no caminho. */
 export function waypoint(g: Jogo, p: Pt, t: Pt, desviar: Pt[] = []): Pt {
-  t = g.caminhoAte(p, t);
-  // quadro no caminho (o trajeto reto passa por cima dele): vai para a quina alcançável mais perto do alvo
-  const cruza = (a: Pt, b: Pt, z: Rect) => { for (let i = 1; i <= 16; i++) if (inZone({ x: a.x + (b.x - a.x) * i / 16, y: a.y + (b.y - a.y) * i / 16 }, z)) return true; return false };
-  let z: Rect | null = null, qd = Infinity;
-  for (const m of desviar) {
-    const r = { x: m.x, y: m.y, w: 96, h: 84 }, d = Math.hypot(m.x - p.x, m.y - p.y);
-    if (d < qd && !inZone(t, r) && !inZone(p, r) && cruza(p, t, r)) { z = r; qd = d }
-  }
-  if (z) {
-    let c: Pt | null = null, cd = Infinity;
-    for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
-      const k = { x: z.x + sx * 52, y: z.y + sy * 46 }, d = Math.hypot(t.x - k.x, t.y - k.y);
-      if (d < cd && Math.hypot(k.x - p.x, k.y - p.y) > 3 && !cruza(p, k, z)) { c = k; cd = d }
-    }
-    if (c) return g.caminhoAte(p, c);
-  }
-  return t;
+  return g.caminhoAte(p, t, desviar);
+}
+
+/** Desacelera na quina para não ultrapassar o alvo com vários níveis de chinelo. */
+export function direcaoBot(g: Jogo, q: Pt, ang = 0, dt = DT): Pt {
+  const dx = q.x - g.player.x, dy = q.y - g.player.y, d = Math.hypot(dx, dy);
+  if (d <= 2) return { x: 0, y: 0 };
+  const c = Math.cos(ang), sn = Math.sin(ang), divisor = Math.max(d, g.velocidadeJogador() * dt / 16.67);
+  return { x: (dx * c - dy * sn) / divisor, y: (dx * sn + dy * c) / divisor };
 }
 
 function canDeliver(g: Jogo, t: Item) {
@@ -92,11 +84,17 @@ function meta(g: Jogo): { pad: Rect; slot: string; falta: number } | null {
 }
 
 /** Decide o próximo alvo do bot. */
-function alvo(g: Jogo): Rect | Pt {
+export function alvo(g: Jogo, anterior?: Pt): Rect | Pt {
   const p = g.player;
   // a viagem ou a melhor compra entre todas as áreas (custo-benefício); se ainda não dá, junta dinheiro trabalhando
   const m = meta(g);
   if (m && g.money >= m.falta) return m.pad;
+  // Com carga mista grande, o estoque pode oscilar enquanto anda. Termine o trajeto de entrega antes de trocar de balcão.
+  // Ao chegar, a decisão volta a considerar espaço/estoque normalmente; uma compra que já cabe continua prioritária.
+  if (anterior) for (const t of p.stack) {
+    const z = destino(g, t);
+    if (Math.abs(z.x - anterior.x) < 0.01 && Math.abs(z.y - anterior.y) < 0.01 && !inZone(p, z)) return z;
+  }
   const novo = alvoNovo(g); if (novo) return novo;
   const full = p.stack.length >= g.playerCap();
   const ms = g.machines.filter(m => m.pile > 0 && g.canCarry(p, m.type) && canDeliver(g, m.type));
@@ -130,6 +128,7 @@ export function simular({ seed = 1, limiteMin = 900, humano = true, praias = NUM
   let a: Rect | Pt = g.player, pensa = 0, pausaAte = 0, proxPausa = 30000, fase = 0, desvio = 0;
   g.load(null); g.firstScene(); g.tutorial = 4;
   const lista: PraiaSim[] = [];
+  let registradas = g.compradas.map(cs => new Set(cs));
   let tPraia = 0, tCompra = 0, antigas = -1, maior = 0, compras: Compra[] = [];
   const limite = limiteMin * 60000;
   const fim = (travou: boolean): Resultado => ({ praias: lista, total: lista.reduce((x, y) => x + y.minutos, 0), travou });
@@ -143,26 +142,29 @@ export function simular({ seed = 1, limiteMin = 900, humano = true, praias = NUM
     g.now += DT; tPraia += DT; tCompra += DT;
     const p = g.player;
     let input = { x: 0, y: 0 };
-    if (!humano) a = alvo(g);
+    if (!humano) a = alvo(g, a);
     else if (t >= proxPausa) { pausaAte = t + entre(3000, 5000); proxPausa = t + 30000 }
-    if (humano && t >= pensa) { const n = alvo(g); if (n !== a && JSON.stringify(n) !== JSON.stringify(a)) { fase = R() * 6.28; desvio = entre(0.15, 0.35) } a = n; pensa = t + entre(200, 400) }
+    if (humano && t >= pensa) { const n = alvo(g, a); if (n !== a && JSON.stringify(n) !== JSON.stringify(a)) { fase = R() * 6.28; desvio = entre(0.15, 0.35) } a = n; pensa = t + entre(200, 400) }
     // dentro da zona-alvo: fica parado (inZone exige estar dentro do retângulo)
     if (t >= pausaAte && (!('w' in a) || !inZone(p, { ...a, w: a.w - 16, h: a.h - 16 }))) {
-      // juntando para uma compra: não pisa nos outros quadros (pisar neles gastaria o dinheiro)
-      const m = meta(g), evitar = m && g.money < m.falta ? g.visibleSteps().filter(x => x.s.slot !== m.slot).map(x => g.padCompra(x)) : [];
+      // Segue a seta sem comprar por acidente outros quadros, inclusive quando já tem dinheiro para a meta.
+      const m = meta(g), evitar = m ? g.visibleSteps().filter(x => x.s.slot !== m.slot && !g.precisaDe(x)).map(x => g.padCompra(x)) : [];
       const w = waypoint(g, p, a, evitar), dx = w.x - p.x, dy = w.y - p.y, d = Math.hypot(dx, dy);
       // desvio leve: a direção balança devagar, e some perto do alvo para não ficar rodando em volta
-      const ang = humano ? desvio * Math.sin(t / 600 + fase) * Math.min(1, d / 60) : 0, c = Math.cos(ang), sn = Math.sin(ang);
-      if (d > 2) input = { x: (dx * c - dy * sn) / d, y: (dx * sn + dy * c) / d };
+      const ang = humano ? desvio * Math.sin(t / 600 + fase) * Math.min(1, d / 60) : 0;
+      input = direcaoBot(g, w, ang);
     }
     const antes = [...g.nivel], praia = g.beach;
     g.update(DT, input); g.updateFx(DT);
     if (g.beach !== praia) { // viajou: a praia anterior acabou (e, se era a última pedida, a simulação também)
+      registradas = g.compradas.map(cs => new Set(cs));
       fecha(praia, g.famas[g.famas.length - 1]); if (praia + 1 >= praias) return fim(false); continue;
     }
-    for (let ar = 0; ar < NUM_AREAS; ar++) while (antes[ar] < g.nivel[ar]) {
-      const s = g.trilhas[ar][antes[ar]++]; if (!s.price) continue; // começo rápido: de graça, não é compra
-      compras.push({ fase: praia, area: ar, nivel: antes[ar], nome: s.name, preco: s.price, segundos: tCompra / 1000 }); maior = Math.max(maior, tCompra / 1000); tCompra = 0;
+    for (let ar = 0; ar < NUM_AREAS; ar++) if (antes[ar] !== g.nivel[ar]) for (const k of g.compradas[ar]) {
+      if (registradas[ar].has(k)) continue;
+      registradas[ar].add(k);
+      const s = g.trilhas[ar][k]; if (!s.price) continue;
+      compras.push({ fase: praia, area: ar, nivel: g.nivel[ar], nome: s.name, preco: s.price, segundos: tCompra / 1000 }); maior = Math.max(maior, tCompra / 1000); tCompra = 0;
     }
     if (antigas < 0 && g.S.slice(0, Math.max(1, g.beach)).every(st => st.open)) antigas = tPraia;
     // cada praia acaba na compra da viagem; a Praia 10 (sem viagem), quando o torneio faz campeão

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Jogo, padOf, NUM_AREAS, BANHISTA_LONGE, TROCA_MS } from './jogo.ts';
-import { rng, waypoint } from './simulador.ts';
+import { rng, waypoint, direcaoBot, alvo as alvoDoBot } from './simulador.ts';
 import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, ECONOMIA } from '../dados/planos.ts';
 import { SHOPS, LUGARES, SLOTS, ESCOLA, PALCO, TORNEIO, PRODUCTS, FAIXAS, WORLD_H, WORLD_W, H, AMBULANTE, livre, type Rect } from '../dados/mapa.ts';
 import type { Save } from './jogo.ts';
@@ -192,13 +192,17 @@ describe('compras', () => {
     }
   });
 
-  it('a 2ª compra de uma área só é paga depois da 1ª', () => {
-    const g = novo(); const [v1, v2] = g.visibleSteps(); expect(v2.k).toBe(1);
-    Object.assign(g.player, padOf(v2.s.slot)); g.money = 5000; rodar(g, 3000);
-    expect(g.nivel[0]).toBe(0); expect(g.money).toBe(5000);
-    expect(v1.k).toBe(0);
-  });
-});
+  it('qualquer quadro visível pode ser comprado sem pagar o anterior e sem repetir a compra', () => {
+    const g = naPraia(1), [v1, v2] = g.visibleSteps(); expect(v2.k).toBe(1);
+    Object.assign(g.player, g.padCompra(v2)); g.money = v2.s.price; rodar(g, 3000);
+    expect(g.nivel[0]).toBe(1); expect(g.compradas[0].has(v2.k)).toBe(true); expect(g.compradas[0].has(v1.k)).toBe(false);
+    expect(g.L('sombras')).toBe(1); expect(g.machines).toHaveLength(1);
+    g.applyStep(0, true, v2.k); expect(g.nivel[0]).toBe(1); expect(g.L('sombras')).toBe(1);
+    const h = new Jogo(); h.load(JSON.parse(JSON.stringify(g.snapshot(1000))), 1000);
+    expect(h.L('sombras')).toBe(1); expect(h.machines).toHaveLength(1); expect(h.proximoIndice(0)).toBe(0);
+    Object.assign(h.player, h.padCompra(v1)); h.money = v1.s.price; rodar(h, 3000);
+    expect(h.nivel[0]).toBe(2); expect(h.machines).toHaveLength(2);
+  });});
 
 describe('praias', () => {
   it('a praia N só tem as áreas 1 a N; a área N é a última que abre', () => {
@@ -451,7 +455,7 @@ describe('área 10: torneio', () => {
     for (let e = 1; e <= 3; e++) {
       while (proxima() !== 'etapa' + e) { expect(proxima()).not.toMatch(/^etapa/); g.applyStep(9) }
       g.applyStep(9); // compra a etapa: começa a partida e o quadro seguinte espera
-      expect(g.partida).toEqual({ etapa: e, ms: TORNEIO.partidaMs[e - 1] }); expect(proxima()).toBeUndefined();
+      expect(g.partida).toEqual({ etapa: e, ms: TORNEIO.partidaMs[e - 1] }); expect(g.visibleSteps().filter(v => v.a === 9 && v.s.id.startsWith('etapa') && !g.precisaDe(v))).toHaveLength(0);
       rodar(g, TORNEIO.partidaMs[e - 1] + 100);
       expect(g.trofeus).toBe(e);
     }
@@ -686,4 +690,82 @@ describe('mochila e carga proporcional', () => {
     expect(g.helpers.find(h => h.shop === 1)?.cap).toBe(8);
     g.addHelper(6); expect(g.helpers.at(-1)?.cap).toBe(8);
   });
+});
+
+
+describe('dependências físicas e pagamentos fora de ordem', () => {
+  it('pagamento parcial de um quadro alternativo continua no save e é descontado ao completar', () => {
+    const g = naPraia(1), v = g.visibleSteps()[1]; Object.assign(g.player, g.padCompra(v)); g.money = 10; rodar(g, 500);
+    expect(g.nivel[0]).toBe(0); expect(g.paid['0:1']).toBe(10);
+    const h = new Jogo(); h.load(JSON.parse(JSON.stringify(g.snapshot(1000))), 1000);
+    Object.assign(h.player, h.padCompra(h.visibleSteps()[1])); h.money = v.s.price - 10; rodar(h, 3000);
+    expect(h.compradas[0].has(1)).toBe(true); expect(h.paid['0:1']).toBeUndefined(); expect(h.money).toBe(0);
+  });
+
+  it('melhoria da fritadeira exige a máquina, depois pode ser comprada imediatamente', () => {
+    const g = mundo([5, 5, 5, 1]);
+    for (const k of [1, 3, 4, 5]) g.applyStep(3, true, k);
+    const v = g.visibleSteps().find(v => v.s.id === 'fritaRapida')!;
+    expect(v).toBeDefined(); expect(g.precisaDe(v)).toBe('Fritadeira de pastel');
+    Object.assign(g.player, g.padCompra(v)); g.money = 1e10; const antes = g.nivel[3]; rodar(g, 3000);
+    expect(g.L('fritaRapida')).toBe(0); expect(g.paid['3:' + v.k]).toBeUndefined(); expect(g.nivel[3]).toBe(antes);
+    g.applyStep(3, true, 2); expect(g.precisaDe(v)).toBeNull(); rodar(g, 3000);
+    expect(g.L('fritaRapida')).toBe(1); expect(g.compradas[3].has(v.k)).toBe(true);
+  });
+
+  it('a seta escolhe uma compra disponível e não recomenda melhoria sem a máquina', () => {
+    const g = mundo([5, 5, 5, 1]); for (const k of [1, 3, 4, 5]) g.applyStep(3, true, k);
+    g.money = 1e12;
+    const v = g.melhorCompra()!; expect(g.precisaDe(v)).toBeNull(); expect(v.s.id).not.toBe('fritaRapida');
+  });
+});
+
+
+it('o bot termina a entrega de carga mista antes de reagir às oscilações de estoque de outro balcão', () => {
+  const g = mundo([5, 5]); g.money = 0;
+  g.player.stack = [...Array(24).fill('acai'), ...Array(8).fill('caixa')];
+  Object.assign(g.player, { x: 457, y: 884 });
+  g.S[0].counter.acai = [];
+  expect(alvoDoBot(g, SHOPS[1].drop)).toEqual(SHOPS[1].drop);
+  g.S[0].counter.acai = Array(20).fill('acai');
+  expect(alvoDoBot(g, SHOPS[1].drop)).toEqual(SHOPS[1].drop);
+  Object.assign(g.player, SHOPS[1].drop); g.S[1].stock = g.freezerCap(); g.S[0].counter.acai = [];
+  expect(alvoDoBot(g, SHOPS[1].drop)).toEqual(SHOPS[0].drop);
+});
+
+
+it('uma nova melhoria no mesmo chão aparece só após sair, evitando gastar em cadeia sem escolher outro quadro', () => {
+  const g = mundo([20]), v = g.visibleSteps().find(v => v.s.id === 'bolsa')!;
+  Object.assign(g.player, g.padCompra(v)); g.money = 1e12; rodar(g, 5000);
+  expect(g.L('bolsa')).toBe(2); // 16 itens; a de 24 ainda não apareceu sob os pés.
+  expect(g.visibleSteps().some(v => v.s.slot === 'voce')).toBe(false);
+  g.player.x = 420; g.update(DT, PARADO);
+  const proxima = g.visibleSteps().find(v => v.s.id === 'bolsa')!;
+  expect(proxima.s.name).toContain('24'); expect(g.precisaDe(proxima)).toBeNull();
+  Object.assign(g.player, g.padCompra(proxima)); rodar(g, 3000);
+  expect(g.L('bolsa')).toBe(3);
+});
+
+
+it('o bot sai da margem de um quadro que evita mesmo quando está a menos de duas unidades da borda', () => {
+  const g = mundo([7]), alvo = { x: 40, y: 446 }, evitar = [{ x: 200, y: 470 }];
+  Object.assign(g.player, { x: 243.05, y: 426.437 });
+  const q = waypoint(g, g.player, alvo, evitar);
+  expect(Math.hypot(q.x - g.player.x, q.y - g.player.y)).toBeGreaterThan(2.5);
+  for (let i = 0; i < 600 && Math.hypot(g.player.x - alvo.x, g.player.y - alvo.y) > 4; i++) {
+    const q = waypoint(g, g.player, alvo, evitar), dx = q.x - g.player.x, dy = q.y - g.player.y, d = Math.hypot(dx, dy);
+    g.update(DT, d > 2 ? { x: dx / d, y: dy / d } : PARADO);
+  }
+  expect(Math.hypot(g.player.x - alvo.x, g.player.y - alvo.y)).toBeLessThan(5);
+});
+
+
+it('o bot com chinelo avançado desacelera nas quinas e contorna máquina junto de quadro', () => {
+  const g = mundo([35, 33, 31, 26, 22, 24, 16, 12]); g.lv.chinelo = 12;
+  Object.assign(g.player, { x: 1578.6133, y: 823.2737 });
+  const alvo = { x: 2638, y: 520 }, evitar = [{ x: 1630, y: 770 }];
+  for (let i = 0; i < 1800 && Math.hypot(g.player.x - alvo.x, g.player.y - alvo.y) > 4; i++) {
+    g.update(DT, direcaoBot(g, waypoint(g, g.player, alvo, evitar)));
+  }
+  expect(Math.hypot(g.player.x - alvo.x, g.player.y - alvo.y)).toBeLessThan(5);
 });
