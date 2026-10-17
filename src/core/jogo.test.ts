@@ -349,9 +349,9 @@ describe('área 6: ambulantes', () => {
     rodar(g, 8000); expect(pilha.pile).toBeGreaterThan(2); // o caminhão chegou e descarregou na calçada
     expect(v.estado).toBe('doca'); expect(v.carga).toHaveLength(0); // sem estoque na bancada, o ambulante espera
     Object.assign(g.player, { x: pilha.x, y: pilha.y + 50 }); rodar(g, 600); // pega as caixas
-    expect(g.player.stack.filter(t => t === 'caixaMate').length).toBe(3);
+    expect(g.player.stack.filter(t => t === 'caixaMate').length).toBe(6); // agora leva toda a descarga, sem o limite antigo de três caixas
     Object.assign(g.player, SHOPS[5].drop); rodar(g, 600); // larga na bancada
-    expect(g.player.stack).toHaveLength(0); expect(g.S[5].counter.mate.length + v.carga.length).toBe(3 * AMBULANTE.caixa);
+    expect(g.player.stack).toHaveLength(0); expect(g.S[5].counter.mate.length + v.carga.length).toBe(6 * AMBULANTE.caixa);
     g.player.x = 1000; g.player.y = 300;
     let saiu = false; rodar(g, 120000, () => { saiu ||= v.estado === 'rota' });
     expect(saiu).toBe(true); expect(g.S[5].cashValue).toBeGreaterThan(0); // voltou e deixou o dinheiro na bancada
@@ -609,5 +609,32 @@ describe('exploração liberada pelos Ambulantes', () => {
     expect(g.limitePraia()).toBe(WORLD_W);
     g.resetWorld();
     expect(g.aberta(5)).toBe(false); expect(g.limitePraia()).toBeLessThan(WORLD_W);
+  });
+});
+
+
+describe('mochila e carga proporcional', () => {
+  it('começa em 8 e as quatro melhorias chegam a 12, 16, 24 e 32 itens de qualquer tipo', () => {
+    const g = novo();
+    expect(g.trilhas[0].filter(s => s.id === 'bolsa')).toHaveLength(4);
+    for (const [nivel, capacidade] of [8, 12, 16, 24, 32].entries()) {
+      g.lv.bolsa = nivel; expect(g.playerCap()).toBe(capacidade);
+      for (const tipo of ['acai', 'caixa', 'prancha', 'caixaMate'] as const) {
+        g.player.stack = Array(capacidade - 1).fill(tipo);
+        expect(g.canCarry(g.player, tipo)).toBe(true);
+        g.player.stack.push(tipo); expect(g.canCarry(g.player, tipo)).toBe(false);
+      }
+    }
+  });
+
+  it('ajudantes existentes e contratados depois acompanham a mochila', () => {
+    const g = mundo([6, 3]);
+    expect(g.playerCap()).toBe(12);
+    expect(g.helpers.map(h => h.cap)).toEqual([6, 3]);
+    while (g.L('bolsa') < 4) g.applyStep(0, true);
+    expect(g.playerCap()).toBe(32);
+    expect(g.helpers.filter(h => h.shop === 0).every(h => h.cap === 16)).toBe(true);
+    expect(g.helpers.find(h => h.shop === 1)?.cap).toBe(8);
+    g.addHelper(6); expect(g.helpers.at(-1)?.cap).toBe(8);
   });
 });

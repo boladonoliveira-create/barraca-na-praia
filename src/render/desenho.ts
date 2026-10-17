@@ -147,7 +147,14 @@ function drawPerson(x: number, y: number, o: PersonLook) {
   else if (o.hat) { ctx.fillStyle = '#f4d58d'; ctx.strokeStyle = OUTLINE; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(0, -35, 12.5, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(0, -35, 6.5, Math.PI, 0); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#e8590c'; ctx.fillRect(-6.5, -37, 13, 2) }
   ctx.restore();
 }
-function drawStack(a: Carrier) { for (let i = 0; i < a.stack.length; i++) drawItem(a.stack[i], a.x, a.y - 44 - i * (a.stack[i] === 'caixa' ? 13 : 9), 1) }
+/** Carga nas costas: três colunas de itens, com uma nova camada a cada três itens. Não reduz nem oculta a carga. */
+function drawStack(a: Carrier) {
+  if (!a.stack.length) return;
+  const bx = a.x - a.face * 13, by = a.y - 22;
+  ctx.fillStyle = '#8d5a2b'; rr(bx - 12, by - 10, 24, 25, 5); ctx.fill();
+  ctx.strokeStyle = '#f4d58d'; ctx.lineWidth = 2; ctx.stroke();
+  for (let i = 0; i < a.stack.length; i++) drawItem(a.stack[i], bx + (i % 3 - 1) * 10, by - 8 - Math.floor(i / 3) * 10, 0.8);
+}
 
 function drawMachine(m: Machine) {
   if (m.pilha) { // pilha de caixas que o caminhão deixou na calçada
@@ -758,10 +765,10 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
     if (c.has) drawItem(c.has, c.x + (c.face > 0 ? 12 : -12), c.y - 18, 0.9);
     else { const qi = g.S[c.shop].queue.indexOf(c); if (qi >= 0 && qi < 4) { ctx.fillStyle = '#fff'; rr(c.x + 10, c.y - 58, 26, 22, 8); ctx.fill(); ctx.beginPath(); ctx.moveTo(c.x + 14, c.y - 38); ctx.lineTo(c.x + 10, c.y - 32); ctx.lineTo(c.x + 20, c.y - 37); ctx.fill(); drawItem(c.want, c.x + 23, c.y - 47, 0.8) } }
   } }));
-  g.helpers.forEach(h => ds.push({ y: h.y, d: () => { drawPerson(h.x, h.y, { shirt: h.shirt, skin: '#c68a5e', walk: h.walk, face: h.face, cap: ['#1c7ed6', '#e64980', '#ffd43b', '#fff'][h.shop], apron: h.shop !== 2, hair: '#2b1d14', shorts: '#343a40', flip: '#fff', carry: h.stack.length > 0 }); drawStack(h) } }));
+  g.helpers.forEach(h => ds.push({ y: h.y, d: () => { drawStack(h); drawPerson(h.x, h.y, { shirt: h.shirt, skin: '#c68a5e', walk: h.walk, face: h.face, cap: ['#1c7ed6', '#e64980', '#ffd43b', '#fff'][h.shop], apron: h.shop !== 2, hair: '#2b1d14', shorts: '#343a40', flip: '#fff', carry: h.stack.length > 0 }) } }));
   ds.push({ y: p.y, d: () => {
-    drawPerson(p.x, p.y, { shirt: '#ff922b', skin: '#e0a77d', walk: p.walk, face: p.face, cap: '#e03131', apron: true, hair: '#5a3825', shorts: '#1c7ed6', flip: '#ffd43b', carry: p.stack.length > 0 }); drawStack(p);
-    if (p.stack.length >= g.playerCap()) { ctx.fillStyle = '#e03131'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.fillText('CHEIO', p.x, p.y - 52 - p.stack.length * 9) }
+    drawStack(p); drawPerson(p.x, p.y, { shirt: '#ff922b', skin: '#e0a77d', walk: p.walk, face: p.face, cap: '#e03131', apron: true, hair: '#5a3825', shorts: '#1c7ed6', flip: '#ffd43b', carry: p.stack.length > 0 });
+    if (p.stack.length >= g.playerCap()) { ctx.fillStyle = '#e03131'; ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.textAlign = 'center'; ctx.fillText('CHEIO', p.x, p.y - 42 - Math.ceil(p.stack.length / 3) * 10) }
   } });
   ds.sort((a, b) => a.y - b.y).forEach(o => o.d());
 

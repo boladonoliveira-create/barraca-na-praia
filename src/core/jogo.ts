@@ -1,9 +1,9 @@
 /* Núcleo do jogo: estado, economia, clientes, ajudantes e compras. Sem canvas e sem DOM. */
 import {
-  SHOPS, LUGARES, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, BOX_MAX_CARRY, UMBRELLA_POS, SLOTS, SERVICO, PREPARO, RECEITAS, ATRACAO, PALCO, TORNEIO,
+  SHOPS, LUGARES, PRODUCTS, COUNTER_CAP, CASH_MAGNET, BOX_SORVETES, UMBRELLA_POS, SLOTS, SERVICO, PREPARO, RECEITAS, ATRACAO, PALCO, TORNEIO,
   AMBULANTE, ESCOLA, PHRASES, SHIRTS, SKINS, W, H, WORLD_W, WORLD_H, ANDA, FAIXAS, livre, type Item, type Rect,
 } from '../dados/mapa.ts';
-import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, MARCOS, ECONOMIA, AREAS } from '../dados/planos.ts';
+import { NIVEL_ABRE, NIVEL_NOVA_PRAIA, MARCOS, ECONOMIA, AREAS, BOLSA_CAPACIDADES } from '../dados/planos.ts';
 import { PRAIAS } from '../dados/praias.ts';
 import { PREMIOS, diaDeHoje, type Diaria, type Premio } from './diaria.ts';
 import { makeTrilha, type Step } from './economia.ts';
@@ -141,7 +141,8 @@ export class Jogo {
   areasPraia() { return Math.min(NUM_AREAS, this.beach + 1) }
   /** A área a pode ser aberta: existe nesta praia e a anterior chegou ao nível mínimo. */
   liberada(a: number) { return a < this.areasPraia() && (a === 0 || (this.aberta(a - 1) && this.nivel[a - 1] >= NIVEL_ABRE)) }
-  playerCap() { return 8 + 3 * this.L('bolsa') }
+  playerCap() { return BOLSA_CAPACIDADES[Math.min(4, this.L('bolsa'))] }
+  helperCap(shop: number) { return this.playerCap() / (shop === 1 || shop === 6 ? 4 : 2) }
   freezerCap() { return 18 + 12 * this.L('freezer') }
   kioskOpen() { return !!this.S[1] && this.S[1].open }
   /** Borda direita do último lote aberto (lote i abre com a loja i). */
@@ -234,7 +235,7 @@ export class Jogo {
   }
   addHelper(shop: number) {
     const sh = ['#4dabf7', '#38d9a9', '#f783ac', '#74c0fc'];
-    this.helpers.push({ shop, x: SHOPS[shop].cx, y: SHOPS[shop].drop.y + 44, stack: [], cap: shop === 1 || shop === 6 ? 2 : 4, mode: 'pick', type: null, target: null, tT: 0, walk: 0, face: 1, wait: 0, shirt: ['', '#ff8fab', '#e03131', '#f8f9fa'][shop] || sh[this.helpers.length % 4] });
+    this.helpers.push({ shop, x: SHOPS[shop].cx, y: SHOPS[shop].drop.y + 44, stack: [], cap: this.helperCap(shop), mode: 'pick', type: null, target: null, tT: 0, walk: 0, face: 1, wait: 0, shirt: ['', '#ff8fab', '#e03131', '#f8f9fa'][shop] || sh[this.helpers.length % 4] });
   }
   syncUmbrellas() {
     const n = this.L('sombras');
@@ -273,6 +274,7 @@ export class Jogo {
       if (s.id === 'ajud') this.addHelper(0);
       if (s.id === 'ajudS') this.addHelper(1);
       if (s.id === 'sombras') this.syncUmbrellas();
+      if (s.id === 'bolsa') for (const h of this.helpers) h.cap = this.helperCap(h.shop);
       if (s.id === 'cadeiras') this.syncCadeiras();
       if (s.id === 'salva') this.addHelper(2);
       if (s.id === 'cozinheiro') this.addHelper(3);
@@ -394,7 +396,6 @@ export class Jogo {
   canCarry(a: Carrier, type: Item) {
     const isP = a === this.player, cap = isP ? this.playerCap() : (a as Helper).cap;
     if (a.stack.length >= cap) return false;
-    if (type === 'caixa' || type === 'prancha' || type === 'caixaMate' || type === 'caixaBisc') return a.stack.filter(t => t === type).length < (isP ? BOX_MAX_CARRY : cap);
     return true;
   }
   stepTransfer(a: Carrier, dt: number, onlyType?: Item | null) {
@@ -439,7 +440,7 @@ export class Jogo {
     }
     return false;
   }
-  /** Passou por cima de uma prancha molhada: pega (até 3 na mão do jogador; o instrutor, até a carga dele). */
+  /** Passou por cima de uma prancha molhada: pega até a capacidade da mochila ou do instrutor. */
   pegarPranchas(a: Carrier) {
     const P = a === this.player;
     for (const b of this.esc.pranchas) {
