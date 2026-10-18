@@ -470,3 +470,14 @@ Não houve teste manual em celular físico nem medição de FPS em aparelho. O b
 ### Dúvidas
 
 Nenhuma dúvida bloqueante.
+
+
+## Parte C (OpenCode) — APK atualizado para baixar (18/10/2026)
+
+A pedido do usuário, gerado e preparado para publicação o APK com a mochila 8→32, as barreiras e terrenos sólidos, as compras livres e a calibração final das dez praias (código-base `fff3062`). Arquivo: `downloads/barraca-na-praia-debug.apk`, 10.4 MiB, pacote `com.jogosbr.barracanapraia`, versão 1.0.0 (versionCode 1).
+
+- Comandos: `npm test` (105 testes), `npm run build`, `npx cap sync android` e `bash gradlew --no-daemon --max-workers=2 assembleDebug` (BUILD SUCCESSFUL).
+- APK íntegro, assinatura válida e mesmo certificado de teste do APK anterior; os 10 arquivos web empacotados foram comparados byte a byte com `dist/`.
+- SHA256: `c777aec4182a5c52d0ad05c89c47bcd1eb4868d73a17a3c1b06585b3b64aae9e`. Arquivo de conferência ao lado do APK.
+- Entrega pelo ramo existente `entrega/apk-teste-20261017`, com link direto ao APK deste commit, sem abrir pastas ou depender dos artefatos de Actions. A `main` não é alterada.
+- APK de depuração e anúncios em modo de teste. Não houve instalação em celular físico nesta tarefa. As configurações Android versionadas permaneceram intactas.
