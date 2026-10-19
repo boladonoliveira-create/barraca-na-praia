@@ -11,11 +11,11 @@ function mem(init: Record<string, string> = {}) {
 }
 
 describe('salvamento', () => {
-  it('grava com chave própria, versão 5 e o mundo, e lê de volta', () => {
+  it('grava com chave própria, versão 6 e o mundo, e lê de volta', () => {
     const s = mem(); gravarSave(save, s.get, s.set);
-    expect(SAVE_VERSION).toBe(5);
+    expect(SAVE_VERSION).toBe(6);
     const gravado = JSON.parse(s.m.get(SAVE_KEY)!);
-    expect(gravado).toEqual({ versao: 5, mundo: { id: expect.any(String), criadoEm: expect.any(Number) }, jogo: save });
+    expect(gravado).toEqual({ versao: 6, mundo: { id: expect.any(String), criadoEm: expect.any(Number) }, jogo: save });
     expect(lerSave(s.get)).toEqual(save);
   });
 
@@ -58,13 +58,13 @@ describe('conversão de compras v4 para v5', () => {
       const convertido = lerSave(mem({ [SAVE_KEY]: JSON.stringify({ versao: 4, jogo: antigo }) }).get)!;
       expect(convertido.compradas?.[0]).toHaveLength(60);
       expect(convertido.compradas?.[0]).not.toContain(20);
-      expect(convertido.paid).toEqual({ '0:23': 123, praia: 456 });
+      expect(convertido.paid).toEqual({ '0:22': 123, praia: 456 });
       const g = new Jogo(); g.load(convertido, antigo.last);
       const velha = makeTrilha(0, praia - 1, praia >= 3, true);
       const contagem: Record<string, number> = {};
       for (const s of velha) if (s.k === 'up') contagem[s.id] = (contagem[s.id] || 0) + 1;
       for (const [id, qtd] of Object.entries(contagem)) expect(g.L(id), id).toBe(qtd);
-      expect(g.nivel[0]).toBe(60); expect(g.playerCap()).toBe(12);
+      expect(g.nivel[0]).toBe(60); expect(g.playerCap()).toBe(30);
     }
   });
 
@@ -76,4 +76,13 @@ describe('conversão de compras v4 para v5', () => {
     gravarSave(g.snapshot(jogo.last), s.get, s.set);
     expect(lerMundo(s.get).id).toBe('mundo-antigo'); expect(lerSave(s.get)?.compradas?.[0]).toEqual([1]);
   });
+});
+
+
+it('migra a mochila máxima v5 para 60 e devolve o preço da quarta melhoria retirada', () => {
+  const antigo = {...save, praia: 1, niveis: [23], compradas: [Array.from({length:23}, (_, k) => k)], paid: {'0:23':17}};
+  const s = mem({[SAVE_KEY]:JSON.stringify({versao:5,jogo:antigo})});
+  const convertido=lerSave(s.get)!; const g=new Jogo(); g.load(convertido, antigo.last);
+  expect(g.playerCap()).toBe(60); expect(g.nivel[0]).toBe(22);
+  expect(convertido.money).toBe(64010); expect(convertido.paid).toEqual({'0:22':17});
 });

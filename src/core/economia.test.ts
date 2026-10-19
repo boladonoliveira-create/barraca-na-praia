@@ -11,8 +11,8 @@ describe('trilhas por área', () => {
     for (const a of [0, 1, 2, 3]) for (const b of [0, 2]) makeTrilha(a, b).forEach((s, k) => { expect(s.price % 5).toBe(0); expect(s.price).toBe(stepPrice(a, k, b)) });
   });
 
-  it('as trilhas têm 60 passos, e a Barraca ganha três posições extras para as mochilas', () => {
-    for (const a of [0, 1, 2, 3]) { const t = makeTrilha(a, 0); expect(t).toHaveLength(a === 0 ? 63 : 60); expect(t.slice(0, TRILHAS[a].length).map(s => s.id)).toEqual(TRILHAS[a].map(s => s[1])) }
+  it('as trilhas têm 60 passos, e a Barraca ganha duas posições extras para as mochilas', () => {
+    for (const a of [0, 1, 2, 3]) { const t = makeTrilha(a, 0); expect(t).toHaveLength(a === 0 ? 62 : 60); expect(t.slice(0, TRILHAS[a].length).map(s => s.id)).toEqual(TRILHAS[a].map(s => s[1])) }
   });
 
   it('as áreas 2 a 4 começam abrindo a loja', () => {
@@ -53,9 +53,9 @@ describe('começo rápido', () => {
 
 it('as mochilas extras têm preço próprio e não inflam os preços antigos da cauda', () => {
   const antiga = makeTrilha(0, 0, false, true), nova = makeTrilha(0, 0);
-  expect(nova.slice(20, 23).map(s => s.price)).toEqual(ECONOMIA.mochilas);
+  expect(nova.slice(20, 22).map(s => s.price)).toEqual(ECONOMIA.mochilas.slice(0, 2));
   for (let k = 20; k < antiga.length; k++) {
-    expect(nova[k + 3].id).toBe(antiga[k].id);
-    expect(nova[k + 3].price).toBe(antiga[k].price);
+    expect(nova[k + 2].id).toBe(antiga[k].id);
+    expect(nova[k + 2].price).toBe(antiga[k].price);
   }
 });

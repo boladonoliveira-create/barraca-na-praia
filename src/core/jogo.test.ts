@@ -667,10 +667,10 @@ describe('barreiras e terrenos trancados', () => {
 
 
 describe('mochila e carga proporcional', () => {
-  it('começa em 8 e as quatro melhorias chegam a 12, 16, 24 e 32 itens de qualquer tipo', () => {
+  it('começa em 20 e as três melhorias chegam a 30, 40 e 60 itens de qualquer tipo', () => {
     const g = novo();
-    expect(g.trilhas[0].filter(s => s.id === 'bolsa')).toHaveLength(4);
-    for (const [nivel, capacidade] of [8, 12, 16, 24, 32].entries()) {
+    expect(g.trilhas[0].filter(s => s.id === 'bolsa')).toHaveLength(3);
+    for (const [nivel, capacidade] of [20, 30, 40, 60].entries()) {
       g.lv.bolsa = nivel; expect(g.playerCap()).toBe(capacidade);
       for (const tipo of ['acai', 'caixa', 'prancha', 'caixaMate'] as const) {
         g.player.stack = Array(capacidade - 1).fill(tipo);
@@ -682,13 +682,13 @@ describe('mochila e carga proporcional', () => {
 
   it('ajudantes existentes e contratados depois acompanham a mochila', () => {
     const g = mundo([6, 3]);
-    expect(g.playerCap()).toBe(12);
-    expect(g.helpers.map(h => h.cap)).toEqual([6, 3]);
-    while (g.L('bolsa') < 4) g.applyStep(0, true);
-    expect(g.playerCap()).toBe(32);
-    expect(g.helpers.filter(h => h.shop === 0).every(h => h.cap === 16)).toBe(true);
-    expect(g.helpers.find(h => h.shop === 1)?.cap).toBe(8);
-    g.addHelper(6); expect(g.helpers.at(-1)?.cap).toBe(8);
+    expect(g.playerCap()).toBe(30);
+    expect(g.helpers.map(h => h.cap)).toEqual([15, 7]);
+    while (g.L('bolsa') < 3) g.applyStep(0, true);
+    expect(g.playerCap()).toBe(60);
+    expect(g.helpers.filter(h => h.shop === 0).every(h => h.cap === 30)).toBe(true);
+    expect(g.helpers.find(h => h.shop === 1)?.cap).toBe(15);
+    g.addHelper(6); expect(g.helpers.at(-1)?.cap).toBe(15);
   });
 });
 
@@ -741,7 +741,7 @@ it('uma nova melhoria no mesmo chão aparece só após sair, evitando gastar em 
   expect(g.visibleSteps().some(v => v.s.slot === 'voce')).toBe(false);
   g.player.x = 420; g.update(DT, PARADO);
   const proxima = g.visibleSteps().find(v => v.s.id === 'bolsa')!;
-  expect(proxima.s.name).toContain('24'); expect(g.precisaDe(proxima)).toBeNull();
+  expect(proxima.s.name).toContain('60'); expect(g.precisaDe(proxima)).toBeNull();
   Object.assign(g.player, g.padCompra(proxima)); rodar(g, 3000);
   expect(g.L('bolsa')).toBe(3);
 });

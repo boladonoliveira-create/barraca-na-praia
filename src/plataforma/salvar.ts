@@ -9,7 +9,7 @@ import { makeTrilha } from '../core/economia.ts';
 import { ECONOMIA } from '../dados/planos.ts';
 
 // v5 acrescenta compras individuais; v4 e v3 são convertidos. v2 e antes recomeçam do zero.
-export const SAVE_KEY = 'barraca-na-praia:save', SAVE_VERSION = 5;
+export const SAVE_KEY = 'barraca-na-praia:save', SAVE_VERSION = 6;
 /** Identificador criado uma vez por jogador (para salvar na nuvem e para o co-op no futuro). */
 export interface Mundo { id: string; criadoEm: number }
 const PREFS_KEY = 'barraca-na-praia:prefs';
@@ -57,12 +57,32 @@ export function deV4(j: Save): Save {
   return { ...j, paid, compradas };
 }
 
+/** Retira a quarta mochila v5, já coberta pela de 60, e devolve seu pagamento. */
+export function deV5(j: Save): Save {
+  const b = Math.max(0, Math.min(9, (j.praia || 1) - 1)), compradas: number[][] = [], paid: Record<string, number> = {};
+  let money = j.money || 0;
+  const chaves = (t: ReturnType<typeof makeTrilha>) => { const n: Record<string, number> = {}; return t.map(s => s.id + ':' + (n[s.id] = (n[s.id] || 0) + 1)) };
+  for (let a = 0; a < 10; a++) {
+    const rapido = b >= 2 && a < b, antiga = makeTrilha(a, b, rapido, 5), nova = chaves(makeTrilha(a, b, rapido)), ids = chaves(antiga);
+    const mapa = ids.map(id => nova.indexOf(id));
+    const indices = j.compradas?.[a] ?? Array.from({length: j.niveis[a] || 0}, (_, k) => k);
+    compradas[a] = indices.map(k => mapa[k]).filter(k => k >= 0);
+    for (const k of indices) if (mapa[k] === -1) money += antiga[k].price;
+    for (const [key, valor] of Object.entries(j.paid || {})) {
+      const [ar, k] = key.split(':').map(Number); if (ar !== a) continue;
+      if (mapa[k] >= 0) paid[a + ':' + mapa[k]] = valor; else money += valor;
+    }
+  }
+  if (j.paid?.praia) paid.praia = j.paid.praia;
+  return {...j, money, compradas, niveis: compradas.map(cs => cs.length), paid};
+}
+
 /** Lê o progresso da versão atual (ou converte o v4/v3); qualquer outra versão (ou save quebrado) devolve null e o jogo recomeça. */
 export function lerSave(get: Get = ls.get): Save | null {
   try {
     const s = JSON.parse(get(SAVE_KEY) || 'null');
     if (!s || !Array.isArray(s.jogo?.niveis)) return null;
-    return s.versao === SAVE_VERSION ? s.jogo : s.versao === 4 ? deV4(s.jogo) : s.versao === 3 ? deV3(s.jogo) : null;
+    return s.versao === SAVE_VERSION ? s.jogo : s.versao === 5 ? deV5(s.jogo) : s.versao === 4 ? deV4(s.jogo) : s.versao === 3 ? deV3(s.jogo) : null;
   } catch { return null }
 }
 

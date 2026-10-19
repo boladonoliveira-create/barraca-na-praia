@@ -197,8 +197,8 @@ export class Jogo {
   areasPraia() { return Math.min(NUM_AREAS, this.beach + 1) }
   /** A área a pode ser aberta: existe nesta praia e a anterior chegou ao nível mínimo. */
   liberada(a: number) { return a < this.areasPraia() && (a === 0 || (this.aberta(a - 1) && this.nivel[a - 1] >= NIVEL_ABRE)) }
-  playerCap() { return BOLSA_CAPACIDADES[Math.min(4, this.L('bolsa'))] }
-  helperCap(shop: number) { return this.playerCap() / (shop === 1 || shop === 6 ? 4 : 2) }
+  playerCap() { return BOLSA_CAPACIDADES[Math.min(BOLSA_CAPACIDADES.length - 1, this.L('bolsa'))] }
+  helperCap(shop: number) { return Math.floor(this.playerCap() / (shop === 1 || shop === 6 ? 4 : 2)) }
   freezerCap() { return 18 + 12 * this.L('freezer') }
   kioskOpen() { return !!this.S[1] && this.S[1].open }
   /** Borda direita do último lote aberto (lote i abre com a loja i). */

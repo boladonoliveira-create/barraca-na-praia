@@ -5,20 +5,22 @@ export interface Step { k: 'build' | 'up'; id: string; name: string; slot: strin
 /** Preço do passo k da trilha da área a na praia b, em múltiplos de 5.
     Áreas 2 a 4: o passo 0 abre a área e custa abrir[a]; as melhorias seguem base[a] × cresce[a]^(k-1).
     Barraca do Sol (já aberta): base[0] × cresce[0]^k. Tudo × praia^b. */
-export function stepPrice(a: number, k: number, b: number, legada = false) {
-  const indice = a === 0 && !legada && k >= 23 ? k - 3 : k;
-  const p = a === 0 && !legada && k >= 20 && k <= 22 ? E.mochilas[k - 20] : a === 0 ? E.base[0] * Math.pow(E.cresce[0], indice) : k === 0 ? E.abrir[a] : E.base[a] * Math.pow(E.cresce[a], k - 1);
+export function stepPrice(a: number, k: number, b: number, legada: boolean | 5 = false) {
+  const extras = legada === 5 ? 3 : legada ? 0 : 2;
+  const indice = a === 0 && extras && k >= 20 + extras ? k - extras : k;
+  const p = a === 0 && extras && k >= 20 && k < 20 + extras ? E.mochilas[k - 20] : a === 0 ? E.base[0] * Math.pow(E.cresce[0], indice) : k === 0 ? E.abrir[a] : E.base[a] * Math.pow(E.cresce[a], k - 1);
   return Math.round(p * Math.pow(E.praia, b) / 5) * 5;
 }
 
-/** Trilha completa da área a na praia b: a lista fixa e depois a cauda repetida (60 passos; Barraca: 63, com três mochilas extras).
+/** Trilha completa da área a na praia b: a lista fixa e depois a cauda repetida (60 passos; Barraca: 62, com duas mochilas extras).
     rapido (começo rápido): o 1º ajudante e o cofre vão para logo depois da abertura, com preço 0 (o jogo os aplica sozinho),
     e o resto custa ECONOMIA.antiga do preço (área antiga volta a funcionar logo no começo da praia). */
-export function makeTrilha(a: number, b: number, rapido = false, legada = false): Step[] {
+export function makeTrilha(a: number, b: number, rapido = false, legada: boolean | 5 = false): Step[] {
   // O v4 tinha uma melhoria de bolsa. A lista antiga só é usada para converter os índices do save.
-  const fixa = legada && a === 0 ? TRILHAS[a].filter((s, i) => s[1] !== 'bolsa' || i === 5) : TRILHAS[a];
+  const fixa = legada === true && a === 0 ? TRILHAS[a].filter((s, i) => s[1] !== 'bolsa' || i === 5) : TRILHAS[a].map(s => [...s] as typeof s);
+  if (legada === 5 && a === 0) fixa.splice(22, 0, ['up', 'bolsa', 'Mochila para 32 itens', 'voce']);
   const list = fixa.map(s => [...s] as typeof s);
-  for (let r = 0; list.length < (a === 0 && !legada ? 63 : 60); r++) list.push([...CAUDAS[a][r % CAUDAS[a].length]]);
+  for (let r = 0; list.length < (a === 0 && legada !== true ? (legada === 5 ? 63 : 62) : 60); r++) list.push([...CAUDAS[a][r % CAUDAS[a].length]]);
   const cnt: Record<string, number> = {};
   const steps = list.map(([k, id, name, slot], i): Step => {
     const n = cnt[id] = (cnt[id] || 0) + 1, extra = n > 1 && !/\d$/.test(name) ? ' ' + n : '';

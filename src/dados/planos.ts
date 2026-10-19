@@ -2,8 +2,8 @@
    Cada passo: [tipo, id, nome ('#A'/'#S'/'#M' = nome do cardápio), slot no chão, dentro da área]. */
 export type PlanStep = [kind: 'build' | 'up', id: string, name: string, slot: string];
 
-/** Capacidade real da mochila em cada uma das quatro melhorias. */
-export const BOLSA_CAPACIDADES = [8, 12, 16, 24, 32];
+/** Capacidade real da mochila em cada uma das três melhorias. */
+export const BOLSA_CAPACIDADES = [20, 30, 40, 60];
 
 export const ACAI_NAMES = ['Açaí com granola', 'Leite condensado', 'Morango no açaí', 'Paçoca no açaí', 'Açaí completo'];
 export const SORV_NAMES = ['Duas bolas', 'Três bolas', 'Granulado', 'Cereja no topo'];
@@ -18,11 +18,11 @@ export const AREAS = ['Barraca do Sol', 'Sorveteria', 'Chuveirão', 'Milho e Pas
 export const TRILHAS: PlanStep[][] = [
   [ // 1. Barraca do Sol: começa aberta, com uma máquina de açaí
     ['build', 'maq2', 'Máquina de açaí 2', 'maq2'], ['up', 'sombras', 'Guarda-sol', 'sombra'], ['build', 'coco', 'Coqueiro', 'coco'], ['up', 'ajud', 'Ajudante', 'equipe'],
-    ['up', 'cardapio', '#A', 'cardapio'], ['up', 'bolsa', 'Mochila para 12 itens', 'voce'], ['up', 'cofre0', 'Cofre automático', 'cofre0'], ['up', 'sombras', 'Mais um guarda-sol', 'sombra'],
+    ['up', 'cardapio', '#A', 'cardapio'], ['up', 'bolsa', 'Mochila para 30 itens', 'voce'], ['up', 'cofre0', 'Cofre automático', 'cofre0'], ['up', 'sombras', 'Mais um guarda-sol', 'sombra'],
     ['up', 'turbo', 'Máquinas turbo', 'turbo'], ['build', 'coco2', 'Coqueiro 2', 'coco2'], ['up', 'cardapio', '#A', 'cardapio'], ['up', 'ajud', 'Mais um ajudante', 'equipe'],
     ['up', 'sombras', 'Mais um guarda-sol', 'sombra'], ['up', 'turbo', 'Máquinas turbo 2', 'turbo'], ['up', 'cardapio', '#A', 'cardapio'], ['up', 'chinelo', 'Chinelo novo', 'voce'],
     ['up', 'sombras', 'Mais um guarda-sol', 'sombra'], ['up', 'turbo', 'Máquinas turbo 3', 'turbo'], ['up', 'cardapio', '#A', 'cardapio'], ['up', 'ajud', 'Mais um ajudante', 'equipe'],
-    ['up', 'bolsa', 'Mochila para 16 itens', 'voce'], ['up', 'bolsa', 'Mochila para 24 itens', 'voce'], ['up', 'bolsa', 'Mochila para 32 itens', 'voce'],
+    ['up', 'bolsa', 'Mochila para 40 itens', 'voce'], ['up', 'bolsa', 'Mochila para 60 itens', 'voce'],
   ],
   [ // 2. Sorveteria
     ['build', 'sorv', 'Sorveteria', 'fence'], ['up', 'cardapioS', '#S', 'cardapioS'], ['up', 'ajudS', 'Sorveteiro', 'equipeS'], ['up', 'freezer', 'Freezer maior', 'frzUp'],
@@ -98,7 +98,7 @@ export const AJUDANTE = ['ajud', 'ajudS', 'salva', 'cozinheiro', '', 'gerente', 
 /** Números da economia (GDD seção 8). Ajustados com o simulador: npm run sim. */
 export const ECONOMIA = {
   abrir: [0, 6000, 130000, 450000, 1200000, 800000, 2000000, 4000000, 12000000, 18000000],  // preço de abrir cada área (o quadro na cerca), na Praia 1
-  base: [110, 700, 13000, 37000, 170000, 1470000, 4575000, 9000000, 18000000, 32000000],          // preço da primeira melhoria de cada área, na Praia 1
+  base: [110, 700, 13000, 37000, 175000, 1470000, 4575000, 9000000, 18000000, 32000000],          // preço da primeira melhoria de cada área, na Praia 1
   cresce: [1.5, 1.4, 1.3, 1.3, 1.3, 1.15, 1.15, 1.15, 1.15, 1.25],                          // cada nível custa isto vezes o anterior, dentro da área
   mochilas: [8000, 24000, 64000], // melhorias extras: 16, 24 e 32 itens, sem inflacionar a cauda antiga
   praia: 1.45,     // cada praia multiplica os preços de compra (praia^b); as vendas sobem com a fama
