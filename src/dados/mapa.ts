@@ -71,7 +71,7 @@ export const SHOPS: Shop[] = [
     counter: { x: 200, y: 300, w: 200, h: 40 }, drop: { x: 200, y: 360, w: 104, h: 44 }, cash: { x: 296, y: 362 } },
   // quiosques na grama: os clientes fazem fila do lado da areia; o jogador trabalha do lado do calçadão
   { kind: 'kiosk', name: 'SORVETERIA', cx: 540, products: ['sorvete'], side: 1, base: 1600, spawnX: 780,
-    counter: { x: 540, y: 862, w: 96, h: 44 }, drop: { x: 540, y: 936, w: 92, h: 40 }, cash: { x: 612, y: 950 } },
+    counter: { x: 540, y: 862, w: 96, h: 40 }, drop: { x: 540, y: 936, w: 92, h: 40 }, cash: { x: 612, y: 950 } },
   // Praia 3: serviço. O "drop" é o registro da caixa d'água; as regras ficam em SERVICO
   { kind: 'servico', name: 'CHUVEIRÃO', cx: 820, products: [], side: 1, base: 1800, spawnX: 0,
     counter: { x: 820, y: 600, w: 220, h: 30 }, drop: { x: 990, y: 650, w: 84, h: 44 }, cash: { x: 700, y: 650 } },

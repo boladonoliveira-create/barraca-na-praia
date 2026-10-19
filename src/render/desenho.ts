@@ -617,7 +617,7 @@ function drawEscola() {
 function drawQuiosque(si: number) {
   const d = SHOPS[si], c = d.counter, cor = ['', '#4dabf7', '', '#f59f00', '', '', '', '#40c057'][si] || '#b8763e';
   const x0 = c.x - c.w / 2, x1 = c.x + c.w / 2, yt = c.y - c.h / 2, yb = c.y + c.h / 2;
-  const telha = si === 3, rw = c.w + 24, ry = yt - 24; // cabe no balcão + 12 para os lados e menos de 30 para cima
+  const telha = si === 3, rw = c.w + 24, ry = Math.max(FAIXAS.grama.y0 + 4, yt - 24); // cabe no balcão + 12 para os lados e menos de 30 para cima
   shadow(c.x, yb + 8, c.w / 2 + 10);
   // cobertura: lona esticada ou telhado de telha
   if (telha) {

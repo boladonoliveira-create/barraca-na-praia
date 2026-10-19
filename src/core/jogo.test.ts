@@ -769,3 +769,17 @@ it('o bot com chinelo avançado desacelera nas quinas e contorna máquina junto 
   }
   expect(Math.hypot(g.player.x - alvo.x, g.player.y - alvo.y)).toBeLessThan(5);
 });
+
+
+it('a Sorveteria fica logo à direita da Barraca, alinhada aos quiosques, com fila na areia e entrega na calçada', () => {
+  const g = mundo([5, 3]), s = SHOPS[1], r = LUGARES[1].rect;
+  expect(r.x - r.w / 2).toBeGreaterThan(LUGARES[0].rect.x + LUGARES[0].rect.w / 2);
+  expect(s.counter.y).toBe(SHOPS[3].counter.y); expect(s.counter.y).toBe(SHOPS[7].counter.y);
+  expect(s.counter.y - s.counter.h / 2).toBeGreaterThanOrEqual(FAIXAS.grama.y0);
+  expect(s.counter.y + s.counter.h / 2).toBeLessThanOrEqual(FAIXAS.grama.y1);
+  expect(s.drop.y).toBeGreaterThanOrEqual(FAIXAS.calcadao.y0);
+  for (let i = 0; i < 7; i++) {
+    const q = g.slotPos(1, i); expect(q.y).toBeLessThanOrEqual(FAIXAS.areia.y1 - 20);
+    expect(dentroDe(q, LUGARES[2].rect)).toBe(false); expect(dentroDe(q, s.drop)).toBe(false);
+  }
+});

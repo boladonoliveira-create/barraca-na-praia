@@ -477,7 +477,7 @@ export class Jogo {
     const c: Customer = { shop: si, x: d.spawnX, y: 150 + R() * 30, want, shirt: SHIRTS[Math.floor(R() * SHIRTS.length)], skin: SKINS[Math.floor(R() * SKINS.length)], hat: R() < .35, walk: R() * 6, face: si === 0 ? 1 : -1, has: null, state: 'queue', sitT: 0, seat: null, tx: 0, ty: 0 };
     this.customers.push(c); st.queue.push(c);
   }
-  slotPos(si: number, i: number) { const d = SHOPS[si], top = d.counter.y - d.counter.h / 2 - 22; return i < 5 ? { x: d.cx, y: top - i * 28 } : { x: d.cx + d.side * (i - 4) * 28, y: top - 4 * 28 - 10 } }
+  slotPos(si: number, i: number) { const d = SHOPS[si], top = [1, 3, 7].includes(si) ? Math.min(FAIXAS.grama.y0 - 20, d.counter.y - d.counter.h / 2 - 22) : d.counter.y - d.counter.h / 2 - 22; return i < 5 ? { x: d.cx, y: top - i * 28 } : { x: d.cx + d.side * (i - 4) * 28, y: top - 4 * 28 - 10 } }
   counterSlot(si: number, type: Item, i: number) { const d = SHOPS[si]; const base = d.products.indexOf(type) === 0 ? d.cx - 88 : d.cx + 12; return { x: base + (i % 6) * 15, y: d.counter.y - 4 - Math.floor(i / 6) * 7 } }
 
   /* ---------- Transferências ---------- */
