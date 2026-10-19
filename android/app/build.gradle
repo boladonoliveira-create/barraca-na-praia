@@ -61,3 +61,30 @@ try {
 } catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }
+
+
+// Cada variante gera seu próprio HTML/JS. O bundleRelease nunca reutiliza os assets do debug.
+android.sourceSets.main.assets.exclude 'public/**'
+def webRoot = rootProject.projectDir.parentFile
+[debug: [mode: 'android-debug', teste: 'true'], release: [mode: 'android-release', teste: 'false']].each { variante, cfg ->
+    def assetsWeb = layout.buildDirectory.dir("generated/web/${variante}/assets")
+    def saidaWeb = layout.buildDirectory.dir("intermediates/web/${variante}")
+    def nome = variante.capitalize()
+    def tarefaWeb = tasks.register("gerarWeb${nome}", Exec) {
+        workingDir webRoot
+        inputs.dir(new File(webRoot, 'src'))
+        inputs.files(['index.html', 'vite.config.ts', 'package.json', 'package-lock.json'].collect { new File(webRoot, it) })
+        inputs.property('modo', cfg.mode)
+        inputs.property('teste', cfg.teste)
+        outputs.dir(assetsWeb)
+        outputs.dir(saidaWeb)
+        environment 'VITE_MODO_TESTE', cfg.teste
+        def argumentos = ['npm', 'run', 'build', '--', '--mode', cfg.mode, '--outDir', saidaWeb.get().asFile.absolutePath]
+        commandLine(System.getProperty('os.name').toLowerCase().contains('windows') ? ['cmd', '/c'] + argumentos : argumentos)
+        doLast {
+            project.sync { from saidaWeb; into new File(assetsWeb.get().asFile, 'public') }
+        }
+    }
+    android.sourceSets.getByName(variante).assets.srcDir(assetsWeb)
+    tasks.configureEach { tarefa -> if (tarefa.name == "pre${nome}Build") tarefa.dependsOn(tarefaWeb) }
+}

@@ -13,9 +13,9 @@ import { hojeLocal } from './core/diaria.ts';
 import { ECONOMIA, NIVEL_ABRE } from './dados/planos.ts';
 import { ensureAudio, pauseAudio, tone, fanfare, buzz } from './plataforma/som.ts';
 
-const testEnabled = import.meta.env.DEV, nativo = Capacitor.isNativePlatform();
+const testEnabled = __MODO_TESTE__, nativo = Capacitor.isNativePlatform();
 // material da loja (só em dev): ?loja monta a página de capturas e não sobe o jogo
-if (testEnabled && new URLSearchParams(location.search).has('loja')) {
+if (import.meta.env.DEV && new URLSearchParams(location.search).has('loja')) {
   await import('./render/previaLoja.ts');
 } else {
 // no app: tela cheia sem barra de status; o save sai do Preferences para a memória antes de tudo
@@ -25,7 +25,7 @@ const [ads] = await Promise.all([iniciarAnuncios(), iniciarAnalytics()]);
 const canvas = document.getElementById('game') as HTMLCanvasElement, ctx = canvas.getContext('2d')!, stage = document.getElementById('stage')!;
 
 // prévia de cenário (só em dev): ?praia=N abre na praia N com as áreas abertas, sem mexer no save
-const previa = testEnabled ? Math.min(10, Number(new URLSearchParams(location.search).get('praia')) || 0) : 0;
+const previa = import.meta.env.DEV ? Math.min(10, Number(new URLSearchParams(location.search).get('praia')) || 0) : 0;
 const save = () => { if (!previa) gravarSave(g.snapshot()) }, prefs = lerPrefs();
 const g = new Jogo({
   tone, fanfare, buzz, save, goal: () => hud.goal(),

@@ -18,7 +18,7 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
 
   function goal() { $('beachLbl').textContent = g.beachName() + ' · próximo'; $('goal').textContent = g.goalText() }
 
-  function syncTest() { const b = $('testBtn'); b.style.background = g.testMode ? '#2f9e44' : ''; b.style.color = g.testMode ? '#fff' : ''; g.syncTest() }
+  function syncTest() { const b = $('testBtn'); if (b) { b.style.background = g.testMode ? '#2f9e44' : ''; b.style.color = g.testMode ? '#fff' : ''; } g.syncTest() }
 
   // Som e vibração: o botão do topo e os da tela inicial mostram o mesmo estado
   function syncPrefs() {
@@ -155,9 +155,9 @@ export function criarHud(g: Jogo, save: () => void, prefs: Prefs, testEnabled: b
   const toggleSom = () => { prefs.som = !prefs.som; ensureAudio(); syncPrefs() };
   $('mute').addEventListener('click', toggleSom); $('startSom').addEventListener('click', toggleSom);
   $('startVibra').addEventListener('click', () => { prefs.vibra = !prefs.vibra; syncPrefs(); buzz(30) });
-  // Modo teste (∞): só na versão de desenvolvimento, nunca na da loja
+  // Modo teste (∞): dev e APK debug explícito; removido do HTML da loja
   if (testEnabled) $('testBtn').addEventListener('click', () => { g.testMode = prefs.teste = !g.testMode; gravarPrefs(prefs); if (!g.testMode) { g.money = 0; g.shown = 0 } syncTest() });
-  else $('testBtn').hidden = true;
+  else $('testBtn')?.remove();
   $('boost').addEventListener('click', () => { if (g.state !== 'play' || g.boostOn()) return; ensureAudio(); showAd('dinheiro_dobro', () => { g.boostX = 2; g.boostUntil = g.now + 120000; tone(784, 0.2, 'triangle', 0.1, 1.2); buzz(40) }) });
   $('offTake').addEventListener('click', () => { ensureAudio(); $('ovOffline').hidden = true; g.state = 'play'; pegarOffline(1) });
   // se o anúncio fechar antes da recompensa, recebe o valor normal (sem derrota)

@@ -55,7 +55,7 @@ docs/MOLDE-ORLA.md      as faixas, os lugares das áreas, livre(x, y), a paleta 
   - Som, vibração e modo teste ficam em `barraca-na-praia:prefs`.
 - Ganhos offline valem ao abrir o jogo e ao voltar do segundo plano (`Jogo.offlineGain`). O valor do cartão fica no save (`pendente`) até ser pego ou dobrado.
 - Ciclo de vida: `@capacitor/app` no app, `visibilitychange` no navegador (`aoSair`/`aoVoltar` em `main.ts`).
-- Modo teste (botão ∞): só existe em `npm run dev` (`import.meta.env.DEV`). Nunca na versão da loja.
+- Modo teste (botão ∞): aparece no `npm run dev` e em `assembleDebug`. O Gradle gera assets separados por variante, usando `VITE_MODO_TESTE=true` com o modo `android-debug`. `bundleRelease` força `android-release` e remove o botão do HTML, mesmo se a variável de debug estiver ligada no ambiente.
 - Prévia de cenário: `?praia=N` (só em `npm run dev`) abre na praia N com as áreas abertas e um pouco de dinheiro, sem gravar o save.
 - Anúncios: intersticial somente ao sair das Praias 6 e 9 (depois do barquinho), com pelo menos 60 min entre automáticos e 15 min desde o último anúncio opcional. A primeira hora da sessão não tem automáticos. Sem banner.
 
