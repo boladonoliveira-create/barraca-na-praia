@@ -119,10 +119,12 @@ export class Jogo {
   private revisaoNavegacao = 0;
   /** Nas Praias 1–5 só o trecho aberto; da Praia 6 em diante, toda a orla. */
   limitePraia() {
-    return this.beach >= 5 ? WORLD_W : Math.max(W, ...LUGARES.filter((_, a) => this.aberta(a)).map(l => l.zona.x + l.zona.w / 2)) + 24;
+    if (this.beach >= 5) return WORLD_W;
+    const proxima = this.proximaAreaFechada(), r = LUGARES[proxima]?.rect;
+    return Math.max(W, ...LUGARES.filter((_, a) => this.aberta(a)).map(l => l.zona.x + l.zona.w / 2), r ? r.x + r.w / 2 : 0) + 32;
   }
   proximaAreaFechada() { return LUGARES.findIndex((_, a) => !this.aberta(a)) }
-  quadradosSolidos() { return this.beach < 5 ? [] : LUGARES.filter((_, a) => !this.aberta(a)).map(l => l.rect) }
+  quadradosSolidos() { return LUGARES.filter((_, a) => !this.aberta(a) && (this.beach >= 5 || a === this.proximaAreaFechada())).map(l => l.rect) }
   private rota(comMaquinas = false) {
     const chave = this.beach + ':' + this.revisaoNavegacao;
     if (chave !== this.chaveNavegacao) { this.chaveNavegacao = chave; this.navegacoes.clear(); this.desvios.clear() }
@@ -160,7 +162,6 @@ export class Jogo {
   padCompra(v: Visivel): Rect {
     const p = padOf(v.s.slot);
     if (this.aberta(v.a)) return p;
-    if (this.beach < 5) return { ...p, x: this.limitePraia() - 60 };
     const r = LUGARES[v.a].rect;
     return Math.abs(p.x - r.x) < r.w / 2 + 48 && Math.abs(p.y - r.y) < r.h / 2 + 42 ? { ...p, x: r.x - r.w / 2 - 52 } : p;
   }

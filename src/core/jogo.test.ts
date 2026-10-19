@@ -584,12 +584,12 @@ function dentroDe(p: { x: number; y: number }, r: Rect) { return Math.abs(p.x - 
 
 
 describe('barreiras e terrenos trancados', () => {
-  it('nas Praias 1 a 5, o limite acompanha somente as áreas abertas', () => {
+  it('nas Praias 1 a 5, o limite inclui o próximo lote cercado e termina logo depois dele', () => {
     for (let n = 1; n <= 5; n++) {
-      const g = naPraia(n); expect(g.limitePraia()).toBe(424);
+      const g = naPraia(n); expect(g.limitePraia()).toBe(722);
       for (let a = 0; a < n; a++) subir(g, a, 5);
-      const borda = Math.max(...LUGARES.slice(0, n).map(l => l.zona.x + l.zona.w / 2));
-      expect(g.limitePraia()).toBe(borda + 24);
+      const r = LUGARES[n].rect; const borda = Math.max(r.x+r.w/2, ...LUGARES.slice(0, n).map(l => l.zona.x + l.zona.w / 2));
+      expect(g.limitePraia()).toBe(borda + 32);
       g.player.x = WORLD_W - 16; g.player.y = 200; g.camX = WORLD_W - 400;
       g.update(DT, { x: 1, y: 0 });
       expect(g.player.x).toBeLessThanOrEqual(g.limitePraia() - 16);
@@ -601,7 +601,7 @@ describe('barreiras e terrenos trancados', () => {
     const v = g.visibleSteps().find(v => v.a === 1)!, pad = g.padCompra(v);
     expect(pad.x + pad.w / 2).toBeLessThan(g.limitePraia() - 16);
     Object.assign(g.player, pad); g.money = v.s.price; rodar(g, 3500);
-    expect(g.aberta(1)).toBe(true); expect(g.limitePraia()).toBe(774);
+    expect(g.aberta(1)).toBe(true); expect(g.limitePraia()).toBe(1082);
   });
   it('da Praia 6 em diante a orla inteira fica livre, mesmo antes de abrir os Ambulantes', () => {
     for (let n = 6; n <= 10; n++) {
@@ -782,4 +782,17 @@ it('a Sorveteria fica logo à direita da Barraca, alinhada aos quiosques, com fi
     const q = g.slotPos(1, i); expect(q.y).toBeLessThanOrEqual(FAIXAS.areia.y1 - 20);
     expect(dentroDe(q, LUGARES[2].rect)).toBe(false); expect(dentroDe(q, s.drop)).toBe(false);
   }
+});
+
+
+it('nas primeiras cinco praias o próximo lote aparece, mas sua cerca impede entrar nele', () => {
+ for(let n=1;n<=5;n++) {
+  const g=naPraia(n); for(let a=0;a<n;a++)subir(g,a,5);
+  const r=LUGARES[n].rect;
+  expect(g.quadradosSolidos()).toEqual([r]);
+  expect(g.limitePraia()).toBeGreaterThan(r.x+r.w/2);
+  Object.assign(g.player,{x:r.x-r.w/2-50,y:r.y});g.update(4000,{x:1,y:0});
+  expect(g.player.x).toBeLessThanOrEqual(r.x-r.w/2-12);
+  expect(g.camX+400).toBeLessThanOrEqual(g.limitePraia());
+ }
 });

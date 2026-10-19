@@ -670,6 +670,14 @@ function drawTrancado(i: number) {
     rr(r.x - r.w / 2, r.y - r.h / 2, r.w, r.h, 14); ctx.fillStyle = f[0]; ctx.fill();
     ctx.setLineDash([8, 6]); ctx.strokeStyle = f[1]; ctx.lineWidth = 2.5; ctx.stroke(); ctx.setLineDash([]);
   }
+  // Silhueta do que virá e cerca física baixa, no contorno exato do lote.
+  ctx.save(); ctx.globalAlpha = 0.18; ctx.fillStyle = '#3a2316';
+  const sw = Math.min(140, r.w * 0.6), sh = Math.min(65, r.h * 0.45);
+  rr(r.x - sw / 2, r.y - sh - 12, sw, sh, 5); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(r.x - sw / 2 - 10, r.y - sh - 12); ctx.lineTo(r.x, r.y - sh - 38); ctx.lineTo(r.x + sw / 2 + 10, r.y - sh - 12); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = '#a26b2f'; ctx.lineWidth = 3; ctx.strokeRect(r.x-r.w/2, r.y-r.h/2, r.w, r.h);
+  for (const y of [r.y-r.h/2, r.y+r.h/2]) for (let x=r.x-r.w/2; x<=r.x+r.w/2; x+=55) { ctx.fillStyle='#8d5a2b'; ctx.fillRect(x-3,y-11,6,20) }
   const px = r.x, py = r.y;
   ctx.save(); ctx.translate(px, py); ctx.rotate(-0.03);
   ctx.fillStyle = '#8d5a2b'; ctx.fillRect(-3, 20, 6, 26); ctx.fillStyle = '#6b4a2a'; ctx.fillRect(-1, 22, 1.6, 22); // estaca
@@ -679,7 +687,7 @@ function drawTrancado(i: number) {
   ctx.fillStyle = '#f0c674'; rr(-8, -32, 16, 12, 3); ctx.fill(); ctx.strokeStyle = '#a26b2f'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = '#8a6a52'; circ(0, -26, 1.8); ctx.fill();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#3a2316'; ctx.font = '800 10px "Nunito",sans-serif';
   if (futura) {
-    ctx.fillText('TRANCADO', 0, -15);
+    ctx.fillText('Na próxima praia:', 0, -15);
     ctx.font = '800 12px "Baloo 2",sans-serif'; ctx.fillText(AREAS[i], 0, 1);
     ctx.font = '800 10px "Nunito",sans-serif'; ctx.fillStyle = '#e0a800'; ctx.fillText('Praia ' + (i + 1), 0, 15);
   } else {
@@ -747,7 +755,7 @@ export function desenhar(c: CanvasRenderingContext2D, jogo: Jogo, k: number, joy
   drawBarraca(); drawKiosk(); drawServico(); drawBarraca(3); drawQuadra(); drawAmbulantes(); drawEscola(); drawBarraca(7); drawPalco(); drawTorneio();
   for (let a = 0; a < NUM_AREAS; a++) drawEnfeites(a);
   // áreas fechadas: todas aparecem trancadas no lugar delas (pilar 6)
-  LUGARES.forEach((L, i) => { if (i === 0 || g.aberta(i) || g.beach < 5 || L.zona.x + L.zona.w / 2 < x0 || L.zona.x - L.zona.w / 2 > x1) return; drawTrancado(i) });
+  LUGARES.forEach((L, i) => { if (i === 0 || g.aberta(i) || (g.beach < 5 && i !== g.proximaAreaFechada()) || L.zona.x + L.zona.w / 2 < x0 || L.zona.x - L.zona.w / 2 > x1) return; drawTrancado(i) });
   for (const v of g.visibleSteps()) { const s = g.padCompra(v), got = g.paid[v.a + ':' + v.k] || 0; drawPad(s.x, s.y, v.s.name, v.s.price - got, got / v.s.price, v.s.k === 'up', false, g.precisaDe(v)) }
   if (g.novaPraiaAberta()) drawPadPraia();
 
