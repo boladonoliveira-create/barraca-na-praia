@@ -273,12 +273,9 @@ export class Jogo {
   }
   /** Só dependências físicas ou etapas do campeonato impedem a compra de um quadro visível. */
   precisaDe(v: Visivel): string | null {
-    if (!this.aberta(v.a) || v.s.k === 'build') return null;
+    if (!this.aberta(v.a)) return v.k === 0 && v.s.k === 'build' ? null : AREAS[v.a];
+    if (v.s.k === 'build') return null;
     if (v.s.id === 'fritaRapida' && !this.machines.some(m => m.type === 'pastel')) return 'Fritadeira de pastel';
-    if (v.s.id === 'bolsa') {
-      const anteriores = this.trilhas[v.a].slice(0, v.k).filter(s => s.id === 'bolsa').length;
-      if (this.L('bolsa') < anteriores) return 'Mochila de ' + BOLSA_CAPACIDADES[anteriores];
-    }
     if (v.s.id.startsWith('etapa')) {
       if (this.partida.ms > 0) return 'Fim da partida';
       const etapa = Number(v.s.id.slice(5));
@@ -293,7 +290,7 @@ export class Jogo {
     let best: Visivel | null = null, bs = -1;
     for (const v of this.visibleSteps()) {
       if (this.precisaDe(v)) continue;
-      if (soCabe && this.money < this.falta(v)) continue;
+      if (soCabe && !this.testMode && this.money < this.falta(v)) continue;
       const proximo = this.nivel[v.a] + 1, ganho = 1 + (v.s.k === 'build' && !this.aberta(v.a) ? 2 : 0) + (this.marcos().includes(proximo) || proximo === NIVEL_ABRE ? 1 : 0) + (this.aberta(v.a) && v.a === this.areasPraia() - 1 ? 1 : 0);
       const sc = ganho / Math.max(1, this.falta(v)); if (sc > bs) { bs = sc; best = v }
     }
@@ -586,18 +583,18 @@ export class Jogo {
     this.payT += dt;
     for (const v of this.visibleSteps()) {
       const pad = this.padCompra(v), pr = v.s.price;
-      if (inZone(p, pad) && this.money > 0 && this.payT > 40) {
+      if (inZone(p, pad) && (this.testMode || this.money > 0) && this.payT > 40) {
         const key = v.a + ':' + v.k; if (this.precisaDe(v)) continue;
-        this.payT = 0; const got = this.paid[key] || 0, chunk = Math.min(Math.floor(this.money), this.testMode ? pr : Math.max(1, Math.ceil(pr / 28)), pr - got); if (chunk <= 0) continue;
-        this.money -= chunk; this.paid[key] = got + chunk; this.fly('bill', p.x, p.y - 16, pad.x, pad.y, 170); this.io.tone(600 + this.paid[key] / pr * 500, 0.04, 'triangle', 0.04, 1);
+        this.payT = 0; const got = this.paid[key] || 0, chunk = this.testMode ? pr - got : Math.min(Math.floor(this.money), Math.max(1, Math.ceil(pr / 28)), pr - got); if (chunk <= 0) continue;
+        if (!this.testMode) this.money -= chunk; this.paid[key] = got + chunk; this.fly('bill', p.x, p.y - 16, pad.x, pad.y, 170); this.io.tone(600 + this.paid[key] / pr * 500, 0.04, 'triangle', 0.04, 1);
         if (this.paid[key] >= pr) { delete this.paid[key]; if (this.tutorial === 3) this.tutorial = 4; this.applyStep(v.a, false, v.k); this.gratis(v.a) }
       }
     }
     if (this.novaPraiaAberta() && this.proximaExiste()) {
       const pad = padOf('praia'), pr = this.custoNovaPraia();
-      if (inZone(p, pad) && this.money > 0 && this.payT > 40) {
-        this.payT = 0; const got = this.paid.praia || 0, chunk = Math.min(Math.floor(this.money), this.testMode ? pr : Math.ceil(pr / 28), pr - got);
-        this.money -= chunk; this.paid.praia = got + chunk; this.fly('bill', p.x, p.y - 16, pad.x, pad.y, 170);
+      if (inZone(p, pad) && (this.testMode || this.money > 0) && this.payT > 40) {
+        this.payT = 0; const got = this.paid.praia || 0, chunk = this.testMode ? pr - got : Math.min(Math.floor(this.money), Math.ceil(pr / 28), pr - got);
+        if (!this.testMode) this.money -= chunk; this.paid.praia = got + chunk; this.fly('bill', p.x, p.y - 16, pad.x, pad.y, 170);
         if (this.paid.praia >= pr) { delete this.paid.praia; this.viajar(); return }
       }
     }

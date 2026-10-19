@@ -207,7 +207,7 @@ function drawMachine(m: Machine) {
 }
 
 function drawPad(x: number, y: number, name: string, remain: number, progress: number, isUp: boolean, gold: boolean, precisa: string | null = null) {
-  const w = 72, h = 60, afford = g.money >= remain;
+  const w = 72, h = 60, afford = !precisa && (g.testMode || g.money >= remain);
   if (precisa) ctx.globalAlpha = 0.8;
   rr(x - w / 2, y - h / 2, w, h, 12); ctx.fillStyle = gold ? 'rgba(255,243,196,0.92)' : 'rgba(255,253,247,0.8)'; ctx.fill();
   ctx.save(); rr(x - w / 2, y - h / 2, w, h, 12); ctx.clip(); ctx.fillStyle = 'rgba(47,158,68,0.35)'; ctx.fillRect(x - w / 2, y + h / 2 - h * progress, w, h * progress); ctx.restore();

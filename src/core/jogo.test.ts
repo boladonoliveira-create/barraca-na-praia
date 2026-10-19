@@ -807,3 +807,37 @@ it('a primeira praia tem mais melhorias pequenas antes da viagem e seus marcos c
  g.nivel[0]=ECONOMIA.niveisViagem[0]-1;expect(g.novaPraiaAberta()).toBe(false);
  g.nivel[0]++;expect(g.novaPraiaAberta()).toBe(true);
 });
+
+
+it('todos os quadros visíveis das dez áreas podem ser pagos sem comprar o quadro anterior', () => {
+ for(let a=0;a<10;a++)for(let pos=0;pos<2;pos++) {
+  const g=mundo(Array(10).fill(10)), vs=g.visibleSteps().filter(v=>v.a===a), v=vs[pos];
+  expect(v).toBeDefined();expect(g.precisaDe(v)).toBeNull();
+  Object.assign(g.player,g.padCompra(v));g.money=v.s.price;rodar(g,2500);
+  expect(g.compradas[a].has(v.k),a+':'+v.k).toBe(true);
+  expect(g.nivel[a]).toBe(11);
+  if(pos===1)expect(g.compradas[a].has(vs[0].k)).toBe(false);
+ }
+});
+
+it('a dependência é a estrutura física, sem bloqueio por ordem geral de compra', () => {
+ const g=mundo([5]), v={a:1,k:1,s:g.trilhas[1][1]};
+ expect(g.precisaDe(v)).toBe('Sorveteria');
+ g.applyStep(1,true,0);expect(g.precisaDe(v)).toBeNull();
+});
+
+it('dinheiro infinito paga até um quadro bilionário na hora, sem saldo negativo nem custo no save', () => {
+ const g=novo(),v=g.visibleSteps()[0];v.s.price=3_000_000_000;
+ g.testMode=true;g.money=1;Object.assign(g.player,g.padCompra(v));rodar(g,100);
+ expect(g.compradas[0].has(v.k)).toBe(true);expect(g.money).toBeGreaterThanOrEqual(0);
+ expect(g.snapshot().money).toBe(0);
+});
+
+it('durante uma partida os outros quadros do torneio continuam livres', () => {
+ const g=mundo([5,5,5,5,5,5,5,5,5,1]);g.applyStep(9,true,2);
+ g.partida={etapa:1,ms:40000};
+ const v=g.visibleSteps().find(v=>v.a===9&&v.s.id==='patrocinio')!;
+ expect(v).toBeDefined();expect(g.precisaDe(v)).toBeNull();
+ Object.assign(g.player,g.padCompra(v));g.money=v.s.price;rodar(g,2000);
+ expect(g.compradas[9].has(v.k)).toBe(true);expect(g.partida.ms).toBeGreaterThan(0);
+});
