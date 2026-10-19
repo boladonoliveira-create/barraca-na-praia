@@ -7,8 +7,8 @@ describe('trilhas por área', () => {
     expect(stepPrice(0, 0, 0)).toBe(ECONOMIA.base[0]);
     expect(stepPrice(1, 0, 0)).toBe(ECONOMIA.abrir[1]);
     expect(stepPrice(1, 1, 0)).toBe(ECONOMIA.base[1]);
-    expect(stepPrice(0, 0, 1)).toBe(Math.round(ECONOMIA.base[0] * ECONOMIA.praia / 5) * 5);
-    for (const a of [0, 1, 2, 3]) for (const b of [0, 2]) makeTrilha(a, b).forEach((s, k) => { expect(s.price % 5).toBe(0); expect(s.price).toBe(stepPrice(a, k, b)) });
+    expect(stepPrice(0, 0, 1)).toBe(Math.round(ECONOMIA.base[0] * ECONOMIA.praia));
+    for (const a of [0, 1, 2, 3]) for (const b of [0, 2]) makeTrilha(a, b).forEach((s, k) => { expect(Number.isInteger(s.price)).toBe(true); expect(s.price).toBe(stepPrice(a, k, b)) });
   });
 
   it('as trilhas têm 60 passos, e a Barraca ganha duas posições extras para as mochilas', () => {
@@ -43,7 +43,7 @@ describe('fmt', () => {
 describe('começo rápido', () => {
   it('o 1º ajudante e o cofre vêm logo depois da abertura, de graça; o resto custa ECONOMIA.antiga do preço', () => {
     const t = makeTrilha(1, 2, true), n = makeTrilha(1, 2);
-    expect(t.slice(0, 3).map(s => [s.id, s.price])).toEqual([['sorv', Math.round(n[0].price * ECONOMIA.antiga / 5) * 5], ['ajudS', 0], ['cofre1', 0]]);
+    expect(t.slice(0, 3).map(s => [s.id, s.price])).toEqual([['sorv', Math.round(n[0].price * ECONOMIA.antiga)], ['ajudS', 0], ['cofre1', 0]]);
     expect(t).toHaveLength(60);
     expect(makeTrilha(0, 2, true).slice(0, 2).map(s => s.id)).toEqual(['ajud', 'cofre0']);
     expect(makeTrilha(4, 4, true).every(s => s.price > 0)).toBe(true); // a quadra não tem ajudante nem cofre
@@ -51,11 +51,10 @@ describe('começo rápido', () => {
 });
 
 
-it('as mochilas extras têm preço próprio e não inflam os preços antigos da cauda', () => {
-  const antiga = makeTrilha(0, 0, false, true), nova = makeTrilha(0, 0);
-  expect(nova.slice(20, 22).map(s => s.price)).toEqual(ECONOMIA.mochilas.slice(0, 2));
-  for (let k = 20; k < antiga.length; k++) {
-    expect(nova[k + 2].id).toBe(antiga[k].id);
-    expect(nova[k + 2].price).toBe(antiga[k].price);
-  }
+it('a curva começa barata, a granola custa perto de 15 e os fatores são suaves', () => {
+ const t=makeTrilha(0,0); expect(t.slice(0,20).every(s=>s.price>=10&&s.price<=200)).toBe(true);
+ expect(t.find(s=>s.id==='cardapio')!.price).toBeGreaterThanOrEqual(15);
+ expect(t.find(s=>s.id==='cardapio')!.price).toBeLessThanOrEqual(18);
+ expect(ECONOMIA.cresce.every(f=>f>=1.07&&f<=1.15)).toBe(true);
+ for(let k=1;k<t.length;k++) expect(t[k].price).toBeLessThanOrEqual(Math.ceil(t[k-1].price*1.15)+1);
 });

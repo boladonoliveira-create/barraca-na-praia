@@ -2,14 +2,21 @@ import { ACAI_NAMES, SORV_NAMES, MILHO_NAMES, AMB_NAMES, SUCO_NAMES, TRILHAS, CA
 
 export interface Step { k: 'build' | 'up'; id: string; name: string; slot: string; price: number }
 
-/** Preço do passo k da trilha da área a na praia b, em múltiplos de 5.
+/** Preço do passo k da trilha da área a na praia b, arredondado ao real e com piso de R$ 1.
     Áreas 2 a 4: o passo 0 abre a área e custa abrir[a]; as melhorias seguem base[a] × cresce[a]^(k-1).
     Barraca do Sol (já aberta): base[0] × cresce[0]^k. Tudo × praia^b. */
 export function stepPrice(a: number, k: number, b: number, legada: boolean | 5 = false) {
-  const extras = legada === 5 ? 3 : legada ? 0 : 2;
-  const indice = a === 0 && extras && k >= 20 + extras ? k - extras : k;
-  const p = a === 0 && extras && k >= 20 && k < 20 + extras ? E.mochilas[k - 20] : a === 0 ? E.base[0] * Math.pow(E.cresce[0], indice) : k === 0 ? E.abrir[a] : E.base[a] * Math.pow(E.cresce[a], k - 1);
-  return Math.round(p * Math.pow(E.praia, b) / 5) * 5;
+  // Preços históricos ficam congelados para reembolso/migração; o jogo usa a curva nova inteira.
+  if (legada) {
+    const bases = [110,700,13000,37000,170000,1470000,4575000,9000000,18000000,32000000];
+    const fatores = [1.5,1.4,1.3,1.3,1.3,1.15,1.15,1.15,1.15,1.25];
+    const indice = a === 0 && legada === 5 && k >= 23 ? k - 3 : k;
+    const p = a === 0 && legada === 5 && k >= 20 && k <= 22 ? [8000,24000,64000][k-20] : a === 0 ? bases[0] * Math.pow(fatores[0], indice) : k === 0 ? E.abrir[a] : bases[a] * Math.pow(fatores[a], k-1);
+    return Math.round(p * Math.pow(1.45, b) / 5) * 5;
+  }
+  const p = a === 0 ? E.base[0] * Math.pow(E.cresce[0], k) : k === 0 ? E.abrir[a] : E.base[a] * Math.pow(E.cresce[a], k - 1);
+  return Math.max(1, Math.round(p * Math.pow(E.praia, b)));
+
 }
 
 /** Trilha completa da área a na praia b: a lista fixa e depois a cauda repetida (60 passos; Barraca: 62, com duas mochilas extras).
@@ -34,7 +41,7 @@ export function makeTrilha(a: number, b: number, rapido = false, legada: boolean
   });
   if (!rapido) return steps;
   const gratis = [AJUDANTE[a], 'cofre' + a].map(id => steps.findIndex(s => s.id === id)).filter(i => i >= 0);
-  const resto = steps.filter((_, i) => !gratis.includes(i)).map(s => ({ ...s, price: Math.round(s.price * E.antiga / 5) * 5 })), ini = a === 0 ? 0 : 1;
+  const resto = steps.filter((_, i) => !gratis.includes(i)).map(s => ({ ...s, price: legada ? Math.round(s.price * E.antiga / 5) * 5 : Math.max(1, Math.round(s.price * (E.antigaPorPraia[b] ?? E.antiga))) })), ini = a === 0 ? 0 : 1;
   resto.splice(ini, 0, ...gratis.map(i => ({ ...steps[i], price: 0 })));
   return resto;
 }

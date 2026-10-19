@@ -171,13 +171,14 @@ export class Jogo {
   lucro() { return 1 + ECONOMIA.taxaFama * this.famaTotal }
   /** Fama que a viagem daria agora: cresce com o total ganho na praia, cada vez mais devagar. */
   famaGanha() { return Math.floor(Math.sqrt(this.ganho / ECONOMIA.famaK)) }
-  cardLv(shop: number) { return this.L(['cardapio', 'cardapioS', '', 'cardapioM', '', 'cardapioA'][shop] || '') }
-  price(t: Item) { const a = PRODUCTS[t].shop; return Math.round(PRODUCTS[t].price * Math.pow(1.25, this.cardLv(a)) * this.marco(a) * this.lucro()) }
+  cardLv(shop: number) { return this.L(['cardapio', 'cardapioS', '', 'cardapioM', '', 'cardapioA', '', 'cardapioJ'][shop] || '') }
+  price(t: Item) { const a = PRODUCTS[t].shop; return Math.round(PRODUCTS[t].price * Math.pow(ECONOMIA.cardapioCresce, this.cardLv(a)) * this.marco(a) * this.lucro()) }
   /** Cada área tem o seu turbo: o da Barraca não acelera o depósito do sorvete. */
   rateOf(t: Item) { return PRODUCTS[t].rate / (1 + 0.25 * this.L(['turbo', 'turboS'][PRODUCTS[t].shop] || '')) }
   /** Marcos (níveis 5, 10, 15, 20): cada um dobra o dinheiro que a área gera. */
   marco(a: number) { return Math.pow(2, this.tier(a)) }
-  tier(a: number) { return MARCOS.filter(m => (this.nivel[a] || 0) >= m).length }
+  marcos() { return this.beach === 0 ? ECONOMIA.marcosIniciais : MARCOS }
+  tier(a: number) { return this.marcos().filter(m => (this.nivel[a] || 0) >= m).length }
   /** Área 5 (atração): multiplica a chegada de clientes nas outras áreas. Fechada, vale exatamente 1. */
   publico() {
     const A = ATRACAO, T = TORNEIO;
@@ -212,11 +213,11 @@ export class Jogo {
   /* Área 7 */
   araraCap() { return ESCOLA.araraBase + ESCOLA.araraPorNivel * this.L('arara') }
   naArara() { return this.esc.pranchas.filter(b => b.estado === 'seca' || b.estado === 'secando').length }
-  precoAula() { return Math.round(ESCOLA.precoAula * Math.pow(1.25, this.L('aulaUp')) * this.marco(6) * this.lucro()) }
+  precoAula() { return Math.round(ESCOLA.precoAula * Math.pow(ECONOMIA.cardapioCresce, this.L('aulaUp')) * this.marco(6) * this.lucro()) }
   /* Praia 3 */
   aguaCap() { return SERVICO.aguaBase + SERVICO.aguaPorNivel * this.L('caixaAgua') }
-  precoBanho() { return Math.round(SERVICO.precoBanho * Math.pow(1.25, this.L('banhoUp')) * this.marco(2) * this.lucro()) }
-  precoCadeira() { return Math.round(SERVICO.precoCadeira * Math.pow(1.25, this.L('aluguel')) * this.marco(2) * this.lucro()) }
+  precoBanho() { return Math.round(SERVICO.precoBanho * Math.pow(ECONOMIA.cardapioCresce, this.L('banhoUp')) * this.marco(2) * this.lucro()) }
+  precoCadeira() { return Math.round(SERVICO.precoCadeira * Math.pow(ECONOMIA.cardapioCresce, this.L('aluguel')) * this.marco(2) * this.lucro()) }
   /* Praia 4 */
   lote(t: Item = 'milho') { return PREPARO.loteBase + PREPARO.lotePorNivel * this.L(RECEITAS[t]!.lote) }
   espaco(m: Machine) { return Math.min(this.lote(m.type) - (m.loaded || 0), m.cap - m.pile - (m.loaded || 0)) }
@@ -239,11 +240,12 @@ export class Jogo {
     return { dia, premio, valor };
   }
   /** Quadro de nova praia: aparece com a área nova desta praia no nível NIVEL_NOVA_PRAIA. */
-  novaPraiaAberta() { const a = this.areasPraia() - 1; return this.aberta(a) && this.nivel[a] >= NIVEL_NOVA_PRAIA }
+  nivelViagem() { return ECONOMIA.niveisViagem[this.beach] ?? NIVEL_NOVA_PRAIA }
+  novaPraiaAberta() { const a = this.areasPraia() - 1; return this.aberta(a) && this.nivel[a] >= this.nivelViagem() }
   /** A próxima praia já tem a área dela pronta no jogo (depois da Praia 10 o quadro diz "em breve"). */
   proximaExiste() { return this.beach + 1 < NUM_AREAS }
   /** Custo da viagem: ECONOMIA.viagem[praia] × o preço do próximo nível da área nova. */
-  custoNovaPraia() { return Math.round(this.trilhas[this.areasPraia() - 1][NIVEL_NOVA_PRAIA].price * ECONOMIA.viagem[this.beach] / 5) * 5 }
+  custoNovaPraia() { return Math.round(this.trilhas[this.areasPraia() - 1][this.nivelViagem()].price * ECONOMIA.viagem[this.beach] / 5) * 5 }
   beachName() { return PRAIAS[Math.min(this.beach, PRAIAS.length - 1)].nome }
   goalText() {
     if (this.novaPraiaAberta()) return this.proximaExiste() ? 'Viajar para a ' + PRAIAS[this.beach + 1].nome : (PRAIAS[this.beach + 1]?.nome ?? 'Praia ' + (this.beach + 2)) + ' · em breve';
@@ -292,7 +294,7 @@ export class Jogo {
     for (const v of this.visibleSteps()) {
       if (this.precisaDe(v)) continue;
       if (soCabe && this.money < this.falta(v)) continue;
-      const proximo = this.nivel[v.a] + 1, ganho = 1 + (v.s.k === 'build' && !this.aberta(v.a) ? 2 : 0) + (MARCOS.includes(proximo) || proximo === NIVEL_ABRE ? 1 : 0) + (this.aberta(v.a) && v.a === this.areasPraia() - 1 ? 1 : 0);
+      const proximo = this.nivel[v.a] + 1, ganho = 1 + (v.s.k === 'build' && !this.aberta(v.a) ? 2 : 0) + (this.marcos().includes(proximo) || proximo === NIVEL_ABRE ? 1 : 0) + (this.aberta(v.a) && v.a === this.areasPraia() - 1 ? 1 : 0);
       const sc = ganho / Math.max(1, this.falta(v)); if (sc > bs) { bs = sc; best = v }
     }
     return best;
@@ -388,7 +390,7 @@ export class Jogo {
     if (s.id === 'ambulantes') this.popups.push({ x: SHOPS[5].cx, y: SHOPS[5].counter.y - 50, txt: 'Abasteça o carrinho com mate!', life: 2.4, col: '#e8590c', size: 15 });
     if (s.id === 'escola') this.popups.push({ x: SHOPS[6].cx, y: SHOPS[6].counter.y - 50, txt: 'Leve as pranchas molhadas à arara!', life: 2.4, col: '#1c7ed6', size: 15 });
     if (s.id === 'cardapioM') this.popups.push({ x: SHOPS[3].cx, y: SHOPS[3].counter.y - 50, txt: 'Milho agora R$ ' + this.price('milho'), life: 1.8, col: '#2f9e44', size: 18 });
-    if (MARCOS.includes(i)) this.comemorar(a, i);
+    if (this.marcos().includes(i)) this.comemorar(a, i);
     this.io.compra(this.beach + 1, a, i, (this.now - this.lastBuyAt) / 1000); this.lastBuyAt = this.now;
     this.io.fanfare(); this.io.buzz(40); this.io.goal(); this.io.save();
   }
@@ -630,7 +632,7 @@ export class Jogo {
       if (d.kind === 'escola') { this.updateEscola(dt, f); continue }
       if (d.kind === 'servico') { this.updateServico(dt, f); continue }
       const stock = this.stockOf(si), stockF = stock >= 8 ? 0.5 : stock >= 3 ? 0.75 : 1.25, demand = si === 0 ? 1 + 0.35 * this.umbrellas.length : 1;
-      const maxQ = si === 0 ? 6 + this.umbrellas.length : 7, interval = d.base / demand * stockF / this.publico();
+      const maxQ = si === 0 ? 6 + this.umbrellas.length : 7, interval = (si === 0 && this.beach === 0 ? ECONOMIA.chegadaInicial : d.base) / demand * stockF / this.publico();
       st.spawnT -= dt; if (st.spawnT <= 0) { st.spawnT = interval * (0.75 + this.rand() * 0.5); if (st.queue.length < maxQ) this.spawnCustomer(si) }
       st.queue.forEach((c, i) => { const q = this.slotPos(si, i); c.arr = moveTo(c, q.x, q.y, 2.5, f) });
       // quem está entre os 4 primeiros e espera há muito por um produto em falta troca pelo que tem no balcão

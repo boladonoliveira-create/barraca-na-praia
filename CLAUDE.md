@@ -9,7 +9,7 @@ Jogo mobile "idle arcade" (no estilo do Pizza Ready): o jogador anda com um dedo
 - **Mochila:** capacidade real de 20 → 30 → 40 → 60 itens, com pilha nas costas. Ajudantes acompanham proporcionalmente (metade; sorveteiros e instrutores, um quarto).
 - **Compras:** os dois próximos quadros em pontos distintos de cada área aberta podem ser pagos em qualquer ordem. Só dependências concretas ficam com “Precisa de: X”. O sucessor no mesmo ponto aparece após sair do quadro, evitando pagamentos em cadeia. A seta continua sugerindo custo-benefício.
 - **Trilhas:** cada área tem a sua trilha de níveis, independente das outras, e a área N+1 abre quando a área N chega ao nível 5 (GDD seções 6 a 8).
-- **Praias:** o litoral tem 10 praias (`src/dados/praias.ts`). A praia N tem as áreas 1 a N; a área N é a novidade. Com a área N no nível 10 aparece o quadro dourado da viagem: zera dinheiro e níveis e dá fama, que multiplica o lucro de tudo. As 10 praias existem; na Praia 10 o quadro diz "Praia 11 · em breve" e a meta é ser campeão do torneio. Os troféus do torneio dão público para sempre (GDD seções 6 e 8).
+- **Praias:** o litoral tem 10 praias (`src/dados/praias.ts`). A praia N tem as áreas 1 a N; a área N é a novidade. Com a área N no nível-alvo de `ECONOMIA.niveisViagem` aparece o quadro dourado da viagem: zera dinheiro e níveis e dá fama, que multiplica o lucro de tudo. As 10 praias existem; na Praia 10 o quadro diz "Praia 11 · em breve" e a meta é ser campeão do torneio. Os troféus do torneio dão público para sempre (GDD seções 6 e 8).
 
 ## Pilares (GDD seção 2, não quebrar)
 
@@ -49,8 +49,8 @@ docs/MOLDE-ORLA.md      as faixas, os lugares das áreas, livre(x, y), a paleta 
 - **Uma área nova:** a área i é a loja `SHOPS[i]`, o lugar `LUGARES[i]` (o retângulo na faixa e a zona das coisas dela) e a trilha `TRILHAS[i]`. Ela entra como dados em `dados/` (produtos, zonas, trilha, regra de ajudante), não reescrevendo o motor.
 - **Independência:** melhorias de uma área não podem mudar outra. Cada área tem o seu turbo e o seu cardápio, e há teste para isso.
 - **Salvar:**
-  - O progresso fica em `barraca-na-praia:save` como `{ versao: 6, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal`, `famas`, `trofeus`, a partida do torneio em andamento, o calendário da recompensa diária (`diaria`) e `niveis` por área. `compradas` guarda os índices exatos das melhorias, inclusive fora da ordem; o nível é a quantidade comprada. O `mundo` é criado uma vez (nuvem e co-op no futuro).
-  - Se a estrutura do `Save` mudar, suba `SAVE_VERSION` e converta em `lerSave`. O v5 é convertido para três melhorias de mochila, devolvendo o valor da quarta retirada. O v4 é convertido preservando compras, pagamentos parciais e identidade do mundo; o v3 passa pela conversão anterior (`deV3`). Antes disso, recomeça do zero.
+  - O progresso fica em `barraca-na-praia:save` como `{ versao: 7, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal`, `famas`, `trofeus`, a partida do torneio em andamento, o calendário da recompensa diária (`diaria`) e `niveis` por área. `compradas` guarda os índices exatos das melhorias, inclusive fora da ordem; o nível é a quantidade comprada. O `mundo` é criado uma vez (nuvem e co-op no futuro).
+  - Se a estrutura do `Save` mudar, suba `SAVE_VERSION` e converta em `lerSave`. O v6 adapta pagamentos aos preços novos, completa compras já cobertas e devolve o excesso. O v5 é convertido para três melhorias de mochila, devolvendo o valor da quarta retirada. O v4 é convertido preservando compras, pagamentos parciais e identidade do mundo; o v3 passa pela conversão anterior (`deV3`). Antes disso, recomeça do zero.
   - Um save de versão mais nova nunca é sobrescrito.
   - Som, vibração e modo teste ficam em `barraca-na-praia:prefs`.
 - Ganhos offline valem ao abrir o jogo e ao voltar do segundo plano (`Jogo.offlineGain`). O valor do cartão fica no save (`pendente`) até ser pego ou dobrado.
@@ -82,7 +82,7 @@ O `npm run sim` roda com o Node 24, que executa TypeScript direto. Por isso os i
   - recolhe as pilhas paradas;
   - opera chuveirão, cadeiras e panelas.
 - **Variações:** o bot humano (padrão) reage com 200 a 400 ms de atraso, anda com desvio leve e para 3 a 5 s a cada 30 s. `npm run sim -- --perfeito` usa o bot perfeito.
-- **Números:** ficam em `ECONOMIA` (`src/dados/planos.ts`): preços, fator por praia (1,45), custo da viagem por praia (`viagem`), fama (K = 2000, taxa 0,07) e o desconto das áreas antigas (20%). As três mochilas adicionais têm preços próprios (`mochilas`), preservando o custo da cauda antiga. Os resultados das três sementes e a calibração mais recente ficam no `RELATORIO.md`.
+- **Números:** ficam em `ECONOMIA` (`src/dados/planos.ts`): preços, fator por praia (1,45), custo da viagem por praia (`viagem`), fama (K = 2000, taxa 0,07) e o desconto das áreas antigas (20%). A curva cresce de 1,07 a 1,15 por nível e é arredondada ao real. A primeira praia usa os marcos de `marcosIniciais` e chegada de clientes própria; a granola custa perto de R$ 15. O bot mede média de 10–20 s por compra nos primeiros cinco minutos e 30–60 s depois, na primeira praia, além do limite de 90 s de espera nas Praias 1–3. Os resultados das três sementes e a calibração mais recente ficam no `RELATORIO.md`.
 - **Sensível:** o resultado muda bastante com pequenas mudanças de preço (o bot escolhe compras diferentes e a fama acumula). Ao mexer num número, rode as 3 sementes de novo.
 
 ## Ordem de trabalho (GDD seção 12)

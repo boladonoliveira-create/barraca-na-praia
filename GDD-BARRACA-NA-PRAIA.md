@@ -131,7 +131,7 @@ A estrutura segue dois jogos de referência. No Idle Miner Tycoon, cada parte da
 ### Liberação, marcos e cofre
 
 - **Liberação:** a área N+1 abre quando a área N chega ao **nível 5** (`NIVEL_ABRE`).
-- **Marcos:** nos níveis 5, 10, 15 e 20, a área **dobra o dinheiro que gera** (×2, ×4, ×8, ×16 no preço de venda) e muda de visual: bandeirinhas (nível 5), selo dourado (10), luzinhas (15), moldura dourada (20). Vem com comemoração na tela ("Barraca do Sol nível 5! Produção x2").
+- **Marcos:** na primeira praia nos níveis 5, 15, 32 e 50 e, nas demais, nos níveis 5, 10, 15 e 20, a área **dobra o dinheiro que gera** (×2, ×4, ×8, ×16 no preço de venda) e muda de visual: bandeirinhas (nível 5), selo dourado (10), luzinhas (15), moldura dourada (20). Vem com comemoração na tela ("Barraca do Sol nível 5! Produção x2").
 - **Cofre automático:** melhoria de cada área. Com ele, o dinheiro daquela área entra sozinho no caixa e não precisa ser buscado. No lugar da pilha de notas aparece um cofre.
 - **Dinheiro:** um caixa só, compartilhado. As melhorias são independentes, mas o lucro de uma área ajuda a abrir a próxima.
 - **Seta:** sugere a compra de melhor custo-benefício que cabe no bolso, sem obrigar. Abrir uma área nova vale 3 vezes mais; chegar a um marco ou ao nível que abre a próxima área vale 2 vezes mais; a melhoria da área nova da praia (já aberta) vale 2 vezes mais. O topo da tela mostra a melhor compra, mesmo a que ainda não cabe ("Barraca do Sol: Mais um guarda-sol").
@@ -160,7 +160,7 @@ A estrutura segue dois jogos de referência. No Idle Miner Tycoon, cada parte da
 
 ### Nova praia e fama
 
-- **Quadro de nova praia:** aparece quando a área N (a novidade da praia N) chega ao nível 10. É um quadro dourado no canto da Barraca do Sol: "Viajar para a Praia Grande · +X de fama". Custa `viagem[N]` × o preço do próximo nível da área N: 1,6 nas Praias 1 a 3, 1,4 na 4, 1,3 na 5 e 1 da Praia 6 em diante.
+- **Quadro de nova praia:** aparece quando a área N (a novidade da praia N) chega ao nível-alvo definido em `ECONOMIA.niveisViagem`. É um quadro dourado no canto da Barraca do Sol: "Viajar para a Praia Grande · +X de fama". Custa `viagem[N]` × o preço do próximo nível da área N: os multiplicadores por praia ficam no vetor `ECONOMIA.viagem`, calibrados com as metas do simulador.
 - **Obrigatório para avançar,** mas sem pressa: o jogador pode continuar crescendo antes de comprar para ganhar mais fama.
 - **Na Praia 10** não há viagem: o quadro mostra "Praia 11 · em breve". A meta é ser campeão do torneio.
 - **Ao comprar:** zeram o dinheiro e os níveis; ficam a fama total, os troféus do torneio e as preferências.
@@ -267,7 +267,7 @@ Cada mecânica nova da seção 7 deve ser uma "loja" com dados próprios (produt
 
 ### Salvar
 
-Guardar a versão do formato junto do progresso. Hoje é `{ versao: 5, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal`, `famas` (fama de cada praia concluída) e os níveis por área, além dos índices exatos das melhorias em `compradas`. O v4 é migrado preservando as compras anteriores, os pagamentos parciais e a identidade do mundo; as mochilas novas não deslocam nem substituem melhorias antigas. O `mundo` é criado uma vez e serve para salvar na nuvem e para o co-op no futuro. O v3 (uma praia só) é convertido: vai para a praia igual ao número de áreas abertas (no máximo 5), com a fama mínima das praias anteriores.
+Guardar a versão do formato junto do progresso. Hoje é `{ versao: 7, mundo: { id, criadoEm }, jogo }`, com `praia`, `famaTotal`, `famas` (fama de cada praia concluída) e os níveis por área, além dos índices exatos das melhorias em `compradas`. O v4 é migrado preservando as compras anteriores, os pagamentos parciais e a identidade do mundo; as mochilas novas não deslocam nem substituem melhorias antigas. O `mundo` é criado uma vez e serve para salvar na nuvem e para o co-op no futuro. O v3 (uma praia só) é convertido: vai para a praia igual ao número de áreas abertas (no máximo 5), com a fama mínima das praias anteriores.
 
 ### Analytics (Firebase)
 

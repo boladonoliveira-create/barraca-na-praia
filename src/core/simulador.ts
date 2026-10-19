@@ -174,18 +174,34 @@ export function simular({ seed = 1, limiteMin = 900, humano = true, praias = NUM
   return fim(true);
 }
 
+/** Ritmo das compras pagas da primeira praia, incluindo a compra final da viagem. */
+export function cadenciaInicial(p: PraiaSim) {
+  let t=0; const antes: number[]=[], depois: number[]=[];
+  for(const c of p.compras) { t+=c.segundos; (t<=300?antes:depois).push(c.segundos) }
+  const ultima=Math.max(0,p.minutos*60-t); (p.minutos<=5?antes:depois).push(ultima);
+  const media=(xs:number[])=>xs.length?xs.reduce((x,y)=>x+y,0)/xs.length:0;
+  return {antes:media(antes),depois:media(depois),comprasIniciais:antes.length};
+}
+
 /** Metas da rodada 5, por praia: minutos [mín, máx] até a viagem. Nenhuma espera passa de ESPERA_MAX s, e as áreas
     antigas voltam a funcionar nos primeiros ANTIGAS_MAX % do tempo da praia. */
 export const METAS: [number, number][] = [[8, 10], [15, 20], [20, 25], [25, 35], [35, 45], [45, 55], [55, 65], [60, 75], [70, 85], [80, 95]];
 /** O total das 10 praias, em horas de jogo ativo. */
 export const TOTAL_HORAS: [number, number] = [7.5, 9];
+export const ESPERA_INICIAL_MAX = 90;
+export const esperaMaxima = (praia: number) => praia <= 3 ? ESPERA_INICIAL_MAX : ESPERA_MAX;
 export const ESPERA_MAX = 150, ANTIGAS_MAX = 25;
 export function foraDaFaixa(r: Resultado) {
   const erros: string[] = [];
   for (const p of r.praias) {
     const [mn, mx] = METAS[p.praia - 1];
+    if(p.praia===1) {
+      const c=cadenciaInicial(p);
+      if(c.antes<10||c.antes>20)erros.push(`Praia 1: ritmo inicial ${c.antes.toFixed(1)} s por compra (meta 10–20)`);
+      if(c.depois<30||c.depois>60)erros.push(`Praia 1: ritmo após 5 min ${c.depois.toFixed(1)} s por compra (meta 30–60)`);
+    }
     if (p.minutos < mn || p.minutos > mx) erros.push(`Praia ${p.praia}: ${p.minutos.toFixed(1)} min (alvo ${mn} a ${mx})`);
-    if (p.maiorEspera > ESPERA_MAX) erros.push(`Praia ${p.praia}: espera de ${p.maiorEspera.toFixed(0)} s (máximo ${ESPERA_MAX})`);
+    if (p.maiorEspera > esperaMaxima(p.praia)) erros.push(`Praia ${p.praia}: espera de ${p.maiorEspera.toFixed(0)} s (máximo ${esperaMaxima(p.praia)})`);
     if (p.antigas > ANTIGAS_MAX) erros.push(`Praia ${p.praia}: áreas antigas abertas a ${p.antigas.toFixed(0)}% do tempo (máximo ${ANTIGAS_MAX}%)`);
   }
   if (r.praias.length === METAS.length && (r.total < TOTAL_HORAS[0] * 60 || r.total > TOTAL_HORAS[1] * 60)) erros.push(`Total: ${(r.total / 60).toFixed(1)} h (alvo ${TOTAL_HORAS[0]} a ${TOTAL_HORAS[1]} h)`);

@@ -11,11 +11,11 @@ function mem(init: Record<string, string> = {}) {
 }
 
 describe('salvamento', () => {
-  it('grava com chave própria, versão 6 e o mundo, e lê de volta', () => {
+  it('grava com chave própria, versão 7 e o mundo, e lê de volta', () => {
     const s = mem(); gravarSave(save, s.get, s.set);
-    expect(SAVE_VERSION).toBe(6);
+    expect(SAVE_VERSION).toBe(7);
     const gravado = JSON.parse(s.m.get(SAVE_KEY)!);
-    expect(gravado).toEqual({ versao: 6, mundo: { id: expect.any(String), criadoEm: expect.any(Number) }, jogo: save });
+    expect(gravado).toEqual({ versao: 7, mundo: { id: expect.any(String), criadoEm: expect.any(Number) }, jogo: save });
     expect(lerSave(s.get)).toEqual(save);
   });
 
@@ -85,4 +85,11 @@ it('migra a mochila máxima v5 para 60 e devolve o preço da quarta melhoria ret
   const convertido=lerSave(s.get)!; const g=new Jogo(); g.load(convertido, antigo.last);
   expect(g.playerCap()).toBe(60); expect(g.nivel[0]).toBe(22);
   expect(convertido.money).toBe(64010); expect(convertido.paid).toEqual({'0:22':17});
+});
+
+
+it('pagamento antigo que já cobre o preço novo completa a compra e devolve o excesso', () => {
+ const j={...save, praia:1, niveis:[0], compradas:[[]], paid:{'0:0':110}};
+ const l=lerSave(mem({[SAVE_KEY]:JSON.stringify({versao:6,jogo:j})}).get)!;
+ expect(l.compradas?.[0]).toEqual([0]); expect(l.money).toBe(110); expect(l.paid).toEqual({});
 });

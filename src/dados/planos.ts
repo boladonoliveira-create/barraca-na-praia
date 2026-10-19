@@ -98,11 +98,15 @@ export const AJUDANTE = ['ajud', 'ajudS', 'salva', 'cozinheiro', '', 'gerente', 
 /** Números da economia (GDD seção 8). Ajustados com o simulador: npm run sim. */
 export const ECONOMIA = {
   abrir: [0, 6000, 130000, 450000, 1200000, 800000, 2000000, 4000000, 12000000, 18000000],  // preço de abrir cada área (o quadro na cerca), na Praia 1
-  base: [110, 700, 13000, 37000, 175000, 1470000, 4575000, 9000000, 18000000, 32000000],          // preço da primeira melhoria de cada área, na Praia 1
-  cresce: [1.5, 1.4, 1.3, 1.3, 1.3, 1.15, 1.15, 1.15, 1.15, 1.25],                          // cada nível custa isto vezes o anterior, dentro da área
-  mochilas: [8000, 24000, 64000], // melhorias extras: 16, 24 e 32 itens, sem inflacionar a cauda antiga
+  base: [10, 220, 5100, 39000, 50000, 2000000, 4000000, 5200000, 8000000, 15000000],          // preço da primeira melhoria de cada área, na Praia 1
+  cresce: [1.15, 1.15, 1.13, 1.15, 1.08, 1.15, 1.15, 1.15, 1.15, 1.15],                          // cada nível custa isto vezes o anterior, dentro da área
+  niveisViagem: [33, 50, 40, 25, 50, 10, 10, 10, 10, 10],
+  marcosIniciais: [5, 15, 32, 50], // cada marco continua dobrando o lucro; as demais praias usam MARCOS
+  chegadaInicial: 27600, // chegada-base; estoque e guarda-sóis ajustam a frequência
+  cardapioCresce: 1.07,
   praia: 1.45,     // cada praia multiplica os preços de compra (praia^b); as vendas sobem com a fama
-  viagem: [1.6, 1.6, 1.6, 1.4, 1.3, 1, 1, 0.85, 1, 1], // em cada praia, a viagem custa isto × o preço do próximo nível da área nova
+  viagem: [2.8, 0.4, 0.8, 1.4, 0.8, 1, 0.75, 0.85, 1, 1], // em cada praia, a viagem custa isto × o preço do próximo nível da área nova
+  antigaPorPraia: [0.2,0.2,0.2,0.2,0.2,0.2,0.1,0.1,0.1,0.1], // reconstrução mais barata no fim do litoral
   antiga: 0.2,     // começo rápido (Praia 3 em diante): as áreas antigas custam esta fração do preço
   famaK: 2000,     // fama ganha numa praia = floor(sqrt(ganho na praia / famaK))
   taxaFama: 0.07,  // lucro de todas as áreas × (1 + taxaFama × fama total)

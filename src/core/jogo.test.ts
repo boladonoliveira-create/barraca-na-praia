@@ -34,10 +34,10 @@ describe('demanda', () => {
     return g.S[0].spawnT;
   }
   it('intervalo = base ÷ demanda × fator de estoque', () => {
-    expect(intervalo(8)).toBeCloseTo(1500 * 0.5);
-    expect(intervalo(3)).toBeCloseTo(1500 * 0.75);
-    expect(intervalo(2)).toBeCloseTo(1500 * 1.25);
-    expect(intervalo(8, 2)).toBeCloseTo(1500 / 1.7 * 0.5);
+    expect(intervalo(8)).toBeCloseTo(ECONOMIA.chegadaInicial * 0.5);
+    expect(intervalo(3)).toBeCloseTo(ECONOMIA.chegadaInicial * 0.75);
+    expect(intervalo(2)).toBeCloseTo(ECONOMIA.chegadaInicial * 1.25);
+    expect(intervalo(8, 2)).toBeCloseTo(ECONOMIA.chegadaInicial / 1.7 * 0.5);
   });
 
   it('fila tem no máximo 6 + 1 por guarda-sol', () => {
@@ -143,7 +143,7 @@ describe('áreas independentes', () => {
     expect(v.k).toBe(g.nivel[v.a]);
     expect(v.a).toBe(0); // no nível 5, a melhoria da Barraca (R$ 895) rende mais por real que abrir o Sorvete
     const h = mundo([12]); h.money = 1e9;
-    expect(h.melhorCompra(true)!.a).toBe(1); // no nível 12 a Barraca ficou cara: abrir o Sorvete passa a valer mais
+    expect(h.melhorCompra(true)!.a).toBe(0); // a curva inicial barata mantém uma melhoria acessível na Barraca
   });
 });
 
@@ -167,16 +167,16 @@ describe('área 5: quadra de futevôlei (atração)', () => {
 describe('compras', () => {
   it('parado no quadrado, paga aos poucos (1/28 a cada 40 ms) e aplica a compra', () => {
     const g = novo(); const v = g.visibleSteps()[0]; Object.assign(g.player, padOf(v.s.slot)); g.money = 1000;
-    rodar(g, 500);
+    rodar(g, 200);
     expect(g.paid['0:0']).toBeGreaterThan(0); expect(g.nivel[0]).toBe(0);
     rodar(g, 2000);
     expect(g.nivel[0]).toBe(1); expect(g.money).toBe(1000 - v.s.price); expect(g.machines).toHaveLength(2);
   });
 
   it('pagamento parcial fica guardado no quadrado', () => {
-    const g = novo(); const v = g.visibleSteps()[0]; Object.assign(g.player, padOf(v.s.slot)); g.money = 20;
+    const g = novo(); const v = g.visibleSteps()[0]; Object.assign(g.player, padOf(v.s.slot)); const parcial = Math.floor(v.s.price / 2); g.money = parcial;
     rodar(g, 3000);
-    expect(g.money).toBe(0); expect(g.paid['0:0']).toBe(20); expect(g.nivel[0]).toBe(0);
+    expect(g.money).toBe(0); expect(g.paid['0:0']).toBe(parcial); expect(g.nivel[0]).toBe(0);
   });
 
   it('1 ou 2 por área, em quadrados diferentes e dentro do lugar da área', () => {
@@ -214,8 +214,8 @@ describe('praias', () => {
     }
   });
 
-  it(`a nova praia só libera com a área N no nível ${NIVEL_NOVA_PRAIA}; comprar zera dinheiro e níveis e guarda a fama`, () => {
-    const g = naPraia(2); subir(g, 0, 12); subir(g, 1, NIVEL_NOVA_PRAIA - 1);
+  it('a viagem só libera no nível-alvo da praia; comprar zera dinheiro e níveis e guarda a fama', () => {
+    const g = naPraia(2); subir(g, 0, 12); subir(g, 1, g.nivelViagem() - 1);
     expect(g.novaPraiaAberta()).toBe(false);
     g.applyStep(1, true); expect(g.novaPraiaAberta()).toBe(true); expect(g.proximaExiste()).toBe(true);
     g.ganho = 50 * ECONOMIA.famaK; expect(g.famaGanha()).toBe(7); // floor(sqrt(50))
@@ -795,4 +795,15 @@ it('nas primeiras cinco praias o próximo lote aparece, mas sua cerca impede ent
   expect(g.player.x).toBeLessThanOrEqual(r.x-r.w/2-12);
   expect(g.camX+400).toBeLessThanOrEqual(g.limitePraia());
  }
+});
+
+
+it('a primeira praia tem mais melhorias pequenas antes da viagem e seus marcos continuam dobrando a produção', () => {
+ const g=naPraia(1); expect(g.nivelViagem()).toBe(ECONOMIA.niveisViagem[0]);
+ for(const n of ECONOMIA.marcosIniciais) {
+  g.nivel[0]=n-1; const antes=g.marco(0);g.nivel[0]=n;
+  expect(g.marco(0)).toBe(antes*2); expect(g.marco(1)).toBe(1);
+ }
+ g.nivel[0]=ECONOMIA.niveisViagem[0]-1;expect(g.novaPraiaAberta()).toBe(false);
+ g.nivel[0]++;expect(g.novaPraiaAberta()).toBe(true);
 });
