@@ -481,3 +481,154 @@ A pedido do usuário, gerado e preparado para publicação o APK com a mochila 8
 - SHA256: `c777aec4182a5c52d0ad05c89c47bcd1eb4868d73a17a3c1b06585b3b64aae9e`. Arquivo de conferência ao lado do APK.
 - Entrega pelo ramo existente `entrega/apk-teste-20261017`, com link direto ao APK deste commit, sem abrir pastas ou depender dos artefatos de Actions. A `main` não é alterada.
 - APK de depuração e anúncios em modo de teste. Não houve instalação em celular físico nesta tarefa. As configurações Android versionadas permaneceram intactas.
+
+
+## Parte C (OpenCode) — mochila 20, orla, economia e builds de teste (19/10/2026)
+
+Pedido de seis partes executado na cópia da nuvem, a partir de `98c9433`. Li o `CLAUDE.md` e o `AGENTS.md` anexados pelo usuário, vindos do PC, além das instruções e documentos do checkout. Os anexos descreviam uma versão anterior (save v4); foram usados como contexto, seguindo as seis mudanças atuais. Não houve acesso remoto à pasta do PC. O `../CLAUDE.md` não existe neste ambiente. O roteiro antigo já estava em `AGUARDANDO REVISÃO`; o pedido direto autorizou esta rodada, inclusive o ajuste Android necessário à parte 5, e o status foi mantido.
+
+### Commits por parte
+
+| Parte | Commit | Validação antes do commit |
+|---|---|---|
+| 1. Mochila | `5250150` | 106 testes e build passaram |
+| 2. Sorveteria | `c7474bf` | 107 testes e build passaram |
+| 3. Próximo lote cercado | `6a1675b` | 108 testes e build passaram |
+| 4. Economia | `9fa1cde` | 111 testes e build passaram; três sementes nas metas |
+| 5. Debug/release | `6336ae5` | 113 testes e build passaram; APK/AAB e recompilações consecutivas conferidos |
+| 6. Compras livres | `94aee5d` | 117 testes e build passaram |
+
+Um commit adicional registra este relatório e o APK de entrega. Ramo de trabalho: `melhorias/mochila20-orla-economia`.
+
+### Implementação
+
+1. **Mochila:** começa em 20, a capacidade da mesa do açaí, e melhora para 30, 40 e 60. A pilha desenha todos os itens nas costas e cresce por fileiras. Ajudantes gerais: 10/15/20/30; sorveteiros e instrutores: 5/7/10/15, com arredondamento para baixo. Contratados antes e depois da melhoria acompanham a capacidade. O save v5 é migrado para três melhorias; o valor da quarta melhoria retirada é devolvido.
+2. **Sorveteria:** permanece logo à direita da Barraca, na grama, com balcão em y=862, alinhado aos outros quiosques. Ajustei sua altura e limitei a cobertura à grama. As filas dos quiosques começam na areia, em y≤800; entrega e trabalho ficam do lado do calçadão. Testes verificam alinhamento, faixa e fila sem sobrepor entrega nem o lote do Chuveirão.
+3. **Exploração:** nas Praias 1–5, jogador e câmera alcançam o próximo lote. Esse lote tem cerca, silhueta e placa “Na próxima praia: X”; o mapa termina logo depois. A cerca é sólida, inclusive em deslocamentos grandes. Da Praia 6 em diante, a orla inteira fica disponível, com todos os lotes fechados sólidos. Abrir remove a colisão. Quadros de abertura ficam fora da cerca, e jogador/bot/ajudantes usam os desvios. Testes cobrem limites, câmera, colisão, abertura e rotas; as três sementes concluem as dez praias sem travar.
+4. **Economia:** primeiras melhorias da Barraca entre R$ 10 e R$ 200, com granola a R$ 17. Curvas de melhoria: 1,15 por nível; Chuveirão, 1,13; Quadra, 1,08. Cardápios e serviços crescem com fator 1,07. Preços atuais são arredondados ao real, e as mochilas seguem a curva normal. As curvas antigas mais íngremes ficam congeladas exclusivamente para migração, sem participar das novas compras. A primeira praia usa marcos em 5/15/32/50, cada um dobrando o lucro; nas demais continuam 5/10/15/20. Os níveis de viagem, em `ECONOMIA.niveisViagem`, são 33/50/40/25/50/10/10/10/10/10; a décima praia termina no título do torneio. Mais compras pequenas distribuem o progresso antes da viagem. As áreas antigas têm desconto de 80% nas primeiras seis praias e 90% nas últimas quatro. As metas de duração, total e abertura das áreas antigas foram preservadas; o limite de espera foi apertado para 90 s nas Praias 1–3.
+5. **Modo teste:** `npm run dev` permite ∞. O Gradle usa `VITE_MODO_TESTE=true` com `android-debug` para `assembleDebug`, e força `android-release`/false para `bundleRelease`. Os assets de cada variante têm pastas separadas, e o HTML do release não contém o botão. Teste automatizado confirma a ausência mesmo com a variável de debug ligada no ambiente. Corrigida a cópia incremental para sincronizar os arquivos, evitando a duplicação de `index.html`; editar/restaurar o HTML e compilar debug+release em duas execuções consecutivas passou. Os arquivos empacotados foram comparados byte a byte com os gerados para cada variante.
+6. **Compras livres:** todos os quadros visíveis podem ser pagos sem comprar o anterior. Só estrutura física ausente ou etapa do campeonato bloqueia, com “Precisa de: X”. Retirei a restrição de ordem da mochila; sua apresentação continua respeitando um quadro por ponto. A proteção contra gastar em cadeia no mesmo ponto permanece: o sucessor aparece ao sair do quadro. Os outros quadros ficam disponíveis, inclusive durante uma partida. Testes pagam os dois quadros de cada uma das dez áreas separadamente, preservam pagamentos parciais e verificam dependências reais. No ∞, até um quadro de R$ 3 bilhões é quitado de uma vez, sem saldo negativo; dinheiro do modo teste não entra no save.
+
+O formato passou a **v7**. Saves v4/v5/v6 são convertidos preservando compras e identidade do mundo; pagamentos que já cobrem um preço novo completam a compra e devolvem o excesso. O v3 mantém sua conversão anterior. Atualizados CLAUDE, GDD e molde da orla.
+
+### Antes e depois — semente 1
+
+“Antes” foi medido com `npm run sim` antes das alterações, e a cadência anterior foi reproduzida diretamente do commit `98c9433`. “Depois” é a execução final do mesmo comando, após implementar as seis partes.
+
+| Praia | Meta (min) | Antes (min) | Depois (min) | Espera antes | Espera depois |
+|---|---|---:|---:|---:|---:|
+| 1 | 8 a 10 | 8.5 | 9.9 | 104 s | 79 s |
+| 2 | 15 a 20 | 17.2 | 16.8 | 120 s | 74 s |
+| 3 | 20 a 25 | 21.2 | 20.4 | 99 s | 81 s |
+| 4 | 25 a 35 | 27.7 | 26.8 | 96 s | 114 s |
+| 5 | 35 a 45 | 36.7 | 39.0 | 114 s | 70 s |
+| 6 | 45 a 55 | 50.3 | 46.5 | 92 s | 138 s |
+| 7 | 55 a 65 | 61.0 | 63.3 | 92 s | 145 s |
+| 8 | 60 a 75 | 64.9 | 73.1 | 77 s | 129 s |
+| 9 | 70 a 85 | 79.4 | 77.1 | 74 s | 130 s |
+| 10 | 80 a 95 | 94.8 | 90.9 | 78 s | 114 s |
+
+### Preços e totais — antes e depois
+
+| Primeira praia | Antes | Depois |
+|---|---:|---:|
+| Máquina de açaí 2 | R$ 110 | R$ 10 |
+| Guarda-sol | R$ 165 | R$ 12 |
+| Açaí com granola | R$ 555 | R$ 17 |
+| Primeira melhoria da mochila | R$ 835 (12 itens) | R$ 20 (30 itens) |
+
+| Semente | Total antes (min) | Total depois (min) | Maior espera P1–P3 antes | Maior espera P1–P3 depois |
+|---|---:|---:|---:|---:|
+| 1 | 461.5 | 463.8 | 120 s | 81 s |
+| 2 | 455.6 | 460.5 | 115 s | 85 s |
+| 3 | 462.3 | 459.2 | 117 s | 82 s |
+
+### Cadência na primeira praia
+
+Médias de segundos entre compras pagas, incluindo a compra da viagem. A classificação usa o instante da compra: até cinco minutos e depois. As pausas e reações do bot humano foram mantidas.
+
+| Semente | Antes: primeiros 5 min | Depois: primeiros 5 min | Antes: após 5 min | Depois: após 5 min |
+|---|---:|---:|---:|---:|
+| 1 | 31.7 s | 12.0 s | 85.2 s | 30.6 s |
+| 2 | 31.1 s | 10.8 s | 85.7 s | 34.8 s |
+| 3 | 31.4 s | 11.1 s | 88.2 s | 32.2 s |
+
+### Tabelas finais do simulador
+
+### Semente 1
+
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 9.9 | 8 a 10 | - | 79 s | 2 |
+| 2 | 16.8 | 15 a 20 | 0% | 74 s | 36 |
+| 3 | 20.4 | 20 a 25 | 7% | 81 s | 82 |
+| 4 | 26.8 | 25 a 35 | 21% | 114 s | 165 |
+| 5 | 39.0 | 35 a 45 | 20% | 70 s | 349 |
+| 6 | 46.5 | 45 a 55 | 21% | 138 s | 587 |
+| 7 | 63.3 | 55 a 65 | 17% | 145 s | 1109 |
+| 8 | 73.1 | 60 a 75 | 21% | 129 s | 1733 |
+| 9 | 77.1 | 70 a 85 | 22% | 130 s | 2723 |
+| 10 | 90.9 | 80 a 95 | 19% | 114 s | 3902 |
+
+Ritmo na Praia 1: 12.0 s/compra nos primeiros 5 min; 30.6 s/compra depois (inclui viagem).
+Total: 463.8 min (7.7 h)
+Tudo dentro da faixa.
+
+### Semente 2
+
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 8.9 | 8 a 10 | - | 62 s | 2 |
+| 2 | 16.5 | 15 a 20 | 0% | 72 s | 36 |
+| 3 | 20.5 | 20 a 25 | 7% | 85 s | 81 |
+| 4 | 26.9 | 25 a 35 | 21% | 112 s | 164 |
+| 5 | 39.2 | 35 a 45 | 20% | 67 s | 349 |
+| 6 | 46.8 | 45 a 55 | 21% | 143 s | 588 |
+| 7 | 58.9 | 55 a 65 | 19% | 134 s | 1059 |
+| 8 | 74.7 | 60 a 75 | 20% | 139 s | 1735 |
+| 9 | 76.5 | 70 a 85 | 22% | 127 s | 2680 |
+| 10 | 91.7 | 80 a 95 | 19% | 127 s | 3905 |
+
+Ritmo na Praia 1: 10.8 s/compra nos primeiros 5 min; 34.8 s/compra depois (inclui viagem).
+Total: 460.5 min (7.7 h)
+Tudo dentro da faixa.
+
+### Semente 3
+
+| Praia | Minutos | Meta | Áreas antigas abertas | Maior espera | Fama ganha |
+|---|---|---|---|---|---|
+| 1 | 9.4 | 8 a 10 | - | 53 s | 2 |
+| 2 | 16.7 | 15 a 20 | 0% | 76 s | 36 |
+| 3 | 20.5 | 20 a 25 | 6% | 82 s | 82 |
+| 4 | 26.7 | 25 a 35 | 21% | 109 s | 164 |
+| 5 | 39.0 | 35 a 45 | 20% | 69 s | 349 |
+| 6 | 47.0 | 45 a 55 | 21% | 140 s | 587 |
+| 7 | 62.4 | 55 a 65 | 17% | 140 s | 1108 |
+| 8 | 68.9 | 60 a 75 | 22% | 124 s | 1675 |
+| 9 | 76.4 | 70 a 85 | 22% | 126 s | 2680 |
+| 10 | 92.2 | 80 a 95 | 19% | 120 s | 3903 |
+
+Ritmo na Praia 1: 11.1 s/compra nos primeiros 5 min; 32.2 s/compra depois (inclui viagem).
+Total: 459.2 min (7.7 h)
+Tudo dentro da faixa.
+
+Os totais finais foram **463,8 / 460,5 / 459,2 min**, dentro de 450–540 min (7,5–9 h). Todas as durações por praia, fama crescente e abertura das áreas antigas nos primeiros 25% passaram. A maior espera nas três primeiras praias ficou abaixo de 85 s nas três sementes; nas demais, abaixo de 150 s. Os valores exibidos nas tabelas são arredondados; as asserções usam a precisão completa.
+
+### APK e validação final
+
+- `npm test`: **117 testes passaram em 9 arquivos**, incluindo economia, colisões, compras, migrações e remoção do botão no release.
+- `npm run build`: passou. `npm run sim`: três sementes, todas dentro das metas; nenhuma travou. `git diff --check`: sem erros.
+- `assembleDebug` e `bundleRelease`: passaram. ZIPs íntegros; APK contém o botão ∞ e AAB não contém. Conferidos também em recompilações consecutivas e com assets gerados por variante.
+- Verificação visual em Chromium headless: mochilas 20/30/40/60, próximo lote com cerca/silhueta/placa, terrenos futuros da Praia 6 e dependência da fritadeira. Nenhuma exceção de JavaScript. Capturas e logs em `/workspace/barraca-validacao/`, fora do Git.
+- APK de teste atualizado em `downloads/barraca-na-praia-debug.apk` e `dist-android/barraca-na-praia-debug.apk`, **10,4 MiB**, pacote `com.jogosbr.barracanapraia`, versão 1.0.0 (versionCode 1). Assinatura válida e igual à versão anterior. SHA256: `e46ec71ec83b6005f606e91c184a3ddcc037da4f3c9e9c76ea898fbede284f48`.
+- Entrega no ramo existente `entrega/apk-teste-20261017`, com link direto ao APK do commit final, como solicitado nas entregas anteriores. A main não é alterada. O AAB foi gerado para validação, sem envio à loja.
+
+### O que ficou fraco ou não deu
+
+Nenhuma das seis partes foi abandonada. Os tempos intermediários fora da faixa foram corrigidos na ECONOMIA, sem afrouxar as metas. A cadência 10–20/30–60 foi aferida na primeira praia com o bot humano; nas demais, reconstruir as áreas antigas permite compras rápidas em sequência. Não foi imposto um tempo mínimo que impeça uma compra disponível.
+
+Não houve teste em celular físico, avaliação de FPS no aparelho nem acesso remoto ao Windows. O APK de depuração tem ∞ e anúncios de teste; o release foi conferido sem o botão. A experiência manual no aparelho continua sendo a etapa de revisão.
+
+### Dúvidas
+
+Nenhuma dúvida bloqueante.
